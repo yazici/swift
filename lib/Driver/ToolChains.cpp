@@ -1841,6 +1841,14 @@ bool toolchains::Android::shouldProvideRPathToLinker() const {
   return false;
 }
 
+std::string toolchains::Fuchsia::getDefaultLinker() const {
+  return "lld";
+}
+
+bool toolchains::Fuchsia::shouldProvideRPathToLinker() const {
+  return false;
+}
+
 std::string toolchains::Cygwin::getDefaultLinker() const {
   // Cygwin uses the default BFD linker, even on ARM.
   return "";

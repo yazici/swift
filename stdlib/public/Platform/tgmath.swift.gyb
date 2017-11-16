@@ -281,6 +281,7 @@ public func ${ufunc}(_ x: ${T}) -> ${T} {
 public func ${bfunc}(_ lhs: ${T}, _ rhs: ${T}) -> ${T} {
   return ${T}(${bfunc}${f}(${CT}(lhs), ${CT}(rhs)))
 }
+
 %  if T == 'Float80':
 #endif
 %  end

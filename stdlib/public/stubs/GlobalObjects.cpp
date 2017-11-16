@@ -106,6 +106,30 @@ swift::_SwiftEmptySetStorage swift::_swiftEmptySetStorage = {
   0 // int entries; (zero'd bits)
 };
 
+#if defined(__Fuchsia__)
+#include <zircon/syscalls.h>
+static __swift_uint64_t randomUInt64() {
+  __swift_uint64_t returnval;
+  size_t remaining = sizeof(__swift_uint64_t);
+  unsigned char* offset = reinterpret_cast<unsigned char*>(&returnval);
+  size_t actual;
+  size_t read_len;
+  do {
+    // We can only read a limited number of bytes via the syscall at a time.
+    read_len =
+        remaining > ZX_CPRNG_DRAW_MAX_LEN ? ZX_CPRNG_DRAW_MAX_LEN : remaining;
+
+    zx_status_t status = zx_cprng_draw(offset, read_len, &actual);
+
+    // Decrement the remainder and update the pointer offset in the buffer.
+    remaining -= actual;
+    offset += actual;
+
+  } while (remaining > 0);
+  return returnval;
+}
+#endif
+
 static swift::_SwiftHashingParameters initializeHashingParameters() {
   // Setting the environment variable SWIFT_DETERMINISTIC_HASHING to "1"
   // disables randomized hash seeding. This is useful in cases we need to ensure
@@ -122,6 +146,8 @@ static swift::_SwiftHashingParameters initializeHashingParameters() {
   arc4random_buf(&seed0, sizeof(seed0));
   arc4random_buf(&seed1, sizeof(seed1));
   return { seed0, seed1, false };
+#elif defined(__Fuchsia__)
+  return { randomUInt64(), randomUInt64(), false };
 #else
   std::random_device randomDevice;
   std::mt19937_64 engine(randomDevice());

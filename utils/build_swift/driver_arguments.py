@@ -138,6 +138,7 @@ def _apply_default_arguments(args):
         args.build_tvos = False
         args.build_watchos = False
         args.build_android = False
+        args.build_fuchsia = False
         args.build_benchmarks = False
         args.build_external_benchmarks = False
         args.build_lldb = False
@@ -165,6 +166,9 @@ def _apply_default_arguments(args):
 
     if not args.android or not args.build_android:
         args.build_android = False
+
+    if not args.fuchsia or not args.build_fuchsia:
+        args.build_fuchsia = False
 
     # --validation-test implies --test.
     if args.validation_test:
@@ -222,11 +226,15 @@ def _apply_default_arguments(args):
     if not args.build_android:
         args.test_android_host = False
 
+    if not args.build_fuchsia:
+        args.test_fuchsia_host = False
+
     if not args.host_test:
         args.test_ios_host = False
         args.test_tvos_host = False
         args.test_watchos_host = False
         args.test_android_host = False
+        args.test_fuchsia_host = False
 
 
 def create_argument_parser():
@@ -262,6 +270,7 @@ def create_argument_parser():
     # -------------------------------------------------------------------------
     # Top-level options
 
+<<<<<<< HEAD
     option(['-n', '--dry-run'], store_true,
            help='print the commands that would be executed, but do not '
                 'execute them')
@@ -299,6 +308,10 @@ def create_argument_parser():
 
     option('--android', toggle_true,
            help='also build for Android')
+
+
+    option('--fuchsia', toggle_true,
+           help='also build for Fuchsia')
 
     option('--swift-analyze-code-coverage', store,
            choices=['false', 'not-merged', 'merged'],
@@ -406,6 +419,7 @@ def create_argument_parser():
                 'separated options "-DCMAKE_VAR1=YES,-DCMAKE_VAR2=/tmp". Can '
                 'be called multiple times to add multiple such options.')
 
+
     option('--build-args', store,
            type=argparse.ShellSplitType(),
            default=[],
@@ -460,10 +474,8 @@ def create_argument_parser():
     option('--coverage-db', store_path,
            help='coverage database to use when prioritizing testing')
 
-    parser.add_argument(
-        "--use-lld-linker",
-        action=arguments.action.enable,
-        help="use lld linker instead of gold for Linux toolchains")
+    option("--use-lld-linker", store_false,
+           help="use lld linker instead of gold for Linux toolchains")
 
     # -------------------------------------------------------------------------
     in_group('Host and cross-compilation targets')
@@ -808,6 +820,9 @@ def create_argument_parser():
     option('--skip-build-android', toggle_false('build_android'),
            help='skip building Swift stdlibs for Android')
 
+    option('--skip-build-fuchsia', toggle_false('build_fuchsia'),
+           help='skip building Swift stdlibs for Fuchsia')
+
     option('--skip-build-benchmarks', toggle_false('build_benchmarks'),
            help='skip building Swift Benchmark Suite')
 
@@ -861,6 +876,11 @@ def create_argument_parser():
            help='skip testing Android device targets on the host machine (the '
                 'phone itself)')
 
+    option('--skip-test-fuchsia-host',
+           toggle_false('test_fuchsia_host'),
+           help='skip testing Fuchsia device targets on the host machine (the '
+                'device itself)')
+
     # -------------------------------------------------------------------------
     in_group('Build settings specific for LLVM')
 
@@ -903,6 +923,31 @@ def create_argument_parser():
                 'products will be deployed. If running host tests, specify '
                 'the "{}" directory.'.format(
                     android.adb.commands.DEVICE_TEMP_DIR))
+
+    # -------------------------------------------------------------------------
+    in_group('Build settings for Fuchsia')
+
+    option('--fuchsia-x86_64-libs', store_path,
+           help='Path to the Fuchsia x86_64 shared library directory '
+                '(eg: $FUCHSIA_DIR/out/debug-x86-64/x64-shared)')
+    option('--fuchsia-x86_64-sysroot', store_path,
+           help='Path to a x86_64 compiled zircon sysroot '
+                '(eg: $FUCHSIA_DIR/out/build-zircon/build-zircon-pc-x86-64/sysroot)')
+    option('--fuchsia-aarch64-libs', store_path,
+           help='Path to the Fuchsia aarch64 shared library directory '
+                '(eg: $FUCHSIA_DIR/out/debug-aarch64/arm64-shared)')
+    option('--fuchsia-aarch64-sysroot', store_path,
+           help='Path to a aarch64 compiled zircon sysroot '
+                '(eg: $FUCHSIA_DIR/out/build-zircon/build-zircon-qemu-arm64/sysroot)')
+    option('--fuchsia-icu-uc-include', store_path,
+           help='Path to a directory containing a headers for ICU UC '
+                '(eg: $FUCHSIA_DIR/third_party/icu/source/common)')
+    option('--fuchsia-icu-i18n-include', store_path,
+           help='Path to a directory containing a headers for ICU i18n '
+                '(eg: $FUCHSIA_DIR/third_party/icu/source/i18n)')
+    option('--fuchsia-toolchain-path', store_path,
+           help='Path to a directory containing a Fuchsia clang toolchain'
+                '(eg: $FUCHSIA_DIR/buildtools/linux-x64/clang)')
 
     # -------------------------------------------------------------------------
     in_group('Unsupported options')

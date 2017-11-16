@@ -308,7 +308,7 @@ public func vfork() -> Int32 {
 // signal.h
 //===----------------------------------------------------------------------===//
 
-#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS) || os(Fuchsia)
 public var SIG_DFL: sig_t? { return nil }
 public var SIG_IGN: sig_t { return unsafeBitCast(1, to: sig_t.self) }
 public var SIG_ERR: sig_t { return unsafeBitCast(-1, to: sig_t.self) }
@@ -355,13 +355,13 @@ internal var _ignore = _UnsupportedPlatformError()
 // semaphore.h
 //===----------------------------------------------------------------------===//
 
-#if !os(Windows) 
+#if !os(Windows)
 /// The value returned by `sem_open()` in the case of failure.
 public var SEM_FAILED: UnsafeMutablePointer<sem_t>? {
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
   // The value is ABI.  Value verified to be correct for OS X, iOS, watchOS, tvOS.
   return UnsafeMutablePointer<sem_t>(bitPattern: -1)
-#elseif os(Linux) || os(FreeBSD) || os(PS4) || os(Android) || os(Cygwin) || os(Haiku)
+#elseif os(Linux) || os(FreeBSD) || os(PS4) || os(Android) || os(Cygwin) || os(Fuchsia) || os(Haiku)
   // The value is ABI.  Value verified to be correct on Glibc.
   return UnsafeMutablePointer<sem_t>(bitPattern: 0)
 #else
@@ -369,6 +369,8 @@ public var SEM_FAILED: UnsafeMutablePointer<sem_t>? {
 #endif
 }
 
+#if !os(Fuchsia)
+// sem_open is defined but not implemented on Fuchsia
 public func sem_open(
   _ name: UnsafePointer<CChar>,
   _ oflag: Int32
@@ -386,6 +388,7 @@ public func sem_open(
   return _stdlib_sem_open4(name, oflag, mode, value)
     .assumingMemoryBound(to: sem_t.self)
 }
+#endif
 #endif
 
 //===----------------------------------------------------------------------===//
