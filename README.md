@@ -27,7 +27,7 @@ again.
 ## Code Reviews
 
 All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult GitHub Help for more
+use GitHub pull requests for this purpose. Consult [GitHub Help](https://help.github.com/) for more
 information on using pull requests.
 
 ## Upstream Policies
