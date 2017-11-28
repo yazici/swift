@@ -124,9 +124,9 @@ function(_add_variant_c_compile_link_flags)
   endif()
 
   if(IS_DARWIN)
-    list(APPEND result "-isysroot" "${SWIFT_SDK_${CFLAGS_SDK}_PATH}")
-  elseif(NOT SWIFT_COMPILER_IS_MSVC_LIKE AND NOT "${SWIFT_SDK_${CFLAGS_SDK}_PATH}" STREQUAL "/")
-    list(APPEND result "--sysroot=${SWIFT_SDK_${CFLAGS_SDK}_PATH}")
+    list(APPEND result "-isysroot" "${SWIFT_SDK_${CFLAGS_SDK}_ARCH_${CFLAGS_ARCH}_PATH}")
+  elseif(NOT SWIFT_COMPILER_IS_MSVC_LIKE AND NOT "${SWIFT_SDK_${CFLAGS_SDK}_ARCH_${CFLAGS_ARCH}_PATH}" STREQUAL "/")
+    list(APPEND result "--sysroot=${SWIFT_SDK_${CFLAGS_SDK}_ARCH_${CFLAGS_ARCH}_PATH}")
   endif()
 
   if("${CFLAGS_SDK}" STREQUAL "ANDROID")
@@ -294,9 +294,9 @@ function(_add_variant_swift_compile_flags
     sdk arch build_type enable_assertions result_var_name)
   set(result ${${result_var_name}})
 
-  # On Windows, we don't set SWIFT_SDK_WINDOWS_PATH, so don't include it.
+  # On Windows, we don't set SWIFT_SDK_WINDOWS_ARCH_{ARCH}_PATH, so don't include it.
   if (NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-    list(APPEND result "-sdk" "${SWIFT_SDK_${sdk}_PATH}")
+    list(APPEND result "-sdk" "${SWIFT_SDK_${sdk}_ARCH_${arch}_PATH}")
   endif()
 
   is_darwin_based_sdk("${sdk}" IS_DARWIN)
@@ -314,7 +314,7 @@ function(_add_variant_swift_compile_flags
 
   if(IS_DARWIN)
     list(APPEND result
-        "-F" "${SWIFT_SDK_${sdk}_PATH}/../../../Developer/Library/Frameworks")
+        "-F" "${SWIFT_SDK_${sdk}_ARCH_${arch}_PATH}/../../../Developer/Library/Frameworks")
   endif()
 
   is_build_type_optimized("${build_type}" optimized)
@@ -515,11 +515,8 @@ function(_add_swift_lipo_target)
         DEPENDS ${source_targets})
   else()
     # We don't know how to create fat binaries for other platforms.
-    add_custom_command_target(unused_var
-        COMMAND "${CMAKE_COMMAND}" "-E" "copy" "${source_binaries}" "${LIPO_OUTPUT}"
-        CUSTOM_TARGET_NAME "${LIPO_TARGET}"
-        OUTPUT "${LIPO_OUTPUT}"
-        DEPENDS ${source_targets})
+    message(FATAL_ERROR
+        "It's not possible to build a universal binary for a non-Darwin platform")
   endif()
 endfunction()
 
@@ -1091,8 +1088,17 @@ function(_add_swift_library_single target name)
   set(link_flags ${SWIFTLIB_SINGLE_LINK_FLAGS})
   set(library_search_directories
       "${SWIFTLIB_DIR}/${SWIFTLIB_SINGLE_SUBDIR}"
-      "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFTLIB_SINGLE_SUBDIR}"
+      "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFTLIB_SINGLE_SUBDIR}")
+
+  if(IS_DARWIN)
+    # Since we lipo each arch together on Darwin, search in the common directory
+    list(APPEND library_search_directories
       "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFT_SDK_${SWIFTLIB_SINGLE_SDK}_LIB_SUBDIR}")
+  else()
+    # No fat binaries on other archs so search in an arch specific directory
+    list(APPEND library_search_directories
+      "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFT_SDK_${SWIFTLIB_SINGLE_SDK}_LIB_SUBDIR}/${SWIFTLIB_SINGLE_ARCHITECTURE}")
+  endif()
 
   # Add variant-specific flags.
   if(SWIFTLIB_SINGLE_TARGET_LIBRARY)
@@ -1233,8 +1239,18 @@ function(_add_swift_library_single target name)
         COMPILE_FLAGS " ${c_compile_flags}")
     set(library_search_directories
         "${SWIFTSTATICLIB_DIR}/${SWIFTLIB_SINGLE_SUBDIR}"
-        "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFTLIB_SINGLE_SUBDIR}"
+        "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFTLIB_SINGLE_SUBDIR}")
+
+    if(IS_DARWIN)
+      # Darwin lipos each arch into a lib in the root directory so search there.
+      list(APPEND library_search_directories
         "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFT_SDK_${SWIFTLIB_SINGLE_SDK}_LIB_SUBDIR}")
+    else()
+      # Other platforms search in an arch specific directory.
+      list(APPEND library_search_directories
+        "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/../lib/swift/${SWIFT_SDK_${SWIFTLIB_SINGLE_SDK}_LIB_SUBDIR}/${SWIFTLIB_SINGLE_ARCHITECTURE}")
+    endif()
+
     swift_target_link_search_directories("${target_static}" "${library_search_directories}")
     target_link_libraries("${target_static}" PRIVATE
         ${SWIFTLIB_SINGLE_PRIVATE_LINK_LIBRARIES})
@@ -1490,11 +1506,13 @@ function(add_swift_library name)
         continue()
       endif()
 
+      is_darwin_based_sdk("${sdk}" IS_DARWIN)
       set(THIN_INPUT_TARGETS)
 
       # For each architecture supported by this SDK
       foreach(arch ${SWIFT_SDK_${sdk}_ARCHITECTURES})
         # Configure variables for this subdirectory.
+        set(arch_subdir "${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}")
         set(VARIANT_SUFFIX "-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
         set(VARIANT_NAME "${name}${VARIANT_SUFFIX}")
         set(MODULE_VARIANT_SUFFIX "-swiftmodule${VARIANT_SUFFIX}")
@@ -1619,9 +1637,9 @@ function(add_swift_library name)
         # Add PrivateFrameworks, rdar://28466433
         set(swiftlib_link_flags_all ${SWIFTLIB_LINK_FLAGS})
         if(SWIFTLIB_IS_SDK_OVERLAY)
-          list(APPEND swiftlib_swift_compile_flags_all "-Fsystem" "${SWIFT_SDK_${sdk}_PATH}/System/Library/PrivateFrameworks/")
+          list(APPEND swiftlib_swift_compile_flags_all "-Fsystem" "${SWIFT_SDK_${sdk}_ARCH_${arch}_PATH}/System/Library/PrivateFrameworks/")
         endif()
-       
+
        if("${sdk}" STREQUAL "IOS_SIMULATOR")
          if("${name}" STREQUAL "swiftMediaPlayer")
            message("DISABLING AUTOLINK FOR swiftMediaPlayer")
@@ -1669,47 +1687,107 @@ function(add_swift_library name)
         )
 
         if(NOT SWIFTLIB_OBJECT_LIBRARY)
-          # Add dependencies on the (not-yet-created) custom lipo target.
-          foreach(DEP ${SWIFTLIB_LINK_LIBRARIES})
-            if (NOT "${DEP}" STREQUAL "icucore")
-              add_dependencies(${VARIANT_NAME}
-                "${DEP}-${SWIFT_SDK_${sdk}_LIB_SUBDIR}")
-            endif()
-          endforeach()
-
-          if (SWIFTLIB_IS_STDLIB AND SWIFTLIB_STATIC)
+          # On Darwin we use lipo'd libraries for dependencies.
+          # On other targets without universal binaries we just install the target lib
+          if (IS_DARWIN)
             # Add dependencies on the (not-yet-created) custom lipo target.
             foreach(DEP ${SWIFTLIB_LINK_LIBRARIES})
               if (NOT "${DEP}" STREQUAL "icucore")
-                add_dependencies("${VARIANT_NAME}-static"
-                  "${DEP}-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-static")
+                add_dependencies(${VARIANT_NAME}
+                  "${DEP}-${SWIFT_SDK_${sdk}_LIB_SUBDIR}")
               endif()
             endforeach()
-          endif()
 
-          # Note this thin library.
-          list(APPEND THIN_INPUT_TARGETS ${VARIANT_NAME})
+            if (SWIFTLIB_IS_STDLIB AND SWIFTLIB_STATIC)
+              # Add dependencies on the (not-yet-created) custom lipo target.
+              foreach(DEP ${SWIFTLIB_LINK_LIBRARIES})
+                if (NOT "${DEP}" STREQUAL "icucore")
+                  add_dependencies("${VARIANT_NAME}-static"
+                    "${DEP}-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-static")
+                endif()
+              endforeach()
+            endif()
+            # Note this thin library.
+            list(APPEND THIN_INPUT_TARGETS ${VARIANT_NAME})
+          else()
+
+            foreach(DEP ${SWIFTLIB_LINK_LIBRARIES})
+              if (NOT "${DEP}" STREQUAL "icucore")
+                add_dependencies(${VARIANT_NAME}
+                  "${DEP}-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
+              endif()
+            endforeach()
+
+            if (SWIFTLIB_IS_STDLIB AND SWIFTLIB_STATIC)
+              foreach(DEP ${SWIFTLIB_LINK_LIBRARIES})
+                if (NOT "${DEP}" STREQUAL "icucore")
+                  add_dependencies("${VARIANT_NAME}-static"
+                    "${DEP}-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}-static")
+                endif()
+              endforeach()
+            endif()
+
+            if(SWIFTLIB_TARGET_LIBRARY)
+              foreach(arch ${SWIFT_SDK_${sdk}_ARCHITECTURES})
+                set(VARIANT_SUFFIX "-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
+                if(TARGET "swift-stdlib${VARIANT_SUFFIX}" AND TARGET "swift-test-stdlib${VARIANT_SUFFIX}")
+                  add_dependencies("swift-stdlib${VARIANT_SUFFIX}"
+                    "${VARIANT_NAME}")
+                  if (SWIFTLIB_IS_STDLIB AND SWIFTLIB_STATIC)
+                    add_dependencies("swift-stdlib${VARIANT_SUFFIX}"
+                      "${VARIANT_NAME}-static")
+                  endif()
+
+                  if((NOT "${name}" STREQUAL "swiftStdlibCollectionUnittest") AND
+                     (NOT "${name}" STREQUAL "swiftStdlibUnicodeUnittest"))
+                    add_dependencies("swift-test-stdlib${VARIANT_SUFFIX}"
+                        "${VARIANT_NAME}")
+                    if (SWIFTLIB_IS_STDLIB AND SWIFTLIB_STATIC)
+                      add_dependencies("swift-test-stdlib${VARIANT_SUFFIX}"
+                        "${VARIANT_NAME}-static")
+                    endif()
+                  endif()
+                endif()
+
+                # For all other targets we just install the lib at the arch subdirectory
+                if(SWIFTLIB_SHARED)
+                  set(resource_dir "swift")
+                  set(file_permissions
+                      OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                      GROUP_READ GROUP_EXECUTE
+                      WORLD_READ WORLD_EXECUTE)
+                  set(install_libpath
+                    "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}/${CMAKE_SHARED_LIBRARY_PREFIX}${name}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
+                else()
+                  set(resource_dir "swift_static")
+                  set(file_permissions
+                      OWNER_READ OWNER_WRITE
+                      GROUP_READ
+                      WORLD_READ)
+                  set(install_libpath
+                    "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}/${CMAKE_STATIC_LIBRARY_PREFIX}${name}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+                endif()
+
+                swift_install_in_component("${SWIFTLIB_INSTALL_IN_COMPONENT}"
+                  FILES "${install_libpath}"
+                  DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/${resource_dir}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}"
+                  PERMISSIONS ${file_permissions})
+              endforeach()
+            endif()
+          endif()
         endif()
       endforeach()
 
-      if(NOT SWIFTLIB_OBJECT_LIBRARY)
+      # Only Darwin supports univeral binaries.
+      if (NOT SWIFTLIB_OBJECT_LIBRARY AND IS_DARWIN)
         # Determine the name of the universal library.
         if(SWIFTLIB_SHARED)
-          if("${sdk}" STREQUAL "WINDOWS")
-            set(UNIVERSAL_LIBRARY_NAME
-              "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${name}.dll")
-          else()
-            set(UNIVERSAL_LIBRARY_NAME
-              "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${name}${CMAKE_SHARED_LIBRARY_SUFFIX}")
-          endif()
+          set(UNIVERSAL_LIBRARY_NAME
+            "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${name}${CMAKE_SHARED_LIBRARY_SUFFIX}")
         else()
-          if("${sdk}" STREQUAL "WINDOWS")
-            set(UNIVERSAL_LIBRARY_NAME
-              "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${name}.lib")
-          else()
-            set(UNIVERSAL_LIBRARY_NAME
-              "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${name}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-          endif()
+          set(UNIVERSAL_LIBRARY_NAME
+            "${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${name}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         endif()
 
         set(lipo_target "${name}-${SWIFT_SDK_${sdk}_LIB_SUBDIR}")
@@ -1750,7 +1828,7 @@ function(add_swift_library name)
                 GROUP_READ
                 WORLD_READ)
           endif()
-
+          # On Darwin we install the lipo'd universal binary
           swift_install_in_component("${SWIFTLIB_INSTALL_IN_COMPONENT}"
               FILES "${UNIVERSAL_LIBRARY_NAME}"
               DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/${resource_dir}/${resource_dir_sdk_subdir}"
@@ -1870,7 +1948,7 @@ function(add_swift_library name)
           LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
           RUNTIME DESTINATION bin)
       swift_is_installing_component(dev is_installing)
-      
+
       if(NOT is_installing)
         set_property(GLOBAL APPEND PROPERTY SWIFT_BUILDTREE_EXPORTS ${name})
       else()
@@ -1918,8 +1996,16 @@ function(_add_swift_executable_single name)
   set(link_flags)
 
   # Prepare linker search directories.
-  set(library_search_directories
+  is_darwin_based_sdk("${SWIFTEXE_SINGLE_SDK}" IS_DARWIN)
+  if (IS_DARWIN)
+    # On darwin we search for fat libs at the root dir
+    set(library_search_directories
         "${SWIFTLIB_DIR}/${SWIFT_SDK_${SWIFTEXE_SINGLE_SDK}_LIB_SUBDIR}")
+  else()
+    # Other platforms we search for libs in arch specific directory
+    set(library_search_directories
+        "${SWIFTLIB_DIR}/${SWIFT_SDK_${SWIFTEXE_SINGLE_SDK}_LIB_SUBDIR}/${SWIFTEXE_SINGLE_ARCHITECTURE}")
+  endif()
 
   # Add variant-specific flags.
   _add_variant_c_compile_flags(
@@ -1945,7 +2031,6 @@ function(_add_swift_executable_single name)
     list(APPEND link_flags "-Wl,-no_pie")
   endif()
 
-  is_darwin_based_sdk("${SWIFTEXE_SINGLE_SDK}" IS_DARWIN)
   if(IS_DARWIN)
     list(APPEND link_flags
         "-Xlinker" "-rpath"
@@ -1954,12 +2039,19 @@ function(_add_swift_executable_single name)
 
   # Find the names of dependency library targets.
   #
-  # We don't add the ${ARCH} to the target suffix because we want to link
+  # On Darwin, we don't add the ${ARCH} to the target suffix because we want to link
   # against fat libraries.
-  _list_add_string_suffix(
+  if (IS_DARWIN)
+    _list_add_string_suffix(
       "${SWIFTEXE_SINGLE_LINK_FAT_LIBRARIES}"
       "-${SWIFT_SDK_${SWIFTEXE_SINGLE_SDK}_LIB_SUBDIR}"
       SWIFTEXE_SINGLE_LINK_FAT_LIBRARIES_TARGETS)
+  else()
+    _list_add_string_suffix(
+      "${SWIFTEXE_SINGLE_LINK_FAT_LIBRARIES}"
+      "-${SWIFT_SDK_${SWIFTEXE_SINGLE_SDK}_LIB_SUBDIR}-${SWIFTEXE_SINGLE_ARCHITECTURE}"
+      SWIFTEXE_SINGLE_LINK_FAT_LIBRARIES_TARGETS)
+  endif()
 
   handle_swift_sources(
       dependency_target
@@ -2069,12 +2161,20 @@ function(add_swift_target_executable name)
         add_dependencies("swift-test-stdlib${VARIANT_SUFFIX}" ${VARIANT_NAME})
       endif()
 
-      # Don't add the ${arch} to the suffix.  We want to link against fat
+      # On Darwin, don't add the ${arch} to the suffix.  We want to link against fat
       # libraries.
-      _list_add_string_suffix(
+      if (IS_DARWIN)
+        _list_add_string_suffix(
           "${SWIFTEXE_TARGET_DEPENDS}"
           "-${SWIFT_SDK_${sdk}_LIB_SUBDIR}"
           SWIFTEXE_TARGET_DEPENDS_with_suffix)
+      else()
+        _list_add_string_suffix(
+          "${SWIFTEXE_TARGET_DEPENDS}"
+          "${VARIANT_SUFFIX}"
+          SWIFTEXE_TARGET_DEPENDS_with_suffix)
+      endif()
+
       _add_swift_executable_single(
           ${VARIANT_NAME}
           ${SWIFTEXE_TARGET_SOURCES}
@@ -2193,7 +2293,7 @@ function(add_swift_host_tool executable)
 
     swift_is_installing_component(${ADDSWIFTHOSTTOOL_SWIFT_COMPONENT}
       is_installing)
-  
+
     if(NOT is_installing)
       set_property(GLOBAL APPEND PROPERTY SWIFT_BUILDTREE_EXPORTS ${executable})
     else()

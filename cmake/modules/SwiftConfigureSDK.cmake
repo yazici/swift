@@ -145,7 +145,6 @@ macro(configure_sdk_unix
 
   # Todo: this only supports building an SDK for one target arch only.
   set(SWIFT_SDK_${prefix}_NAME "${name}")
-  set(SWIFT_SDK_${prefix}_PATH "${sdkpath}")
   set(SWIFT_SDK_${prefix}_ARCH_${arch}_PATH "${sdkpath}")
   set(SWIFT_SDK_${prefix}_VERSION "don't use")
   set(SWIFT_SDK_${prefix}_BUILD_NUMBER "don't use")
