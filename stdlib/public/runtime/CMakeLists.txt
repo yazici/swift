@@ -94,7 +94,7 @@ if(SWIFT_BUILD_STATIC_STDLIB)
     if(NOT "${sdk}" STREQUAL "LINUX" AND
        NOT "${sdk}" STREQUAL "FREEBSD" AND
        NOT "${sdk}" STREQUAL "ANDROID" AND
-       NOT "${sdk}" STREQUAL "FUCHSIA"))
+       NOT "${sdk}" STREQUAL "FUCHSIA")
       continue()
     endif()
 
