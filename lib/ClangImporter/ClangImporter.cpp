@@ -43,6 +43,7 @@
 #include "clang/Basic/Module.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
+#include "clang/Basic/VirtualFileSystem.h"
 #include "clang/CodeGen/ObjectFilePCHContainerOperations.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/Utils.h"
@@ -63,6 +64,7 @@
 #include "llvm/Support/Path.h"
 #include <algorithm>
 #include <memory>
+#include <regex>
 
 using namespace swift;
 using namespace importer;
@@ -405,6 +407,84 @@ void ClangImporter::clearTypeResolver() {
 
 #define SHIMS_INCLUDE_FLAG "-isystem"
 
+
+void generateGlibcMap(StringRef glibcModuleMapPathIn,
+                      StringRef sysroot,
+                      const llvm::Triple &triple,
+                      clang::vfs::InMemoryFileSystem *imf) {
+
+  auto glibcBuffer = llvm::MemoryBuffer::getFile(glibcModuleMapPathIn);
+  if (!glibcBuffer){
+    llvm::errs() << "unable to read glibc.modulemap '"
+      << glibcModuleMapPathIn << "'";
+    return;
+  }
+
+  SmallString<128> includePath = sysroot;
+  if (triple.isOSHaiku()) {
+    llvm::sys::path::append(includePath,
+                            "system", "develop", "headers", "posix");
+  } else if (triple.isOSFuchsia()){
+    llvm::sys::path::append(includePath, "include");
+  } else {
+    llvm::sys::path::append(includePath, "usr", "include");
+  }
+
+  // Attempt to detect if the target sysroot is storing headers in a multiarch
+  // fashion like Debian or Ubuntu
+  SmallString<128> archIncludePath = includePath;
+  if (triple.isOSLinux() && !triple.isAndroid()) {
+    // The multiarch folder *should* match the triple passed in.
+    SmallString<128> triplePath = includePath;
+    llvm::sys::path::append(triplePath, triple.getTriple());
+    if (llvm::sys::fs::exists(triplePath)){
+      llvm::sys::path::append(archIncludePath, triple.getTriple());
+    } else {
+      // Attempt to match to folder manually. Scan the lib folder looking for
+      // a directory that parses as triple, parses as Linux and and has a
+      // matching arch as our target.
+      std::error_code EC;
+      llvm::sys::fs::directory_iterator DI(includePath, EC);
+      llvm::sys::fs::directory_iterator DE;
+      for (; !EC && DI != DE; DI = DI.increment(EC)) {
+        StringRef path = DI->path();
+        if (llvm::sys::fs::is_directory(path)) {
+          StringRef filename = llvm::sys::path::filename(path);
+          if (filename.count('-') > 2) {
+            // This folder smells like a triple. Parse it as one.
+            llvm::Triple folderTriple(filename);
+            if (folderTriple.isOSLinux() &&
+                folderTriple.getArch() == triple.getArch()) {
+              // This folder matches both as Linux and matches our arch so it's
+              // a likely canidate.
+              llvm::sys::path::append(archIncludePath, filename);
+              break;
+            }
+          }
+        }
+      }
+      if (EC) {
+        llvm::errs() << "Failed to enumerate include path '" << includePath <<
+          "' - " << EC.message();
+      }
+    }
+  }
+
+  std::string contents = glibcBuffer.get()->getBuffer();
+  contents = std::regex_replace(contents,
+                                std::regex("\\<system-include\\>"),
+                                std::string(includePath.str()));
+  contents = std::regex_replace(contents,
+                                std::regex("\\<system-arch-include\\>"),
+                                std::string(archIncludePath.str()));
+
+  // Replace the original glibc.modulemap with a modified one in the VFS overlay
+  // using the same path.
+  imf->addFile(glibcModuleMapPathIn, 0,
+               llvm::MemoryBuffer::getMemBuffer(StringRef(contents)));
+}
+
+
 static StringRef
 getMinVersionOptNameForDarwinTriple(const llvm::Triple &triple) {
   switch(getDarwinPlatformKind(triple)) {
@@ -429,7 +509,8 @@ getMinVersionOptNameForDarwinTriple(const llvm::Triple &triple) {
 static void
 getNormalInvocationArguments(std::vector<std::string> &invocationArgStrs,
                              ASTContext &ctx,
-                             const ClangImporterOptions &importerOpts) {
+                             const ClangImporterOptions &importerOpts,
+                             clang::vfs::InMemoryFileSystem *imf) {
   const auto &LangOpts = ctx.LangOpts;
   const llvm::Triple &triple = LangOpts.Target;
   SearchPathOptions &searchPathOpts = ctx.SearchPathOpts;
@@ -533,6 +614,18 @@ getNormalInvocationArguments(std::vector<std::string> &invocationArgStrs,
       });
     }
   } else {
+    // Ideally we should turn this on for all Glibc targets that are actually
+    // using Glibc or a libc that respects that flag. This will cause some
+    // source breakage however (specifically with strerror_r()) on Linux
+    // without a workaround.
+    if (triple.isOSFuchsia()) {
+      // Many of the modern libc features are hidden behind feature macros like
+      // _GNU_SOURCE or _XOPEN_SOURCE.
+      invocationArgStrs.insert(invocationArgStrs.end(), {
+        "-D_GNU_SOURCE",
+      });
+    }
+
     // The module map used for Glibc depends on the target we're compiling for,
     // and is not included in the resource directory with the other implicit
     // module maps. It's at {freebsd|linux}/{arch}/glibc.modulemap.
@@ -553,6 +646,14 @@ getNormalInvocationArguments(std::vector<std::string> &invocationArgStrs,
     // `swiftc -target x86_64-unknown-linux-gnu -emit-ir` is invoked using
     // a Swift compiler not built for Linux targets.
     if (llvm::sys::fs::exists(GlibcModuleMapPath)) {
+      // Inject VFS replacement for the glibc.modulemap where the paths are
+      // adjusted to match the current target SDK root.
+      StringRef sysroot = searchPathOpts.SDKPath;
+      if (sysroot.empty()){
+        sysroot = "/";
+      }
+      generateGlibcMap(GlibcModuleMapPath, sysroot, triple, imf);
+
       invocationArgStrs.push_back(
         (Twine("-fmodule-map-file=") + GlibcModuleMapPath).str());
     } else {
@@ -844,9 +945,17 @@ ClangImporter::create(ASTContext &ctx,
   // "clang" for argv[0]
   invocationArgStrs.push_back("clang");
 
+  // Create an in-memory VFS overlay so that a rewritten Glibc.modulemap with
+  // updated sysroot paths can be subbed in based on the target's paths.
+  llvm::IntrusiveRefCntPtr<clang::vfs::OverlayFileSystem>
+    ovs(new clang::vfs::OverlayFileSystem(clang::vfs::getRealFileSystem()));
+  llvm::IntrusiveRefCntPtr<clang::vfs::InMemoryFileSystem>
+    imf(new clang::vfs::InMemoryFileSystem);
+  ovs->pushOverlay(imf);
+
   switch (importerOpts.Mode) {
   case ClangImporterOptions::Modes::Normal:
-    getNormalInvocationArguments(invocationArgStrs, ctx, importerOpts);
+    getNormalInvocationArguments(invocationArgStrs, ctx, importerOpts, imf.get());
     break;
   case ClangImporterOptions::Modes::EmbedBitcode:
     getEmbedBitcodeInvocationArguments(invocationArgStrs, ctx, importerOpts);
@@ -896,7 +1005,7 @@ ClangImporter::create(ASTContext &ctx,
 
   // Create a new Clang compiler invocation.
   importer->Impl.Invocation =
-      clang::createInvocationFromCommandLine(invocationArgs, clangDiags);
+      clang::createInvocationFromCommandLine(invocationArgs, clangDiags, ovs);
   if (!importer->Impl.Invocation)
     return nullptr;
 
