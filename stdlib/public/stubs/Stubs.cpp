@@ -31,7 +31,9 @@
 #else
 #include <sys/errno.h>
 #endif
+#if !defined(__Fuchsia__)
 #include <sys/resource.h>
+#endif
 #include <unistd.h>
 #endif
 #include <climits>
