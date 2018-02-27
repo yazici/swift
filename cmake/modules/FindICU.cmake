@@ -5,6 +5,11 @@ include(FindPackageHandleStandardArgs)
 find_package(PkgConfig)
 
 set(ICU_REQUIRED)
+
+if(NOT ICU_FIND_COMPONENTS)
+  set(ICU_FIND_COMPONENTS dt in io le lx tu uc)
+endif()
+
 foreach(MODULE ${ICU_FIND_COMPONENTS})
   string(TOUPPER "${MODULE}" MODULE)
   string(TOLOWER "${MODULE}" module)
@@ -41,6 +46,17 @@ foreach(sdk ANDROID;FREEBSD;LINUX;WINDOWS;HAIKU)
       set(SWIFT_${sdk}_${SWIFT_HOST_VARIANT_ARCH}_ICU_${MODULE} ${ICU_${MODULE}_LIBRARY} CACHE STRING "" FORCE)
     endif()
   endforeach()
+endforeach()
+
+# HACK
+foreach(MODULE ${ICU_FIND_COMPONENTS})
+  string(TOUPPER "${MODULE}" MODULE)
+  if(NOT "${SWIFT_LINUX_ICU_${MODULE}_INCLUDE}" STREQUAL "" AND NOT ICU_${MODULE}_INCLUDE_DIR)
+    set(ICU_${MODULE}_INCLUDE_DIR ${SWIFT_LINUX_ICU_${MODULE}_INCLUDE})
+  endif()
+  if(NOT "${SWIFT_LINUX_ICU_${MODULE}}" STREQUAL "" AND NOT ICU_${MODULE}_LIBRARIES)
+    set(ICU_${MODULE}_LIBRARIES ${SWIFT_LINUX_ICU_${MODULE}})
+  endif()
 endforeach()
 
 find_package_handle_standard_args(ICU DEFAULT_MSG ${ICU_REQUIRED})
