@@ -270,7 +270,6 @@ def create_argument_parser():
     # -------------------------------------------------------------------------
     # Top-level options
 
-<<<<<<< HEAD
     option(['-n', '--dry-run'], store_true,
            help='print the commands that would be executed, but do not '
                 'execute them')

@@ -1084,7 +1084,7 @@ static void getRuntimeLibraryPath(SmallVectorImpl<char> &runtimeLibPath,
 /// library folder.
 static void getRuntimeLibraryPathWithArch(SmallVectorImpl<char> &runtimeLibPath,
                                            const llvm::opt::ArgList &args,
-                                           const ToolChain &TC
+                                           const ToolChain &TC,
                                            bool shared) {
   getRuntimeLibraryPath(runtimeLibPath, args, TC, shared);
   llvm::sys::path::append(runtimeLibPath,

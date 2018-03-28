@@ -81,6 +81,12 @@ public typealias CLongDouble = Double
 #if arch(x86_64) || arch(i386)
 public typealias CLongDouble = Float80
 #endif
+#elseif os(Fuchsia)
+#if arch(x86_64) || arch(i386)
+public typealias CLongDouble = Float80
+#else
+public typealias CLongDouble = Double
+#endif
 // TODO: Fill in definitions for other OSes.
 #endif
 

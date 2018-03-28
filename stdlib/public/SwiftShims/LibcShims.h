@@ -172,7 +172,7 @@ double _stdlib_squareRoot(double _self) {
   return __builtin_sqrt(_self);
 }
 
-#if !defined _WIN32 && (defined __i386__ || defined __x86_64__)
+#if !defined(_WIN32) && (defined(__i386__) || defined(__x86_64__))
 static inline SWIFT_ALWAYS_INLINE
 long double _stdlib_remainderl(long double _self, long double _other) {
   return __builtin_remainderl(_self, _other);
@@ -205,6 +205,8 @@ typedef unsigned int __swift_thread_key_t;
 typedef int __swift_thread_key_t;
 #elif defined(_WIN32)
 typedef unsigned long __swift_thread_key_t;
+#elif defined(__Fuchsia__)
+typedef unsigned int __swift_thread_key_t;
 #elif defined(__HAIKU__)
 typedef int __swift_thread_key_t;
 #else
