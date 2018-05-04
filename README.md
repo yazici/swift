@@ -3,6 +3,13 @@
 This repository exists to allow Googlers to collaborate and stage pull requests
 against the official Swift repository.
 
+# Active Projects
+
+### Swift for TensorFlow
+
+- [Home page](https://github.com/tensorflow/swift)
+- [Development branch](../../tree/tensorflow)
+
 # Contributing
 
 We strongly encourage contributors to contribute directly to upstream whenever
