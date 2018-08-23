@@ -251,10 +251,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: VersionTupleSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: IfConfigClauseSyntax) {
     super.visit(node)
   }
@@ -264,15 +260,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: KeyPathBaseExprSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: ObjcSelectorExprSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: ObjCSelectorPieceSyntax) {
     super.visit(node)
   }
 
@@ -280,23 +268,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: MemberDeclListItemSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: PrecedenceGroupDeclSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: AvailabilityArgumentSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: ClassRestrictionTypeSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: LabeledSpecializeEntrySyntax) {
     super.visit(node)
   }
 
@@ -312,19 +284,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: AvailabilityLabeledArgumentSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: ImplementsAttributeArgumentsSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: PrecedenceGroupAssociativitySyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: AvailabilityVersionRestrictionSyntax) {
     super.visit(node)
   }
 
