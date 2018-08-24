@@ -138,7 +138,7 @@ public class PrettyPrinter {
 
   func flush(forceWrapped: Bool) {
     let endOfFlushBuffer: Int
-    let mostRecentOpen = tokens.index(where: { $0.isOpen })
+    let mostRecentOpen = tokens.lastIndex(where: { $0.isOpen })
     if forceWrapped, let openIdx = mostRecentOpen {
       endOfFlushBuffer = openIdx
     } else {
