@@ -130,6 +130,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
 //      after(colon, .break)
 //      after(node.lastToken, .close)
 //    }
+    if let trailingComma = node.trailingCommaWorkaround {
+      after(trailingComma, .break(.consistent, spaces: 0))
+    }
     super.visit(node)
   }
 
