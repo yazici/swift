@@ -2,8 +2,8 @@ import Configuration
 import Core
 import Foundation
 import Rules
-import SwiftSyntax
 import PrettyPrint
+import SwiftSyntax
 
 /// Runs the linting pipeline over the provided source file.
 ///
@@ -41,7 +41,7 @@ public func lintMain(path: String) -> Int {
 ///
 /// - Parameter path: The absolute path to the source file to be linted.
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
-public func formatMain(path: String) -> Int {
+public func formatMain(path: String, isDebugMode: Bool) -> Int {
   let url = URL(fileURLWithPath: path)
 
   let config = Configuration()
@@ -61,7 +61,11 @@ public func formatMain(path: String) -> Int {
     // Important! We need to cast this to Syntax to avoid going directly into the specialized
     // version of visit(_: SourceFileSyntax), which will not run the pipeline properly.
     let formatted = pipeline.visit(file as Syntax)
-    let printer = PrettyPrinter(configuration: context.configuration, node: formatted)
+    let printer = PrettyPrinter(
+      configuration: context.configuration,
+      node: formatted,
+      isDebugMode: isDebugMode
+    )
     printer.prettyPrint()
 //    let output = url.deletingPathExtension().appendingPathExtension("formatted.swift")
 //    try formatted.description.write(to: output, atomically: true, encoding: .utf8)
