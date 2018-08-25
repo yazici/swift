@@ -40,11 +40,23 @@ let package = Package(
     .target(
       name: "Configuration",
       dependencies: []),
+    .target(name: "CommonMark", dependencies: ["CCommonMark"]),
+    .target(
+      name: "CCommonMark",
+      exclude: [
+        "cmark/api_test",
+        // We must exclude main.c or SwiftPM will treat this target as an
+        // executable target and we won't be able to import it from the
+        // CommonMark Swift module.
+        "cmark/src/main.c",
+      ]
+    ),
     .testTarget(
       name: "SwiftFormatTests",
       dependencies: ["Core", "Configuration", "Rules", "PrettyPrint", "SwiftSyntax"]),
     .testTarget(
       name: "PrettyPrinterTests",
       dependencies: ["Core", "Configuration", "Rules", "PrettyPrint", "SwiftSyntax"]),
+    .testTarget(name: "CommonMarkTests", dependencies: ["CommonMark"]),
   ]
 )
