@@ -1,0 +1,36 @@
+/// A block element that represents source code, typically rendered in a fixed-width font.
+public struct CodeBlockNode: BlockContent {
+
+  /// The literal text content of the node.
+  public let literalContent: String
+
+  /// The text on the same line immediately following the opening "fence" (that is, the leading
+  /// triple backticks ` ``` `) of the code block.
+  ///
+  /// The fence text is often used to provide additional metadata about the code block, such as a
+  /// tag that indicates which language the code is written in, to support renderers that can apply
+  /// language-specific syntax coloring.
+  ///
+  /// If there was no text following the opening fence, or if the code block as an indented code
+  /// block rather than a fenced code block, this property will evaluate to the empty string.
+  public var fenceText: String
+
+  public let sourceRange: Range<SourceLocation>?
+
+  /// Creates a new empty code block node.
+  ///
+  /// - Parameters:
+  ///   - literalContent: The literal text content of the node.
+  ///   - fenceText: The text that immediately follows the opening fence for a code block that is
+  ///     fenced by triple backticks. If omitted, the empty string is used.
+  ///   - sourceRange: The source range from which the node was parsed, if known.
+  public init(
+    literalContent: String,
+    fenceText: String = "",
+    sourceRange: Range<SourceLocation>? = nil
+  ) {
+    self.literalContent = literalContent
+    self.fenceText = fenceText
+    self.sourceRange = sourceRange
+  }
+}
