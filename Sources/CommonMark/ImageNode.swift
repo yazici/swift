@@ -42,4 +42,40 @@ public struct ImageNode: InlineContent {
     self.children = children
     self.sourceRange = sourceRange
   }
+
+  /// Returns a new node equivalent to the receiver, but whose URL has been replaced with the given
+  /// value.
+  ///
+  /// - Parameter url: The new URL.
+  /// - Returns: The new node.
+  public func replacingURL(_ url: URL?) -> ImageNode {
+    return ImageNode(url: url, title: title, children: children, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose title has been replaced with the
+  /// given value.
+  ///
+  /// - Parameter title: The new title.
+  /// - Returns: The new node.
+  public func replacingTitle(_ title: String) -> ImageNode {
+    return ImageNode(url: url, title: title, children: children, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose children have been replaced with the
+  /// given list of nodes.
+  ///
+  /// - Parameter children: The new list of children.
+  /// - Returns: The new node.
+  public func replacingChildren(_ children: [InlineContent]) -> ImageNode {
+    return ImageNode(url: url, title: title, children: children, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose source range has been replaced with
+  /// the given value.
+  ///
+  /// - Parameter sourceRange: The new source range.
+  /// - Returns: The new node.
+  public func replacingSourceRange(_ sourceRange: Range<SourceLocation>?) -> ImageNode {
+    return ImageNode(url: url, title: title, children: children, sourceRange: sourceRange)
+  }
 }

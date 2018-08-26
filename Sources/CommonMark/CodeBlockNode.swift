@@ -33,4 +33,40 @@ public struct CodeBlockNode: BlockContent {
     self.fenceText = fenceText
     self.sourceRange = sourceRange
   }
+
+  /// Returns a new node equivalent to the receiver, but whose literal content has been replaced
+  /// with the given string.
+  ///
+  /// - Parameter literalContent: The new literal content.
+  /// - Returns: The new node.
+  public func replacingLiteralContent(_ literalContent: String) -> CodeBlockNode {
+    return CodeBlockNode(
+      literalContent: literalContent,
+      fenceText: fenceText,
+      sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose fence text has been replaced with the
+  /// given string.
+  ///
+  /// - Parameter fenceText: The new fence text.
+  /// - Returns: The new node.
+  public func replacingFenceText(_ fenceText: String) -> CodeBlockNode {
+    return CodeBlockNode(
+      literalContent: literalContent,
+      fenceText: fenceText,
+      sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose source range has been replaced with
+  /// the given value.
+  ///
+  /// - Parameter sourceRange: The new source range.
+  /// - Returns: The new node.
+  public func replacingSourceRange(_ sourceRange: Range<SourceLocation>?) -> CodeBlockNode {
+    return CodeBlockNode(
+      literalContent: literalContent,
+      fenceText: fenceText,
+      sourceRange: sourceRange)
+  }
 }

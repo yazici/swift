@@ -35,4 +35,31 @@ public struct HeaderNode: BlockContent {
     self.children = children
     self.sourceRange = sourceRange
   }
+
+  /// Returns a new node equivalent to the receiver, but whose level has been replaced with the
+  /// given value.
+  ///
+  /// - Parameter level: The new level.
+  /// - Returns: The new node.
+  public func replacingLevel(_ level: Level) -> HeaderNode {
+    return HeaderNode(level: level, children: children, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose children have been replaced with the
+  /// given list of nodes.
+  ///
+  /// - Parameter children: The new list of children.
+  /// - Returns: The new node.
+  public func replacingChildren(_ children: [InlineContent]) -> HeaderNode {
+    return HeaderNode(level: level, children: children, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose source range has been replaced with
+  /// the given value.
+  ///
+  /// - Parameter sourceRange: The new source range.
+  /// - Returns: The new node.
+  public func replacingSourceRange(_ sourceRange: Range<SourceLocation>?) -> HeaderNode {
+    return HeaderNode(children: children, sourceRange: sourceRange)
+  }
 }

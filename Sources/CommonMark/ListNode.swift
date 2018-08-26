@@ -57,4 +57,40 @@ public struct ListNode: BlockContent {
     self.isTight = isTight
     self.sourceRange = sourceRange
   }
+
+  /// Returns a new node equivalent to the receiver, but whose list type has been replaced with the
+  /// given value.
+  ///
+  /// - Parameter listType: The new list type.
+  /// - Returns: The new node.
+  public func replacingListType(_ listType: ListType) -> ListNode {
+    return ListNode(listType: listType, items: items, isTight: isTight, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose items have been replaced with the
+  /// given list of nodes.
+  ///
+  /// - Parameter items: The new list of items.
+  /// - Returns: The new node.
+  public func replacingItems(_ items: [ListItemNode]) -> ListNode {
+    return ListNode(listType: listType, items: items, isTight: isTight, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose tightness has been replaced with the
+  /// given value.
+  ///
+  /// - Parameter isTight: The new list type.
+  /// - Returns: The new node.
+  public func replacingIsTight(_ isTight: Bool) -> ListNode {
+    return ListNode(listType: listType, items: items, isTight: isTight, sourceRange: sourceRange)
+  }
+
+  /// Returns a new node equivalent to the receiver, but whose source range has been replaced with
+  /// the given value.
+  ///
+  /// - Parameter sourceRange: The new source range.
+  /// - Returns: The new node.
+  public func replacingSourceRange(_ sourceRange: Range<SourceLocation>?) -> ListNode {
+    return ListNode(listType: listType, items: items, isTight: isTight, sourceRange: sourceRange)
+  }
 }
