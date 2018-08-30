@@ -13,7 +13,7 @@ public struct ListNode: BlockContent {
   }
 
   /// The type of the list.
-  public enum ListType {
+  public enum ListType: Equatable {
 
     /// The list is a bulleted list.
     case bulleted

@@ -1,3 +1,5 @@
+import CCommonMark
+
 /// A node that represents the document root.
 public struct MarkdownDocument: MarkdownNode {
 
@@ -14,6 +16,19 @@ public struct MarkdownDocument: MarkdownNode {
   public init(children: [BlockContent], sourceRange: Range<SourceLocation>? = nil) {
     self.children = children
     self.sourceRange = sourceRange
+  }
+
+  /// Creates a Markdown document by parsing the given text.
+  ///
+  /// - Parameter text: The Markdown text that should be parsed.
+  public init(byParsing text: String) {
+    guard let cDocument = cmark_parse_document(text, text.utf8.count, 0) else {
+      fatalError("cmark_parse_document unexpectedly returned nil")
+    }
+    self.init(
+      children: makeNodes(fromChildrenOf: cDocument) as! [BlockContent],
+      sourceRange: makeSourceRange(for: cDocument)
+    )
   }
 
   /// Returns a new node equivalent to the receiver, but whose children have been replaced with the
