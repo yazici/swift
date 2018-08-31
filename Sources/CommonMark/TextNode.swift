@@ -6,6 +6,8 @@ public struct TextNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .text(self) }
+
   /// Creates a new text node.
   ///
   /// - Parameters:

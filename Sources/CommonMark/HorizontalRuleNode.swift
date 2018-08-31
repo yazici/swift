@@ -3,6 +3,8 @@ public struct HorizontalRuleNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .horizontalRule(self) }
+
   /// Creates a new horizontal rule node.
   ///
   /// - Parameter sourceRange: The source range from which the node was parsed, if known.

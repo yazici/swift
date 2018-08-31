@@ -6,6 +6,8 @@ public struct BlockQuoteNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .blockQuote(self) }
+
   /// Creates a new block quote node.
   ///
   /// - Parameters:

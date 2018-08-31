@@ -6,6 +6,8 @@ public struct StrongNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .strong(self) }
+
   /// Creates a new strong text node.
   ///
   /// - Parameters:

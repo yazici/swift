@@ -24,6 +24,8 @@ public struct ImageNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .image(self) }
+
   /// Creates a new image node.
   ///
   /// - Parameters:

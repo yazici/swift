@@ -6,6 +6,8 @@ public struct ListItemNode: MarkdownNode {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .listItem(self) }
+
   /// Creates a new list item node.
   ///
   /// - Parameters:

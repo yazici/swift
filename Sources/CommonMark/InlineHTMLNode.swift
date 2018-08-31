@@ -6,6 +6,8 @@ public struct InlineHTMLNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .inlineHTML(self) }
+
   /// Creates a new inline HTML node.
   ///
   /// - Parameters:

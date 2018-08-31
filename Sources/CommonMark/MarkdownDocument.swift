@@ -8,6 +8,8 @@ public struct MarkdownDocument: MarkdownNode {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .document(self) }
+
   /// Creates a new Markdown document.
   ///
   /// - Parameters:

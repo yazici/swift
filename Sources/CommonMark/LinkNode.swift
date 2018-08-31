@@ -22,6 +22,8 @@ public struct LinkNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .link(self) }
+
   /// Creates a new link node.
   ///
   /// - Parameters:

@@ -39,6 +39,8 @@ public struct ListNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .list(self) }
+
   /// Creates a new list node.
   ///
   /// - Parameters:

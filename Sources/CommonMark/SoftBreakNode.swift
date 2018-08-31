@@ -3,6 +3,8 @@ public struct SoftBreakNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .softBreak(self) }
+
   /// Creates a new soft break node.
   ///
   /// - Parameter sourceRange: The source range from which the node was parsed, if known.

@@ -10,4 +10,13 @@ public protocol MarkdownNode {
   /// can be nil for nodes created dynamically unless the caller provides a valid range at that
   /// time.
   var sourceRange: Range<SourceLocation>? { get }
+
+  /// The primitive representation of the node, if different from a built-in node.
+  ///
+  /// This CommonMark module supports user extensions to the model, such that the parser can be
+  /// hooked to replace nodes in the AST with custom types that conform to `BlockContent` or
+  /// `InlineContent`. When those custom nodes are rendered back out to HTML, Markdown, or some
+  /// other format, the library needs to be able to map those custom nodes back to a representation
+  /// that is expressed in terms of the built-in node types.
+  var primitiveRepresentation: PrimitiveNode { get }
 }

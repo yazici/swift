@@ -6,6 +6,8 @@ public struct EmphasisNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .emphasis(self) }
+
   /// Creates a new emphasized text node.
   ///
   /// - Parameters:

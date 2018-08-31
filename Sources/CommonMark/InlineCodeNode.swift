@@ -6,6 +6,8 @@ public struct InlineCodeNode: InlineContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .inlineCode(self) }
+
   /// Creates a new inline code node.
   ///
   /// - Parameters:

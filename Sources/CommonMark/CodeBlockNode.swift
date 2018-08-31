@@ -17,6 +17,8 @@ public struct CodeBlockNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .codeBlock(self) }
+
   /// Creates a new empty code block node.
   ///
   /// - Parameters:

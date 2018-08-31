@@ -6,6 +6,8 @@ public struct ParagraphNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .paragraph(self) }
+
   /// Creates a new paragraph node.
   ///
   /// - Parameters:

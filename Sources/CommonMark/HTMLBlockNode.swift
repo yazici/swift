@@ -6,6 +6,8 @@ public struct HTMLBlockNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .htmlBlock(self) }
+
   /// Creates a new empty HTML block node.
   ///
   /// - Parameters:

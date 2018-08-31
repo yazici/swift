@@ -20,6 +20,8 @@ public struct HeaderNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
+  public var primitiveRepresentation: PrimitiveNode { return .header(self) }
+
   /// Creates a new header node.
   ///
   /// - Parameters:
