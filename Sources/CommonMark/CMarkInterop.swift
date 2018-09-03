@@ -131,6 +131,14 @@ func makeSourceRange(for cNode: OpaquePointer) -> Range<SourceLocation> {
 
 extension ListNode.Delimiter {
 
+  /// The underlying C value that is equivalent to the receiver delimiter.
+  fileprivate var cValue: cmark_delim_type {
+    switch self {
+    case .period: return CMARK_PERIOD_DELIM
+    case .parenthesis: return CMARK_PAREN_DELIM
+    }
+  }
+
   /// Creates a delimiter equivalent to the given underlying C value.
   ///
   /// - Parameter cDelim: The underlying C value from which the delimiter should be created.
@@ -140,5 +148,231 @@ extension ListNode.Delimiter {
     case CMARK_PAREN_DELIM: self = .parenthesis
     default: fatalError("Unexpected list delimiter \(cDelim)")
     }
+  }
+}
+
+/// A value that can be converted to a pointer to a CMark node.
+protocol CMarkNodeConvertible {
+
+  /// Returns a new CMark node (by calling `cmark_node_new`) that is equivalent to the receiver.
+  ///
+  /// - Returns: A new CMark node.
+  func makeCNode() -> OpaquePointer
+}
+
+extension PrimitiveNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    switch self {
+    case .blockQuote(let node): return node.makeCNode()
+    case .codeBlock(let node): return node.makeCNode()
+    case .document(let node): return node.makeCNode()
+    case .emphasis(let node): return node.makeCNode()
+    case .header(let node): return node.makeCNode()
+    case .horizontalRule(let node): return node.makeCNode()
+    case .htmlBlock(let node): return node.makeCNode()
+    case .image(let node): return node.makeCNode()
+    case .inlineCode(let node): return node.makeCNode()
+    case .inlineHTML(let node): return node.makeCNode()
+    case .lineBreak(let node): return node.makeCNode()
+    case .link(let node): return node.makeCNode()
+    case .list(let node): return node.makeCNode()
+    case .listItem(let node): return node.makeCNode()
+    case .paragraph(let node): return node.makeCNode()
+    case .softBreak(let node): return node.makeCNode()
+    case .strong(let node): return node.makeCNode()
+    case .text(let node): return node.makeCNode()
+    }
+  }
+}
+
+extension BlockQuoteNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_BLOCK_QUOTE)!
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension CodeBlockNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_CODE_BLOCK)!
+    cmark_node_set_literal(cNode, literalContent)
+    cmark_node_set_fence_info(cNode, fenceText)
+    return cNode
+  }
+}
+
+extension EmphasisNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_EMPH)!
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension HTMLBlockNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_HTML)!
+    cmark_node_set_literal(cNode, literalContent)
+    return cNode
+  }
+}
+
+extension HeaderNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_HEADER)!
+    cmark_node_set_header_level(cNode, numericCast(level.rawValue))
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension HorizontalRuleNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    return cmark_node_new(CMARK_NODE_HRULE)!
+  }
+}
+
+extension ImageNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_IMAGE)!
+    cmark_node_set_title(cNode, title)
+    cmark_node_set_url(cNode, url?.absoluteString)
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension InlineCodeNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_CODE)!
+    cmark_node_set_literal(cNode, literalContent)
+    return cNode
+  }
+}
+
+extension InlineHTMLNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_INLINE_HTML)!
+    cmark_node_set_literal(cNode, literalContent)
+    return cNode
+  }
+}
+
+extension LineBreakNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    return cmark_node_new(CMARK_NODE_LINEBREAK)!
+  }
+}
+
+extension LinkNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_LINK)!
+    cmark_node_set_title(cNode, title)
+    cmark_node_set_url(cNode, url?.absoluteString)
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension ListItemNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_ITEM)!
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension ListNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_LIST)!
+    switch listType {
+    case .bulleted:
+      cmark_node_set_list_type(cNode, CMARK_BULLET_LIST)
+    case .ordered(let delimiter, let startingNumber):
+      cmark_node_set_list_type(cNode, CMARK_ORDERED_LIST)
+      cmark_node_set_list_delim(cNode, delimiter.cValue)
+      cmark_node_set_list_start(cNode, numericCast(startingNumber))
+    }
+    cmark_node_set_list_tight(cNode, isTight ? 1 : 0)
+    for item in items {
+      cmark_node_append_child(cNode, item.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension MarkdownDocument: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_DOCUMENT)!
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension ParagraphNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_PARAGRAPH)!
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension SoftBreakNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    return cmark_node_new(CMARK_NODE_SOFTBREAK)!
+  }
+}
+
+extension StrongNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_STRONG)!
+    for child in children {
+      cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
+    }
+    return cNode
+  }
+}
+
+extension TextNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    let cNode = cmark_node_new(CMARK_NODE_TEXT)!
+    cmark_node_set_literal(cNode, literalContent)
+    return cNode
   }
 }
