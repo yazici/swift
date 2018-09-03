@@ -3,6 +3,29 @@ import CCommonMark
 /// A node that represents the document root.
 public struct MarkdownDocument: MarkdownNode {
 
+  /// Options that control behavior when parsing a document.
+  public struct ParsingOptions: OptionSet {
+
+    /// The parser should normalize the resulting tree by consolidating adjacent text nodes.
+    public static let normalize = ParsingOptions(rawValue: CMARK_OPT_NORMALIZE)
+
+    /// The parser should produce a tree that contains "smart" punctuation.
+    ///
+    /// For example, smart punctuation will substitute curly quotes for pairs of straight quotes,
+    /// and translate `"--"` into en-dashes and `"---"` into em-dashes.
+    public static let smartPunctuation = ParsingOptions(rawValue: CMARK_OPT_SMART)
+
+    /// The parser should verify that the input is valid UTF-8, replacing any illegal sequences with
+    /// the Unicode replacement character U+FFFD.
+    public static let validateUTF8 = ParsingOptions(rawValue: CMARK_OPT_VALIDATE_UTF8)
+
+    public let rawValue: Int32
+
+    public init(rawValue: Int32) {
+      self.rawValue = rawValue
+    }
+  }
+
   /// The children of the receiver.
   public let children: [BlockContent]
 
@@ -22,9 +45,11 @@ public struct MarkdownDocument: MarkdownNode {
 
   /// Creates a Markdown document by parsing the given text.
   ///
-  /// - Parameter text: The Markdown text that should be parsed.
-  public init(byParsing text: String) {
-    guard let cDocument = cmark_parse_document(text, text.utf8.count, 0) else {
+  /// - Parameters:
+  ///   - text: The Markdown text that should be parsed.
+  ///   - options: Options that control the behavior of the parser; empty by default.
+  public init(byParsing text: String, options: ParsingOptions = []) {
+    guard let cDocument = cmark_parse_document(text, text.utf8.count, options.rawValue) else {
       fatalError("cmark_parse_document unexpectedly returned nil")
     }
     self.init(
