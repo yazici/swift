@@ -83,41 +83,19 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: BinaryOperatorExprSyntax) {
-    // Specifically, the range operators do not allow for breaking and do not include spaces before
-    // or after.
-    if !rangeOperators.contains(node.operatorToken.text) {
-      after(node.operatorToken, .break)
-    }
     super.visit(node)
   }
 
   override func visit(_ node: TupleExprSyntax) {
-    after(node.leftParen, defaultOpen)
-    after(node.leftParen, .break(.consistent, spaces: 0))
-    before(node.rightParen, .close)
     super.visit(node)
   }
 
   override func visit(_ node: ArrayExprSyntax) {
-    defer { super.visit(node) }
-    // HACK: If we're embedded in a function call, then we're an ArrayTypeRepr that was parsed
-    //       as an ArrayExpr. Don't open a group here.
-    if node.parent is FunctionCallExprSyntax { return }
-    after(node.leftSquare, defaultOpen)
-    after(node.leftSquare, .break(.consistent, spaces: 0))
-    before(node.rightSquare, .break(.consistent, spaces: 0))
-    before(node.rightSquare, .close)
+    super.visit(node)
   }
 
   override func visit(_ node: DictionaryExprSyntax) {
-    defer { super.visit(node) }
-    // HACK: If we're embedded in a function call, then we're a DictionaryTypeRepr that was parsed
-    //       as a DictionaryExpr. Don't open a group here.
-    if node.parent is FunctionCallExprSyntax { return }
-    after(node.leftSquare, defaultOpen)
-    after(node.leftSquare, .break(.consistent, spaces: 0))
-    before(node.rightSquare, .break(.consistent, spaces: 0))
-    before(node.rightSquare, .close)
+    super.visit(node)
   }
 
   override func visit(_ node: ImplicitMemberExprSyntax) {
@@ -125,23 +103,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionParameterSyntax) {
-//    if let colon = node.colon {
-//      after(colon, defaultOpen)
-//      after(colon, .break)
-//      after(node.lastToken, .close)
-//    }
-    if let trailingComma = node.trailingCommaWorkaround {
-      after(trailingComma, .break(.consistent, spaces: 0))
-    }
     super.visit(node)
   }
 
   override func visit(_ node: MemberAccessExprSyntax) {
-    if !(node.parent is MemberAccessExprSyntax) {
-      before(node.dot, defaultOpen)
-      before(node.lastToken, .close)
-    }
-    before(node.dot, .break)
     super.visit(node)
   }
 
@@ -150,32 +115,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ClosureExprSyntax) {
-    after(node.leftBrace, defaultOpen)
-    if shouldAddOpenCloseNewlines(node.statements) {
-      after(node.leftBrace, .newline)
-      before(node.rightBrace, .newline)
-    } else {
-      after(node.leftBrace, .break(.consistent, spaces: 1))
-      before(node.rightBrace, .break(.consistent, spaces: 1))
-    }
-    before(node.rightBrace, .close)
     super.visit(node)
   }
 
   override func visit(_ node: FunctionCallExprSyntax) {
-    defer { super.visit(node) }
-    guard !node.argumentList.isEmpty else { return }
-    after(node.leftParen, defaultOpen)
-    after(node.leftParen, .break(.consistent, spaces: 0))
-    before(node.rightParen, .break(.consistent, spaces: 0))
-    before(node.rightParen, .close)
+    super.visit(node)
   }
 
   override func visit(_ node: SubscriptExprSyntax) {
-    after(node.leftBracket, defaultOpen)
-    after(node.leftBracket, .break(.consistent, spaces: 0))
-    before(node.rightBracket, .break(.consistent, spaces: 0))
-    before(node.rightBracket, .close)
     super.visit(node)
   }
 
@@ -184,11 +131,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SwitchCaseLabelSyntax) {
-    openAfterKeyword(node.caseKeyword)
-    for item in node.caseItems {
-      after(item.lastToken, .break)
-    }
-    before(node.colon, .close)
     super.visit(node)
   }
 
@@ -209,12 +151,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ParameterClauseSyntax) {
-    if node.parameterList.count > 0 {
-      after(node.leftParen, defaultOpen)
-      after(node.leftParen, .break(.consistent, spaces: 0))
-      before(node.rightParen, .break(.consistent, spaces: 0))
-      before(node.rightParen, .close)
-    }
     super.visit(node)
   }
 
@@ -227,12 +163,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: MemberDeclBlockSyntax) {
-    after(node.leftBrace, defaultOpen)
-    after(node.leftBrace, .newline)
-    for item in node.members {
-      after(item.lastToken, .newline)
-    }
-    before(node.rightBrace, .close)
     super.visit(node)
   }
 
@@ -245,8 +175,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: EnumCaseDeclSyntax) {
-    openAfterKeyword(node.caseKeyword)
-    after(node.lastToken, .close)
     super.visit(node)
   }
 
@@ -259,7 +187,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: EnumCaseElementSyntax) {
-    after(node.trailingComma, .break(.consistent, spaces: 1))
     super.visit(node)
   }
 
@@ -292,7 +219,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AccessLevelModifierSyntax) {
-    after(node.lastToken, .break)
     super.visit(node)
   }
 
@@ -310,36 +236,18 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AccessorBlockSyntax) {
-    after(node.leftBrace, defaultOpen)
-    after(node.leftBrace, .newline)
-    before(node.rightBrace, .newline)
-    before(node.rightBrace, .close)
     super.visit(node)
   }
 
   override func visit(_ node: CodeBlockSyntax) {
-    after(node.leftBrace, defaultOpen)
-    after(node.leftBrace, .newline)
-    if !node.statements.isEmpty {
-      before(node.rightBrace, .newline)
-    }
-    before(node.rightBrace, .close)
     super.visit(node)
   }
 
   override func visit(_ node: SwitchCaseSyntax) {
-    after(node.label.lastToken, defaultOpen)
-    after(node.label.lastToken, .newline)
-    after(node.lastToken, .newline)
-    after(node.lastToken, .close)
     super.visit(node)
   }
 
   override func visit(_ node: GenericParameterClauseSyntax) {
-    after(node.leftAngleBracket, defaultOpen)
-    after(node.leftAngleBracket, .break(.consistent, spaces: 0))
-    before(node.rightAngleBracket, .break(.consistent, spaces: 0))
-    before(node.rightAngleBracket, .close)
     super.visit(node)
   }
 
@@ -376,8 +284,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IfStmtSyntax) {
-    openAfterKeyword(node.ifKeyword)
-    before(node.body.leftBrace, .close)
     super.visit(node)
   }
 
@@ -422,16 +328,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ForInStmtSyntax) {
-    openAfterKeyword(node.forKeyword)
-    before(node.inKeyword, .close)
-    openAfterKeyword(node.inKeyword)
-    before(node.body.leftBrace, .close)
     super.visit(node)
   }
 
   override func visit(_ node: GuardStmtSyntax) {
-    openAfterKeyword(node.guardKeyword)
-    before(node.elseKeyword, .close)
     super.visit(node)
   }
 
@@ -444,8 +344,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: WhileStmtSyntax) {
-    openAfterKeyword(node.whileKeyword)
-    before(node.body.leftBrace, .close)
     super.visit(node)
   }
 
@@ -462,9 +360,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SwitchStmtSyntax) {
-    after(node.leftBrace, .newline)
-    // Do not open an indentation group after the open brace of the switch because cases are not
-    // indented relative to the `switch` keyword.
     super.visit(node)
   }
 
@@ -485,12 +380,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: WhereClauseSyntax) {
-    before(node.whereKeyword, .open(.spaces(0)))
-    after(node.whereKeyword, defaultOpen)
-    after(node.whereKeyword, .break(.consistent, spaces: 0))
-    after(node.lastToken, .close)
-    after(node.lastToken, .close)
-    after(node.lastToken, .break(.consistent, spaces: 0))
     super.visit(node)
   }
 
@@ -551,10 +440,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockItemSyntax) {
-    if let parent = node.parent as? CodeBlockItemListSyntax,
-       node.indexInParent != parent.count - 1 {
-      after(node.lastToken, .newline)
-    }
     super.visit(node)
   }
 
@@ -759,13 +644,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericWhereClauseSyntax) {
-    before(node.whereKeyword, .open(.spaces(0)))
-    before(node.whereKeyword, .break(.consistent, spaces: 0))
-    after(node.whereKeyword, defaultOpen)
-    after(node.whereKeyword, .break(.consistent, spaces: 0))
-    after(node.lastToken, .break(.consistent, spaces: 0))
-    after(node.lastToken, .close)
-    after(node.lastToken, .close)
     super.visit(node)
   }
 
@@ -826,9 +704,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypeInheritanceClauseSyntax) {
-    after(node.colon, defaultOpen)
-    after(node.colon, .break(.consistent, spaces: 0))
-    before(node.lastToken, .close)
     super.visit(node)
   }
 
