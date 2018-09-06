@@ -20,13 +20,14 @@ fileprivate let closeGroupMarker = "\u{27ED}"
 /// code to stdout.
 public class PrettyPrinter {
   private let configuration: Configuration
-  private var stream: [Token]
-  private var tokens = [Token]()
-  private var bufferIndent = [Indent]()
-  private var outputIndent = [Indent]()
-  private var forceWrapping = [Bool]()
-  private var lineLength = 0
-  private var maxLineLength: Int
+  private let maxLineLength: Int
+  private var tokens: [Token]
+  private var spaceRemaining: Int
+
+  private var lengths = [Int]()
+  private var forceBreak = false // Do we need to force linebreaks?
+  private var lastBreak = false // Did the last break token force a new line?
+  private var indentStack = [Int]()
 
   private var requiresIndent = false
 
@@ -52,50 +53,103 @@ public class PrettyPrinter {
   ///   - node: The node to be pretty printed.
   public init(configuration: Configuration, node: Syntax, isDebugMode: Bool) {
     self.configuration = configuration
-    self.stream = node.makeTokenStream(configuration: configuration)
+    self.tokens = node.makeTokenStream(configuration: configuration)
     self.maxLineLength = configuration.lineLength
     self.isDebugMode = isDebugMode
+    self.spaceRemaining = self.maxLineLength
   }
 
   func write<S: StringProtocol>(_ str: S) {
     print(str, terminator: "")
   }
 
-  func adjustLineLength(_ token: Token) {
-    if case .newlines = token {
-      lineLength = 0
-    } else {
-      lineLength += token.columns
+  private func printToken(token: Token, length: Int) {
+    switch token {
+    case .open(let breaktype):
+      if lastBreak, case .consistent = breaktype {
+        forceBreak = true
+      }
+      indentStack.append(spaceRemaining)
+
+    case .close:
+      forceBreak = false
+      indentStack.removeLast()
+
+    case .break(let offset, let size):
+      if length > spaceRemaining || forceBreak {
+        let stackValue = indentStack.last ?? maxLineLength
+        spaceRemaining = stackValue - offset
+        write("\n")
+        write(String(repeating: " ", count: (maxLineLength - spaceRemaining)))
+        lastBreak = true
+      } else {
+        write(String(repeating: " ", count: size))
+        spaceRemaining -= size
+        lastBreak = false
+      }
+
+    case .syntax(let syntaxToken):
+      write(syntaxToken.text)
+      spaceRemaining -= syntaxToken.text.count
+
+    default: () // Skip the other token types for now
     }
   }
 
   public func prettyPrint() {
-  }
+    var delimIndexStack = [Int]()
+    var total = 0
 
-  func recomputeMaxLength() {
-    maxLineLength = configuration.lineLength - bufferIndent.length(in: configuration)
-  }
+    // Calculate token lengths
+    for (i, token) in tokens.enumerated() {
+      switch token {
+      case .open:
+        lengths.append(-total)
+        delimIndexStack.append(i)
 
-  func addIndent(_ level: Indent) {
-    bufferIndent.append(level)
-    recomputeMaxLength()
-  }
+      case .close:
+        lengths.append(0)
 
-  func removeIndent() {
-    bufferIndent.removeLast()
-    recomputeMaxLength()
-  }
+        guard let index = delimIndexStack.popLast() else {
+          print("Bad index 1")
+          return
+        }
+        lengths[index] += total
 
-  func writeNewlines(_ count: Int = 1) {
-    write(String(repeating: "\n", count: count))
-    requiresIndent = true
-  }
+        if case .break = tokens[index] {
+          guard let index = delimIndexStack.popLast() else {
+            print("Bad index 2")
+            return
+          }
+          lengths[index] += total
+        }
 
-  func writeIndent() {
-    if requiresIndent {
-      write(outputIndent.indentation())
+      case .break(_, let size):
+        if let index = delimIndexStack.last, case .break = tokens[index] {
+          lengths[index] += total
+          delimIndexStack.removeLast()
+        }
+
+        lengths.append(-total)
+        delimIndexStack.append(i)
+        total += size
+
+      case .syntax(let syntaxToken):
+        lengths.append(syntaxToken.text.count)
+        total += syntaxToken.text.count
+
+      default: ()
+      }
     }
-    requiresIndent = false
+
+    if let index = delimIndexStack.popLast() {
+      lengths[index] += total
+    }
+
+    for i in 0..<tokens.count {
+      printToken(token: tokens[i], length: lengths[i])
+    }
+    write("\n")
   }
 
   /// Writes a consistent or inconsistent break marker in debug mode.

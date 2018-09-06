@@ -15,13 +15,13 @@ enum BreakStyle {
 enum Token {
   case comment(Comment, hasTrailingSpace: Bool)
   case newlines(Int)
-  case `break`(BreakStyle, spaces: Int)
-  case open(Indent)
+  case `break`(offset: Int, size: Int)
+  case open(BreakStyle)
   case close
   case syntax(TokenSyntax)
 
   static let newline = Token.newlines(1)
-  static let `break` = Token.break(.inconsistent, spaces: 0)
+  static let `break` = Token.break(offset: 0, size: 1)
 
   var isOpen: Bool {
     if case .open = self { return true }

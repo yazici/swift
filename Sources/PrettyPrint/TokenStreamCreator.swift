@@ -28,7 +28,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   private let config: Configuration
 
   private var defaultOpen: Token {
-    return .open(config.indentation)
+    return .open(.inconsistent)
   }
 
   init(configuration: Configuration) {
@@ -65,16 +65,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
     afterMap[tok, default: []].append(postToken)
   }
 
-  func openAfterKeyword(_ keyword: TokenSyntax) {
-    after(keyword, .open(.spaces(keyword.text.count + 1)))
-  }
-
   override func visitPre(_ node: Syntax) {
     // All nodes with trailing commas should have a space after if they aren't required to have a
     // newline after.
     if let withTrailingComma = node as? WithTrailingCommaSyntax,
        let trailingComma = withTrailingComma.trailingComma {
-      after(trailingComma, .break(.consistent, spaces: 1))
+      after(trailingComma, .break(offset: 0, size: 1))
     }
   }
 
@@ -83,6 +79,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: BinaryOperatorExprSyntax) {
+    after(node.operatorToken, .break(offset: 2, size: 1))
     super.visit(node)
   }
 
@@ -432,6 +429,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: VariableDeclSyntax) {
+    after(node.letOrVarKeyword, .break(offset: 2, size: 1))
     super.visit(node)
   }
 
@@ -488,6 +486,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IdentifierExprSyntax) {
+    after(node.identifier, .break(offset: 0, size: 1))
     super.visit(node)
   }
 
@@ -508,6 +507,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypeAnnotationSyntax) {
+    after(node.colon, .break(offset: 0, size: 1))
     super.visit(node)
   }
 
@@ -616,6 +616,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: InitializerClauseSyntax) {
+    after(node.equal, .break(offset: 2, size: 1))
     super.visit(node)
   }
 
@@ -684,6 +685,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SimpleTypeIdentifierSyntax) {
+    after(node.name, .break(offset: 0, size: 1))
     super.visit(node)
   }
 
@@ -745,13 +747,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
       tokens += before
     }
     appendToken(.syntax(token))
-    if var after = afterMap[token] {
-      /// If a `break`, with any number of spaces, comes right after a token which has spaces
-      /// in its trailing trivia, then remove the spaces from this break and keep the same style.
-      if case .break(let style, _)? = after.first,
-         token.trailingTrivia.hasSpaces {
-        after[0] = .break(style, spaces: 0)
-      }
+    if let after = afterMap[token] {
       tokens += after
     }
     breakDownTrivia(token.trailingTrivia)
