@@ -27,10 +27,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   private var afterMap = [TokenSyntax: [Token]]()
   private let config: Configuration
 
-  private var defaultOpen: Token {
-    return .open(.inconsistent)
-  }
-
   init(configuration: Configuration) {
     self.config = configuration
   }
@@ -70,7 +66,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     // newline after.
     if let withTrailingComma = node as? WithTrailingCommaSyntax,
        let trailingComma = withTrailingComma.trailingComma {
-      after(trailingComma, .break(offset: 0, size: 1))
+      after(trailingComma, .break(1))
     }
   }
 
@@ -79,7 +75,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: BinaryOperatorExprSyntax) {
-    after(node.operatorToken, .break(offset: 2, size: 1))
     super.visit(node)
   }
 
@@ -257,6 +252,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TupleTypeSyntax) {
+    after(node.leftParen, .open(.consistent, 2))
+    after(node.leftParen, .break(0))
+    before(node.rightParen, .break(0))
+    before(node.rightParen, .close)
+    for index in 0..<(node.elements.count - 1) {
+      after(node.elements[index].lastToken, .break(1))
+    }
     super.visit(node)
   }
 
@@ -417,6 +419,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SequenceExprSyntax) {
+    for index in 0..<(node.elements.count - 1) {
+      after(node.elements[index].lastToken, .break(1))
+    }
     super.visit(node)
   }
 
@@ -429,7 +434,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: VariableDeclSyntax) {
-    after(node.letOrVarKeyword, .break(offset: 2, size: 1))
+    before(node.firstToken, .open(.inconsistent, 2))
+    after(node.lastToken, .close)
+    after(node.letOrVarKeyword, .break(1))
     super.visit(node)
   }
 
@@ -438,6 +445,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockItemSyntax) {
+    after(node.lastToken, .newlines(1))
     super.visit(node)
   }
 
@@ -486,7 +494,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IdentifierExprSyntax) {
-    after(node.identifier, .break(offset: 0, size: 1))
     super.visit(node)
   }
 
@@ -495,6 +502,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: PatternBindingSyntax) {
+    if let typeToken = node.typeAnnotation {
+      after(typeToken.lastToken, .break(1))
+    } else {
+      after(node.pattern.lastToken, .break(1))
+    }
     super.visit(node)
   }
 
@@ -507,7 +519,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypeAnnotationSyntax) {
-    after(node.colon, .break(offset: 0, size: 1))
+    after(node.colon, .break(1))
     super.visit(node)
   }
 
@@ -616,7 +628,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: InitializerClauseSyntax) {
-    after(node.equal, .break(offset: 2, size: 1))
+    after(node.equal, .break(1))
     super.visit(node)
   }
 
@@ -685,7 +697,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SimpleTypeIdentifierSyntax) {
-    after(node.name, .break(offset: 0, size: 1))
     super.visit(node)
   }
 
