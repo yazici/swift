@@ -22,14 +22,26 @@ public class PrettyPrinter {
   private let configuration: Configuration
   private let maxLineLength: Int
   private var tokens: [Token]
+
+  // The number of spaces remaining on the current line.
   private var spaceRemaining: Int
 
+  // Keep track of the token lengths.
   private var lengths = [Int]()
-  private var forceBreak = false // Do we need to force linebreaks?
-  private var lastBreak = false // Did the last break token force a new line?
-  private var indentStack = [Int]()
 
-  private var requiresIndent = false
+  // Did the previous token trigger a newline?
+  private var lastBreak = false
+
+  // Keep track of the indentation level of the current group as the number of blank spaces.
+  private var indentStack = [0]
+
+  // The first token of a group must be indented according to it's outer group. Use this stack when
+  // printing the indent of the first token in a group. Subsequent tokens will use the indent of the
+  // current group.
+  private var breakStack = [0]
+
+  // Do we force breaks (for consistent breaking) within the current group?
+  private var forceBreakStack = [false]
 
   /// If true, the pretty printer will output control characters that indicate where groups and
   /// breaks occur in the formatted output.
@@ -63,42 +75,96 @@ public class PrettyPrinter {
     print(str, terminator: "")
   }
 
+  /// Print out the provided token, and apply line-wrapping and indentation as needed.
+  ///
+  /// This method takes a Token and it's length, and it keeps track of how much space is left on the
+  /// current line it is printing on. If a token exceeds the remaning space, we break to a new line,
+  /// and apply the appropriate level of indentation.
   private func printToken(token: Token, length: Int) {
     switch token {
-    case .open(let breaktype):
-      if lastBreak, case .consistent = breaktype {
-        forceBreak = true
+
+    case .open(let breaktype, let offset):
+      if isDebugMode {
+        writeOpenGroupDebugMarker()
       }
-      indentStack.append(spaceRemaining)
+
+      if length > spaceRemaining, case .consistent = breaktype {
+        forceBreakStack.append(true)
+      } else {
+        forceBreakStack.append(false)
+      }
+
+      let indentValue = indentStack.last ?? 0
+      let breakValue = breakStack.last ?? 0
+      indentStack.append(indentValue + offset)
+      breakStack.append(breakValue)
 
     case .close:
-      forceBreak = false
+      if isDebugMode {
+        writeCloseGroupDebugMarker()
+      }
+      forceBreakStack.removeLast()
       indentStack.removeLast()
+      breakStack.removeLast()
 
-    case .break(let offset, let size):
-      if length > spaceRemaining || forceBreak {
-        let stackValue = indentStack.last ?? maxLineLength
-        spaceRemaining = stackValue - offset
+    case .break(let size):
+      if isDebugMode {
+        if let forcebreak = forceBreakStack.last, forcebreak {
+          writeBreakDebugMarker(style: .consistent)
+        } else {
+          writeBreakDebugMarker(style: .inconsistent)
+        }
+      }
+
+      let forcebreak = forceBreakStack.last ?? false
+      if length > spaceRemaining || forcebreak {
+        // Update the top of the breakStack to reflect the indentation level of the current group.
+        let indentValue = indentStack.last ?? 0
+        breakStack.removeLast()
+        breakStack.append(indentValue)
+
+        spaceRemaining = maxLineLength - indentValue
         write("\n")
-        write(String(repeating: " ", count: (maxLineLength - spaceRemaining)))
         lastBreak = true
       } else {
-        write(String(repeating: " ", count: size))
+        writeSpaces(size)
         spaceRemaining -= size
         lastBreak = false
       }
 
+    case .newlines(let N):
+      // Newlines are treated as forced `breaks` with a size of zero.
+      let indentValue = indentStack.last ?? 0
+      breakStack.removeLast()
+      breakStack.append(indentValue)
+
+      spaceRemaining = maxLineLength - indentValue
+      write(String(repeating: "\n", count: N))
+      lastBreak = true
+
+
     case .syntax(let syntaxToken):
+      if lastBreak {
+        // If the last token created  a newline, we need to apply indentation.
+        let indentValue = breakStack.last ?? 0
+        writeSpaces(indentValue)
+        lastBreak = false
+      }
       write(syntaxToken.text)
       spaceRemaining -= syntaxToken.text.count
 
-    default: () // Skip the other token types for now
+    // TODO(dabelknap): Implement comments
+    case .comment: ()
     }
   }
 
+  /// Scan over the array of Tokens and calculate their lengths.
+  ///
+  /// This method is based on the `scan` function described in Derek Oppen's "Pretty Printing" paper
+  /// (1979).
   public func prettyPrint() {
-    var delimIndexStack = [Int]()
-    var total = 0
+    var delimIndexStack = [Int]() // Keep track of the indicies of the .open token locations.
+    var total = 0 // Keep a running total of the token lengths.
 
     // Calculate token lengths
     for (i, token) in tokens.enumerated() {
@@ -110,12 +176,14 @@ public class PrettyPrinter {
       case .close:
         lengths.append(0)
 
+        // TODO(dabelknap): Handle the unwrapping more gracefully
         guard let index = delimIndexStack.popLast() else {
           print("Bad index 1")
           return
         }
         lengths[index] += total
 
+        // TODO(dabelknap): Handle the unwrapping more gracefully
         if case .break = tokens[index] {
           guard let index = delimIndexStack.popLast() else {
             print("Bad index 2")
@@ -124,7 +192,7 @@ public class PrettyPrinter {
           lengths[index] += total
         }
 
-      case .break(_, let size):
+      case .break(let size):
         if let index = delimIndexStack.last, case .break = tokens[index] {
           lengths[index] += total
           delimIndexStack.removeLast()
@@ -134,18 +202,31 @@ public class PrettyPrinter {
         delimIndexStack.append(i)
         total += size
 
+      case .newlines:
+        if let index = delimIndexStack.last, case .break = tokens[index] {
+          lengths[index] += total
+          delimIndexStack.removeLast()
+        }
+
+        lengths.append(-total)
+        delimIndexStack.append(i)
+        total += 1
+
       case .syntax(let syntaxToken):
         lengths.append(syntaxToken.text.count)
         total += syntaxToken.text.count
 
-      default: ()
+      // TODO(dabelknap): Implement comments
+      case .comment: ()
       }
     }
 
+    // Update any remaining unresolved .open token lengths
     if let index = delimIndexStack.popLast() {
       lengths[index] += total
     }
 
+    // Print out the token stream, wrapping according to line-length limitations.
     for i in 0..<tokens.count {
       printToken(token: tokens[i], length: lengths[i])
     }
