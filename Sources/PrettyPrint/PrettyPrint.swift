@@ -22,6 +22,7 @@ public class PrettyPrinter {
   private let configuration: Configuration
   private let maxLineLength: Int
   private var tokens: [Token]
+  private var outputBuffer: String = ""
 
   // The number of spaces remaining on the current line.
   private var spaceRemaining: Int
@@ -72,7 +73,7 @@ public class PrettyPrinter {
   }
 
   func write<S: StringProtocol>(_ str: S) {
-    print(str, terminator: "")
+    outputBuffer.append(String(str))
   }
 
   /// Print out the provided token, and apply line-wrapping and indentation as needed.
@@ -162,7 +163,7 @@ public class PrettyPrinter {
   ///
   /// This method is based on the `scan` function described in Derek Oppen's "Pretty Printing" paper
   /// (1979).
-  public func prettyPrint() {
+  public func prettyPrint() -> String {
     var delimIndexStack = [Int]() // Keep track of the indicies of the .open token locations.
     var total = 0 // Keep a running total of the token lengths.
 
@@ -179,7 +180,7 @@ public class PrettyPrinter {
         // TODO(dabelknap): Handle the unwrapping more gracefully
         guard let index = delimIndexStack.popLast() else {
           print("Bad index 1")
-          return
+          return ""
         }
         lengths[index] += total
 
@@ -187,7 +188,7 @@ public class PrettyPrinter {
         if case .break = tokens[index] {
           guard let index = delimIndexStack.popLast() else {
             print("Bad index 2")
-            return
+            return ""
           }
           lengths[index] += total
         }
@@ -230,7 +231,7 @@ public class PrettyPrinter {
     for i in 0..<tokens.count {
       printToken(token: tokens[i], length: lengths[i])
     }
-    write("\n")
+    return outputBuffer
   }
 
   /// Writes a consistent or inconsistent break marker in debug mode.

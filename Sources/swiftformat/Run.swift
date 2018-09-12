@@ -66,7 +66,7 @@ public func formatMain(path: String, isDebugMode: Bool) -> Int {
       node: formatted,
       isDebugMode: isDebugMode
     )
-    printer.prettyPrint()
+    print(printer.prettyPrint(), terminator: "")
 //    let output = url.deletingPathExtension().appendingPathExtension("formatted.swift")
 //    try formatted.description.write(to: output, atomically: true, encoding: .utf8)
   } catch {

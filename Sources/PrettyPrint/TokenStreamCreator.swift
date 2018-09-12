@@ -271,6 +271,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TuplePatternSyntax) {
+    after(node.leftParen, .open(.consistent, 2))
+    after(node.leftParen, .break(0))
+    before(node.rightParen, .break(0))
+    before(node.rightParen, .close)
     super.visit(node)
   }
 

@@ -29,5 +29,8 @@ let package = Package(
     .testTarget(
       name: "SwiftFormatTests",
       dependencies: ["Core", "Configuration", "Rules", "PrettyPrint", "SwiftSyntax"]),
+    .testTarget(
+      name: "PrettyPrinterTests",
+      dependencies: ["Core", "Configuration", "Rules", "PrettyPrint", "SwiftSyntax"]),
   ]
 )
