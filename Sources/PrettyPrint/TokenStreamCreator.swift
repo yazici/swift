@@ -287,6 +287,23 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IfStmtSyntax) {
+    before(node.ifKeyword, .open(.inconsistent, 3))
+    after(node.ifKeyword, .break(1))
+    before(node.body.leftBrace, .break(1))
+    before(node.body.leftBrace, .close)
+
+    after(node.body.leftBrace, .open(.consistent, 2))
+    after(node.body.leftBrace, .newlines(1))
+    before(node.body.rightBrace, .close)
+
+    before(node.elseKeyword, .break(1))
+    after(node.elseKeyword, .break(1))
+
+    if let elseBody = node.elseBody as? CodeBlockSyntax {
+      after(elseBody.leftBrace, .open(.consistent, 2))
+      after(elseBody.leftBrace, .newlines(1))
+      before(elseBody.rightBrace, .close)
+    }
     super.visit(node)
   }
 
