@@ -95,6 +95,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionParameterSyntax) {
+    before(node.firstToken, .open(.inconsistent, 0))
+    after(node.lastToken, .close)
+    after(node.trailingCommaWorkaround, .break(1))
+    after(node.colon, .break(1))
     super.visit(node)
   }
 
@@ -143,6 +147,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ParameterClauseSyntax) {
+    after(node.leftParen, .break(0))
+    after(node.leftParen, .open(.consistent, 0))
+    before(node.rightParen, .close)
     super.visit(node)
   }
 
@@ -240,6 +247,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericParameterClauseSyntax) {
+    after(node.leftAngleBracket, .open(.consistent, 2))
+    after(node.leftAngleBracket, .break(0))
+    before(node.rightAngleBracket, .break(0))
+    before(node.rightAngleBracket, .close)
     super.visit(node)
   }
 
@@ -372,6 +383,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ReturnStmtSyntax) {
+    after(node.returnKeyword, .break(1))
     super.visit(node)
   }
 
@@ -424,6 +436,32 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionDeclSyntax) {
+    if let token = node.firstToken {
+      before(token, .open(.inconsistent, 2))
+    }
+    before(node.signature.input.rightParen, .break(0))
+    before(node.signature.input.rightParen, .close)
+    after(node.modifiers?.lastToken, .break(1))
+    after(node.funcKeyword, .break(1))
+
+    if let body = node.body {
+      before(body.leftBrace, .break(1))
+      after(body.leftBrace, .open(.consistent, 2))
+      after(body.leftBrace, .newlines(1))
+      before(body.rightBrace, .close)
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: FunctionSignatureSyntax) {
+    if node.output != nil {
+      after(node.input.rightParen, .break(1))
+    }
+    before(node.output?.arrow, .open(.consistent, 2))
+    after(node.output?.arrow, .break(1))
+    after(node.output?.returnType.lastToken, .close)
+
     super.visit(node)
   }
 
@@ -609,6 +647,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericParameterSyntax) {
+    after(node.colon, .break(1))
     super.visit(node)
   }
 
@@ -637,10 +676,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ValueBindingPatternSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: FunctionSignatureSyntax) {
     super.visit(node)
   }
 
@@ -678,6 +713,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericWhereClauseSyntax) {
+    after(node.whereKeyword, .break(1))
     super.visit(node)
   }
 

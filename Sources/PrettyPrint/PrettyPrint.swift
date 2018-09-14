@@ -89,7 +89,7 @@ public class PrettyPrinter {
         writeOpenGroupDebugMarker()
       }
 
-      if length > spaceRemaining, case .consistent = breaktype {
+      if length > spaceRemaining || lastBreak, case .consistent = breaktype {
         forceBreakStack.append(true)
       } else {
         forceBreakStack.append(false)
