@@ -47,15 +47,14 @@ public class PrettyPrinter {
   // Did the previous token trigger a newline?
   private var lastBreak = false
 
+  // What is the offset value of the last triggering break?
   private var lastBreakOffset = 0
+
+  // What is the total number of spaces we need to indent from the last break?
+  private var lastBreakValue = 0
 
   // Keep track of the indentation level of the current group as the number of blank spaces.
   private var indentStack = [0]
-
-  // The first token of a group must be indented according to it's outer group. Use this stack when
-  // printing the indent of the first token in a group. Subsequent tokens will use the indent of the
-  // current group.
-  private var breakStack = [0]
 
   // Do we force breaks (for consistent breaking) within the current group?
   private var forceBreakStack = [false]
@@ -112,9 +111,7 @@ public class PrettyPrinter {
       }
 
       let indentValue = indentStack.last ?? 0
-      let breakValue = breakStack.last ?? 0
       indentStack.append(indentValue + offset + lastBreakOffset)
-      breakStack.append(breakValue)
       lastBreakOffset = 0
 
     case .close:
@@ -123,7 +120,6 @@ public class PrettyPrinter {
       }
       forceBreakStack.removeLast()
       indentStack.removeLast()
-      breakStack.removeLast()
 
     case .break(let size, let offset):
       if isDebugMode {
@@ -138,38 +134,41 @@ public class PrettyPrinter {
       if length > spaceRemaining || forcebreak {
         // Update the top of the breakStack to reflect the indentation level of the current group.
         let indentValue = indentStack.last ?? 0
-        breakStack.removeLast()
-        breakStack.append(indentValue + offset)
 
         spaceRemaining = maxLineLength - indentValue - offset
         write("\n")
+
         lastBreak = true
         lastBreakOffset = offset
+        lastBreakValue = indentValue + offset
       } else {
         writeSpaces(size)
         spaceRemaining -= size
+
         lastBreak = false
         lastBreakOffset = 0
+        lastBreakValue = 0
       }
 
     case .newlines(let N, let offset):
       // Newlines are treated as forced `breaks` with a size of zero.
       let indentValue = indentStack.last ?? 0
-      breakStack.removeLast()
-      breakStack.append(indentValue + offset)
 
       spaceRemaining = maxLineLength - indentValue - offset
       write(String(repeating: "\n", count: N))
+
       lastBreak = true
       lastBreakOffset = offset
-
+      lastBreakValue = indentValue + offset
 
     case .syntax(let syntaxToken):
       if lastBreak {
-        // If the last token created  a newline, we need to apply indentation.
-        let indentValue = breakStack.last ?? 0
-        writeSpaces(indentValue)
+        // If the last token created a new line, we need to apply indentation.
+        writeSpaces(lastBreakValue)
+
         lastBreak = false
+        lastBreakOffset = 0
+        lastBreakValue = 0
       }
       write(syntaxToken.text)
       spaceRemaining -= syntaxToken.text.count

@@ -169,12 +169,15 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ParameterClauseSyntax) {
-    after(node.leftParen, tokens: .break(size: 0), .open(.consistent, 0))
-    before(node.rightParen, tokens: .close)
+    after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
     super.visit(node)
   }
 
   override func visit(_ node: ReturnClauseSyntax) {
+    before(node.firstToken, tokens: .open)
+    before(node.returnType.firstToken, tokens: .break)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -260,6 +263,16 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockSyntax) {
+    for i in 0..<(node.statements.count - 1) {
+      after(node.statements[i].lastToken, tokens: .newline)
+    }
+    super.visit(node)
+  }
+
+  override func visit(_ node: CodeBlockItemSyntax) {
+    if !(node.parent?.parent is CodeBlockSyntax) {
+      after(node.lastToken, tokens: .newline)
+    }
     super.visit(node)
   }
 
@@ -315,17 +328,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: IfStmtSyntax) {
     before(node.ifKeyword, tokens: .open(.inconsistent, 3))
     after(node.ifKeyword, tokens: .break)
-    before(node.body.leftBrace, tokens: .break, .close)
+    before(node.body.leftBrace, tokens: .break(offset: -3), .close)
 
-    after(node.body.leftBrace, tokens: .open(.consistent, 2), .newline)
-    before(node.body.rightBrace, tokens: .close)
+    after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
+    before(node.body.rightBrace, tokens: .newline(offset: -2), .close)
 
     before(node.elseKeyword, tokens: .break)
     after(node.elseKeyword, tokens: .break)
 
     if let elseBody = node.elseBody as? CodeBlockSyntax {
-      after(elseBody.leftBrace, tokens: .open(.consistent, 2), .newline)
-      before(elseBody.rightBrace, tokens: .close)
+      after(elseBody.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
+      before(elseBody.rightBrace, tokens: .newline(offset: -2), .close)
     }
     super.visit(node)
   }
@@ -395,7 +408,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ReturnStmtSyntax) {
+    before(node.firstToken, tokens: .open)
     after(node.returnKeyword, tokens: .break)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -448,30 +463,20 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionDeclSyntax) {
-    //if let token = node.firstToken {
-    //  before(token, tokens: .open(.inconsistent, 2))
-    //}
-    //before(node.signature.input.rightParen, tokens: .break(size: 0), .close)
     after(node.modifiers?.lastToken, tokens: .break)
     after(node.funcKeyword, tokens: .break)
 
     if let body = node.body {
       before(body.leftBrace, tokens: .break)
       after(body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
-      before(body.rightBrace, tokens: .close)
+      before(body.rightBrace, tokens: .newline(offset: -2), .close)
     }
 
     super.visit(node)
   }
 
   override func visit(_ node: FunctionSignatureSyntax) {
-    if node.output != nil {
-      after(node.input.rightParen, tokens: .break)
-    }
-    before(node.output?.arrow, tokens: .open(.consistent, 2))
-    after(node.output?.arrow, tokens: .break)
-    after(node.output?.returnType.lastToken, tokens: .close)
-
+    before(node.output?.firstToken, tokens: .break)
     super.visit(node)
   }
 
@@ -510,11 +515,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AsTypePatternSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: CodeBlockItemSyntax) {
-    after(node.lastToken, tokens: .newline)
     super.visit(node)
   }
 
