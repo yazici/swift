@@ -448,16 +448,16 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionDeclSyntax) {
-    if let token = node.firstToken {
-      before(token, tokens: .open(.inconsistent, 2))
-    }
-    before(node.signature.input.rightParen, tokens: .break(size: 0), .close)
+    //if let token = node.firstToken {
+    //  before(token, tokens: .open(.inconsistent, 2))
+    //}
+    //before(node.signature.input.rightParen, tokens: .break(size: 0), .close)
     after(node.modifiers?.lastToken, tokens: .break)
     after(node.funcKeyword, tokens: .break)
 
     if let body = node.body {
       before(body.leftBrace, tokens: .break)
-      after(body.leftBrace, tokens: .open(.consistent, 2), .newline)
+      after(body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
       before(body.rightBrace, tokens: .close)
     }
 
@@ -905,7 +905,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
         }
       case .newlines(let n), .carriageReturns(let n), .carriageReturnLineFeeds(let n):
         if n > 1 {
-          appendToken(.newlines(min(n - 1, config.maximumBlankLines)))
+          appendToken(.newlines(min(n - 1, config.maximumBlankLines), offset: 0))
         }
       default:
         break

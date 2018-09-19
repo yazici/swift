@@ -47,6 +47,8 @@ public class PrettyPrinter {
   // Did the previous token trigger a newline?
   private var lastBreak = false
 
+  private var lastBreakOffset = 0
+
   // Keep track of the indentation level of the current group as the number of blank spaces.
   private var indentStack = [0]
 
@@ -111,8 +113,9 @@ public class PrettyPrinter {
 
       let indentValue = indentStack.last ?? 0
       let breakValue = breakStack.last ?? 0
-      indentStack.append(indentValue + offset)
+      indentStack.append(indentValue + offset + lastBreakOffset)
       breakStack.append(breakValue)
+      lastBreakOffset = 0
 
     case .close:
       if isDebugMode {
@@ -141,21 +144,24 @@ public class PrettyPrinter {
         spaceRemaining = maxLineLength - indentValue - offset
         write("\n")
         lastBreak = true
+        lastBreakOffset = offset
       } else {
         writeSpaces(size)
         spaceRemaining -= size
         lastBreak = false
+        lastBreakOffset = 0
       }
 
-    case .newlines(let N):
+    case .newlines(let N, let offset):
       // Newlines are treated as forced `breaks` with a size of zero.
       let indentValue = indentStack.last ?? 0
       breakStack.removeLast()
-      breakStack.append(indentValue)
+      breakStack.append(indentValue + offset)
 
-      spaceRemaining = maxLineLength - indentValue
+      spaceRemaining = maxLineLength - indentValue - offset
       write(String(repeating: "\n", count: N))
       lastBreak = true
+      lastBreakOffset = offset
 
 
     case .syntax(let syntaxToken):
@@ -223,9 +229,7 @@ public class PrettyPrinter {
           delimIndexStack.removeLast()
         }
 
-        lengths.append(-total)
-        delimIndexStack.append(i)
-        total += 1
+        lengths.append(0)
 
       case .syntax(let syntaxToken):
         lengths.append(syntaxToken.text.count)
