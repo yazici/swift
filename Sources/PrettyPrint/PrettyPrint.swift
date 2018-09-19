@@ -97,6 +97,7 @@ public class PrettyPrinter {
   /// current line it is printing on. If a token exceeds the remaning space, we break to a new line,
   /// and apply the appropriate level of indentation.
   private func printToken(token: Token, length: Int) {
+    assert(length >= 0, "Token lengths must be positive")
     switch token {
 
     case .open(let breaktype, let offset):

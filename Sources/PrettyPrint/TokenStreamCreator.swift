@@ -115,6 +115,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: FunctionParameterSyntax) {
     before(node.firstToken, tokens: .open)
     after(node.colon, tokens: .break)
+    before(node.secondName, tokens: .break)
 
     if let trailingComma = node.trailingCommaWorkaround {
       after(trailingComma, tokens: .close, .break)
@@ -466,8 +467,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
     after(node.modifiers?.lastToken, tokens: .break)
     after(node.funcKeyword, tokens: .break)
 
+    before(node.genericWhereClause?.firstToken, tokens: .break, .open(.consistent, 0))
+    after(node.genericWhereClause?.lastToken, tokens: .break, .close)
+
     if let body = node.body {
-      before(body.leftBrace, tokens: .break)
+      if node.genericWhereClause == nil {
+        before(body.leftBrace, tokens: .break)
+      }
       after(body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
       before(body.rightBrace, tokens: .newline(offset: -2), .close)
     }
@@ -723,7 +729,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericWhereClauseSyntax) {
+    before(node.whereKeyword, tokens: .open(.consistent, 2))
     after(node.whereKeyword, tokens: .break)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -744,6 +752,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SameTypeRequirementSyntax) {
+    before(node.firstToken, tokens: .open)
+    before(node.equalityToken, tokens: .break)
+    after(node.equalityToken, tokens: .break)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -800,6 +812,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ConformanceRequirementSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.colon, tokens: .break)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 

@@ -79,4 +79,51 @@ public class FunctionDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
   }
+
+  public func testFunctionWhereClause() {
+    let input =
+    """
+    public func index<Elements: Collection, Element>(
+      of element: Element,
+      in collection: Elements
+    ) -> Elements.Index? where Elements.Element == Element {
+      let a = 123
+      let b = "abc"
+    }
+
+    public func index<Elements: Collection, Element>(
+      of element: Element,
+      in collection: Elements
+    ) -> Elements.Index? where Elements.Element == Element, Element: Equatable {
+      let a = 123
+      let b = "abc"
+    }
+    """
+
+    let expected =
+    """
+    public func index<Elements: Collection, Element>(
+      of element: Element,
+      in collection: Elements
+    ) -> Elements.Index? where Elements.Element == Element {
+      let a = 123
+      let b = "abc"
+    }
+
+    public func index<Elements: Collection, Element>(
+      of element: Element,
+      in collection: Elements
+    ) -> Elements.Index?
+    where
+      Elements.Element == Element,
+      Element: Equatable
+    {
+      let a = 123
+      let b = "abc"
+    }
+
+    """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
+  }
 }
