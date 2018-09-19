@@ -282,8 +282,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericParameterClauseSyntax) {
-    after(node.leftAngleBracket, tokens: .open(.consistent, 2), .break(size: 0))
-    before(node.rightAngleBracket, tokens: .break(size: 0), .close)
+    after(node.leftAngleBracket, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    before(node.rightAngleBracket, tokens: .break(size: 0, offset: -2), .close)
     super.visit(node)
   }
 
@@ -663,7 +663,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericParameterSyntax) {
+    before(node.firstToken, tokens: .open)
     after(node.colon, tokens: .break)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 

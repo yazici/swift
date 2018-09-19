@@ -67,12 +67,26 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     func myFun<S, T>(var1: S, var2: T) {
       print("Hello World")
     }
+
+    func longerNameFun<ReallyLongTypeName: Conform, TypeName>(var1: ReallyLongTypeNAme, var2: TypeName) {
+      let a = 123
+    }
     """
 
     let expected =
     """
     func myFun<S, T>(var1: S, var2: T) {
       print("Hello World")
+    }
+
+    func longerNameFun<
+      ReallyLongTypeName: Conform,
+      TypeName
+    >(
+      var1: ReallyLongTypeNAme,
+      var2: TypeName
+    ) {
+      let a = 123
     }
 
     """
