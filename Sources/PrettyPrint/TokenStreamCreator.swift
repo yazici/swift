@@ -320,6 +320,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericArgumentClauseSyntax) {
+    after(node.leftAngleBracket, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    before(node.rightAngleBracket, tokens: .break(size: 0, offset: -2), .close)
     super.visit(node)
   }
 
@@ -559,6 +561,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ExtensionDeclSyntax) {
+    after(node.extensionKeyword, tokens: .break)
+
+    before(node.genericWhereClause?.firstToken, tokens: .break, .open(.consistent, 0))
+    after(node.genericWhereClause?.lastToken, tokens: .break, .close)
+
+    if node.genericWhereClause == nil {
+      before(node.members.leftBrace, tokens: .break)
+    }
+    after(node.members.leftBrace, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
+
     super.visit(node)
   }
 
@@ -658,6 +671,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericArgumentSyntax) {
+    before(node.firstToken, tokens: .open)
+    if let trailingComma = node.trailingComma {
+      after(trailingComma, tokens: .close, .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
