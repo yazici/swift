@@ -20,8 +20,8 @@ public class ForInStmtTests: PrettyPrintTestCase {
         let b = i
       }
 
-      for item in
-          mylargecontainer {
+      for item
+          in mylargecontainer {
         let a = 123
         let b = item
       }
@@ -75,7 +75,7 @@ public class ForInStmtTests: PrettyPrintTestCase {
   public func testForLoopFullWrap() {
     let input =
       """
-      for item in aVeryLargeContainterObject where aVeryLargeContainerObject.hasProperty() {
+      for item in aVeryLargeContainterObject where largeObject.hasProperty() && condition {
         let a = 123
         let b = 456
       }
@@ -83,10 +83,10 @@ public class ForInStmtTests: PrettyPrintTestCase {
 
     let expected =
       """
-      for item in
-          aVeryLargeContainterObject
-      where
-        aVeryLargeContainerObject.hasProperty()
+      for item
+          in aVeryLargeContainterObject
+      where largeObject.hasProperty()
+        && condition
       {
         let a = 123
         let b = 456

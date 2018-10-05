@@ -86,6 +86,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: BinaryOperatorExprSyntax) {
+    before(node.operatorToken, tokens: .break)
+    after(node.operatorToken, tokens: .break)
     super.visit(node)
   }
 
@@ -94,6 +96,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ArrayExprSyntax) {
+    after(node.leftSquare, tokens: .break(size: 0, offset: 2), .open(.consistent, 0), .break(size: 0), .open(.consistent, 0))
+    before(node.rightSquare, tokens: .close, .break(size: 0, offset: -2), .close)
     super.visit(node)
   }
 
@@ -288,7 +292,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: SwitchStmtSyntax) {
     before(node.switchKeyword, tokens: .open(.inconsistent, 7))
-    after(node.switchKeyword, tokens: .break)
+    after(node.switchKeyword, tokens: .space)
     after(node.expression.lastToken, tokens: .close, .break)
     after(node.leftBrace, tokens: .newline, .open(.consistent, 0))
     before(node.rightBrace, tokens: .break, .close)
@@ -307,7 +311,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: SwitchCaseLabelSyntax) {
     before(node.caseKeyword, tokens: .open(.inconsistent, 5))
-    after(node.caseKeyword, tokens: .break)
+    after(node.caseKeyword, tokens: .space)
     after(node.colon, tokens: .close)
     super.visit(node)
   }
@@ -366,7 +370,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: IfStmtSyntax) {
     before(node.ifKeyword, tokens: .open(.inconsistent, 3))
-    after(node.ifKeyword, tokens: .break)
+    after(node.ifKeyword, tokens: .space)
     before(node.body.leftBrace, tokens: .break(offset: -3), .close)
 
     after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
@@ -441,9 +445,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: ForInStmtSyntax) {
     before(node.forKeyword, tokens: .open(.inconsistent, 4))
-    after(node.forKeyword, tokens: .break)
+    after(node.forKeyword, tokens: .space)
     before(node.inKeyword, tokens: .break)
-    after(node.inKeyword, tokens: .break)
+    after(node.inKeyword, tokens: .space)
 
     if let whereClause = node.whereClause {
       before(
@@ -487,8 +491,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: WhileStmtSyntax) {
     before(node.firstToken, tokens: .open(.inconsistent, 6))
-    after(node.labelColon, tokens: .break)
-    after(node.whileKeyword, tokens: .break)
+    after(node.labelColon, tokens: .space)
+    after(node.whileKeyword, tokens: .space)
     before(node.body.leftBrace, tokens: .break(offset: -6), .close)
     after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
     before(node.body.rightBrace, tokens: .break(offset: -2), .close)
@@ -543,7 +547,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: WhereClauseSyntax) {
     before(node.whereKeyword, tokens: .open(.inconsistent, 2))
-    after(node.whereKeyword, tokens: .break)
+    after(node.whereKeyword, tokens: .space)
     after(node.lastToken, tokens: .close)
     super.visit(node)
   }
@@ -553,6 +557,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ArrayElementSyntax) {
+    before(node.firstToken, tokens: .open)
+    if let trailingComma = node.trailingComma {
+      after(trailingComma, tokens: .close, .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
@@ -607,9 +617,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SequenceExprSyntax) {
-    for index in 0..<(node.elements.count - 1) {
-      after(node.elements[index].lastToken, tokens: .break)
-    }
+    before(node.firstToken, tokens: .open)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -623,7 +632,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: VariableDeclSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 2))
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
     after(node.lastToken, tokens: .close)
     after(node.letOrVarKeyword, tokens: .break)
     super.visit(node)
@@ -718,7 +727,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypeAnnotationSyntax) {
-    after(node.colon, tokens: .break)
+    after(node.colon, tokens: .break(offset: 2))
     super.visit(node)
   }
 
@@ -772,8 +781,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
     after(node.repeatKeyword, tokens: .break)
     after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
     before(node.body.rightBrace, tokens: .break(offset: -2), .close, .open(.inconsistent, 8))
-    before(node.whileKeyword, tokens: .break)
-    after(node.whileKeyword, tokens: .break)
+    before(node.whileKeyword, tokens: .space)
+    after(node.whileKeyword, tokens: .space)
     after(node.condition.lastToken, tokens: .close)
     super.visit(node)
   }
@@ -839,7 +848,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: InitializerClauseSyntax) {
     before(node.equal, tokens: .break)
-    after(node.equal, tokens: .break)
+    after(node.equal, tokens: .break(offset: 2))
+
     super.visit(node)
   }
 

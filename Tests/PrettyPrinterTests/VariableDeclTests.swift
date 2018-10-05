@@ -10,12 +10,13 @@ public class VariableDeclarationTests: PrettyPrintTestCase {
 
     let expected =
       """
-      let x = firstVariable +
+      let x =
+        firstVariable +
         secondVariable /
         thirdVariable +
         fourthVariable
-      let y: Int = anotherVar +
-        moreVar
+      let y: Int =
+        anotherVar + moreVar
       let (w, z, s):
         (Int, Double, Bool) =
         firstTuple + secondTuple
