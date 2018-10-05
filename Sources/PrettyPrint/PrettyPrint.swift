@@ -167,12 +167,17 @@ public class PrettyPrinter {
         if !lastBreakConsecutive {
           writeSpaces(size)
           spaceRemaining -= size
+          lastBreakValue = 0
         }
 
         lastBreak = false
         lastBreakOffset = 0
-        lastBreakValue = 0
       }
+
+    // Print out the number of spaces according to the size, and adjust spaceRemaining.
+    case .space(let size):
+      spaceRemaining -= size
+      writeSpaces(size)
 
     // Apply N line breaks, calculate the indentation required, and adjust spaceRemaining.
     case .newlines(let N, let offset):
@@ -257,6 +262,11 @@ public class PrettyPrinter {
 
         lengths.append(-total)
         delimIndexStack.append(i)
+        total += size
+
+      // Space tokens have a length equal to its size.
+      case .space(let size):
+        lengths.append(size)
         total += size
 
       // The length of newlines are equal to the maximum allowed line length. Calculate the length
