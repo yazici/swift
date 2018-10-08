@@ -179,6 +179,11 @@ public class PrettyPrinter {
       spaceRemaining -= size
       writeSpaces(size)
 
+      lastBreak = false
+      lastBreakConsecutive = false
+      lastBreakOffset = 0
+      lastBreakValue = 0
+
     // Apply N line breaks, calculate the indentation required, and adjust spaceRemaining.
     case .newlines(let N, let offset):
       let indentValue = indentStack.last ?? 0

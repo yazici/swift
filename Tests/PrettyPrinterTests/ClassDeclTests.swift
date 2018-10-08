@@ -193,6 +193,58 @@ public class ClassDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
   }
 
+  public func testClassAttributes() {
+    let input =
+      """
+      @dynamicMemberLookup public class MyClass {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public class MyClass {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc @objcMembers public class MyClass {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public class MyClass {
+        let A: Int
+        let B: Double
+      }
+      """
+
+    let expected =
+      """
+      @dynamicMemberLookup public class MyClass {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public class MyClass {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @objc
+      @objcMembers
+      public class MyClass {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public class MyClass {
+        let A: Int
+        let B: Double
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
+  }
+
   public func testClassFullWrap() {
     let input =
       """
