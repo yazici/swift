@@ -429,6 +429,22 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AttributeSyntax) {
+    if node.balancedTokens.count > 0 {
+      for i in 0..<(node.balancedTokens.count - 1) {
+        let tokens = node.balancedTokens
+        switch (tokens[i].tokenKind, tokens[i+1].tokenKind) {
+        case (.leftParen, _): ()
+        case (_, .rightParen): ()
+        case (_, .comma): ()
+        case (_, .colon): ()
+        default:
+          after(tokens[i], tokens: .space)
+        }
+      }
+      after(node.balancedTokens.lastToken, tokens: .newline)
+    } else {
+      after(node.lastToken, tokens: .break)
+    }
     super.visit(node)
   }
 
