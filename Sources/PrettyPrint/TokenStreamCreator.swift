@@ -443,7 +443,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
       }
       after(node.balancedTokens.lastToken, tokens: .newline)
     } else {
-      after(node.lastToken, tokens: .break)
+      if node.parent?.parent is ImportDeclSyntax {
+        after(node.lastToken, tokens: .space)
+      } else {
+        after(node.lastToken, tokens: .break)
+      }
     }
     super.visit(node)
   }
@@ -548,7 +552,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ImportDeclSyntax) {
-    after(node.attributes?.lastToken, tokens: .space)
     after(node.importTok, tokens: .space)
     after(node.importKind, tokens: .space)
     super.visit(node)
