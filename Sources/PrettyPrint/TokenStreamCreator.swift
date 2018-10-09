@@ -713,8 +713,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: VariableDeclSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-    after(node.lastToken, tokens: .close)
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+    after(node.lastToken, tokens: .close, .close)
     after(node.letOrVarKeyword, tokens: .break)
     super.visit(node)
   }

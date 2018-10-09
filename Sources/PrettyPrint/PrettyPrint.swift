@@ -177,7 +177,7 @@ public class PrettyPrinter {
     // Print out the number of spaces according to the size, and adjust spaceRemaining.
     case .space(let size):
       spaceRemaining -= size
-      writeSpaces(size)
+      writeSpaces(size + lastBreakValue)
 
       lastBreak = false
       lastBreakConsecutive = false
