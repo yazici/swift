@@ -177,7 +177,12 @@ public class PrettyPrinter {
     // Print out the number of spaces according to the size, and adjust spaceRemaining.
     case .space(let size):
       spaceRemaining -= size
-      writeSpaces(size)
+      writeSpaces(size + lastBreakValue)
+
+      lastBreak = false
+      lastBreakConsecutive = false
+      lastBreakOffset = 0
+      lastBreakValue = 0
 
     // Apply N line breaks, calculate the indentation required, and adjust spaceRemaining.
     case .newlines(let N, let offset):

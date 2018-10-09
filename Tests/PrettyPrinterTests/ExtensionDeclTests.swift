@@ -151,6 +151,58 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 70)
   }
 
+  public func testExtensionAttributes() {
+    let input =
+      """
+      @dynamicMemberLookup public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc @objcMembers public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+      """
+
+    let expected =
+      """
+      @dynamicMemberLookup public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @objc
+      @objcMembers
+      public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public extension MyExtension {
+        let A: Int
+        let B: Double
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
+  }
+
   public func testExtensionFullWrap() {
     let input =
       """

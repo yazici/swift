@@ -272,6 +272,58 @@ public class EnumDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
   }
 
+  public func testEnumAttributes() {
+    let input =
+      """
+      @dynamicMemberLookup public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+      @dynamicMemberLookup @objc @objcMembers public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+      """
+
+    let expected =
+      """
+      @dynamicMemberLookup public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @objc
+      @objcMembers
+      public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public enum MyEnum {
+        case firstCase
+        let B: Double
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 55)
+  }
+
   public func testEnumFullWrap() {
     let input =
       """

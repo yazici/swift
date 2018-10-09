@@ -213,6 +213,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: EnumDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
     after(node.enumKeyword, tokens: .break)
 
     before(
@@ -224,7 +231,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
     if node.genericWhereClause == nil {
       before(node.members.leftBrace, tokens: .break)
     }
-    after(node.members.leftBrace, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    after(
+      node.members.leftBrace,
+      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+    )
     before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
 
     super.visit(node)
@@ -429,6 +439,26 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AttributeSyntax) {
+    if node.balancedTokens.count > 0 {
+      for i in 0..<(node.balancedTokens.count - 1) {
+        let tokens = node.balancedTokens
+        switch (tokens[i].tokenKind, tokens[i+1].tokenKind) {
+        case (.leftParen, _): ()
+        case (_, .rightParen): ()
+        case (_, .comma): ()
+        case (_, .colon): ()
+        default:
+          after(tokens[i], tokens: .space)
+        }
+      }
+      after(node.balancedTokens.lastToken, tokens: .newline)
+    } else {
+      if node.parent?.parent is ImportDeclSyntax {
+        after(node.lastToken, tokens: .space)
+      } else {
+        after(node.lastToken, tokens: .break)
+      }
+    }
     super.visit(node)
   }
 
@@ -437,6 +467,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ClassDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
     after(node.classKeyword, tokens: .break)
 
     before(
@@ -448,7 +485,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
     if node.genericWhereClause == nil {
       before(node.members.leftBrace, tokens: .break)
     }
-    after(node.members.leftBrace, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    after(
+      node.members.leftBrace,
+      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+    )
     before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
 
     super.visit(node)
@@ -522,7 +562,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ImportDeclSyntax) {
-    after(node.attributes?.lastToken, tokens: .space)
     after(node.importTok, tokens: .space)
     after(node.importKind, tokens: .space)
     super.visit(node)
@@ -536,6 +575,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: StructDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
     after(node.structKeyword, tokens: .break)
 
     before(
@@ -548,7 +594,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
     if node.genericWhereClause == nil {
       before(node.members.leftBrace, tokens: .break)
     }
-    after(node.members.leftBrace, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    after(
+      node.members.leftBrace,
+      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+    )
     before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
 
     super.visit(node)
@@ -605,6 +654,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
     after(node.funcKeyword, tokens: .break)
 
     before(
@@ -617,7 +673,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
       if node.genericWhereClause == nil {
         before(body.leftBrace, tokens: .break)
       }
-      after(body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
       before(body.rightBrace, tokens: .break(offset: -2), .close)
     }
 
@@ -657,8 +713,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: VariableDeclSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-    after(node.lastToken, tokens: .close)
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+    after(node.lastToken, tokens: .close, .close)
     after(node.letOrVarKeyword, tokens: .break)
     super.visit(node)
   }
@@ -668,6 +729,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ExtensionDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
     after(node.extensionKeyword, tokens: .break)
 
     before(
@@ -679,7 +747,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
     if node.genericWhereClause == nil {
       before(node.members.leftBrace, tokens: .break)
     }
-    after(node.members.leftBrace, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    after(
+      node.members.leftBrace,
+      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+    )
     before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
 
     super.visit(node)

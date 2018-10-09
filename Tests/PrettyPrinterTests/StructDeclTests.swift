@@ -193,6 +193,58 @@ public class StructDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
   }
 
+  public func testStructAttributes() {
+    let input =
+      """
+      @dynamicMemberLookup public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc @objcMembers public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+      """
+
+    let expected =
+      """
+      @dynamicMemberLookup public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup @objc public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @objc
+      @objcMembers
+      public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+      @dynamicMemberLookup
+      @available(swift 4.0)
+      public struct MyStruct {
+        let A: Int
+        let B: Double
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
+  }
+
   public func testStructFullWrap() {
     let input =
       """

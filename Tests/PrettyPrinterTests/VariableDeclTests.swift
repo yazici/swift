@@ -1,6 +1,5 @@
 public class VariableDeclarationTests: PrettyPrintTestCase {
-  public func testLineLength30() {
-
+  public func testBasicVariableDecl() {
     let input =
       """
       let x = firstVariable + secondVariable / thirdVariable + fourthVariable
@@ -24,5 +23,29 @@ public class VariableDeclarationTests: PrettyPrintTestCase {
       """
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
+  }
+
+  public func testVariableDeclWithAttributes() {
+    let input =
+      """
+      @NSCopying let a: Int = 123
+      @NSCopying @NSManaged let a: Int = 123
+      @NSCopying let areallylongvarname: Int = 123
+      @NSCopying @NSManaged let areallylongvarname: Int = 123
+      """
+
+    let expected =
+      """
+      @NSCopying let a: Int = 123
+      @NSCopying @NSManaged let a: Int = 123
+      @NSCopying
+      let areallylongvarname: Int = 123
+      @NSCopying
+      @NSManaged
+      let areallylongvarname: Int = 123
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
   }
 }
