@@ -204,9 +204,63 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 48)
   }
 
+  public func testFunctionAttributes() {
+    let input =
+      """
+      @discardableResult public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+      @discardableResult @objc public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+      @discardableResult @objc @inlinable public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+      @discardableResult
+      @available(swift 4.0)
+      public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+      """
+
+    let expected =
+      """
+      @discardableResult public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+      @discardableResult @objc public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+      @discardableResult
+      @objc
+      @inlinable
+      public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+      @discardableResult
+      @available(swift 4.0)
+      public func MyFun() {
+        let a = 123
+        let b = "abc"
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
+  }
+
+
   public func testFunctionFullWrap() {
     let input =
     """
+    @discardableResult @objc
     public func index<Elements: Collection, Element>(of element: Element, in collection: Elements) -> Elements.Index? where Elements.Element == Element, Element: Equatable {
       let a = 123
       let b = "abc"
@@ -215,6 +269,8 @@ public class FunctionDeclTests: PrettyPrintTestCase {
 
     let expected =
     """
+    @discardableResult
+    @objc
     public func index<
       Elements: Collection,
       Element

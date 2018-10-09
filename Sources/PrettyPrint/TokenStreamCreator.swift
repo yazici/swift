@@ -654,6 +654,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
     after(node.funcKeyword, tokens: .break)
 
     before(
@@ -666,7 +673,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
       if node.genericWhereClause == nil {
         before(body.leftBrace, tokens: .break)
       }
-      after(body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
       before(body.rightBrace, tokens: .break(offset: -2), .close)
     }
 
