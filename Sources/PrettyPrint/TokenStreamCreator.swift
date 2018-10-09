@@ -717,6 +717,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ExtensionDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
     after(node.extensionKeyword, tokens: .break)
 
     before(
@@ -728,7 +735,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
     if node.genericWhereClause == nil {
       before(node.members.leftBrace, tokens: .break)
     }
-    after(node.members.leftBrace, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    after(
+      node.members.leftBrace,
+      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+    )
     before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
 
     super.visit(node)
