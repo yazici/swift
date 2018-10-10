@@ -59,6 +59,10 @@ public class PrettyPrinter {
   /// Keep track of the indentation level of the current group as the number of blank spaces.
   private var indentStack = [0]
 
+  /// Keep track of the offset value passed to a group. This is used to adjust the offset value of
+  /// any trailing break statements in the group.
+  private var relativeIndentStack = [0]
+
   /// Keep track of whether we are forcing breaks within a group (for consistent breaking).
   private var forceBreakStack = [false]
 
@@ -126,6 +130,7 @@ public class PrettyPrinter {
       // incremented from the outer group's indent.
       let indentValue = indentStack.last ?? 0
       indentStack.append(indentValue + offset + lastBreakOffset)
+      relativeIndentStack.append(offset + lastBreakOffset)
       lastBreakOffset = 0
 
     case .close:
@@ -133,7 +138,8 @@ public class PrettyPrinter {
         writeCloseGroupDebugMarker()
       }
       forceBreakStack.removeLast()
-      let indentValue = indentStack.popLast() ?? 0
+      indentStack.removeLast()
+      let indentValue = relativeIndentStack.popLast() ?? 0
       // The offset of the last break needs to be adjusted according to its parent group. This is so
       // the next open token's indent is initialized with the correct value.
       lastBreakOffset += indentValue
@@ -176,13 +182,16 @@ public class PrettyPrinter {
 
     // Print out the number of spaces according to the size, and adjust spaceRemaining.
     case .space(let size):
-      spaceRemaining -= size
-      writeSpaces(size + lastBreakValue)
+      if lastBreakConsecutive {
+        writeSpaces(lastBreakValue)
 
-      lastBreak = false
-      lastBreakConsecutive = false
-      lastBreakOffset = 0
-      lastBreakValue = 0
+        lastBreak = false
+        lastBreakConsecutive = false
+        lastBreakOffset = 0
+        lastBreakValue = 0
+      }
+      spaceRemaining -= size
+      writeSpaces(size)
 
     // Apply N line breaks, calculate the indentation required, and adjust spaceRemaining.
     case .newlines(let N, let offset):
