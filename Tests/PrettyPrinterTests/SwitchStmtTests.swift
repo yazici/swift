@@ -74,4 +74,39 @@ public class SwitchStmtTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 35)
   }
+
+  public func testNestedSwitch() {
+    let input =
+      """
+      myloop: while a != b {
+        switch a + b {
+        case firstValue:
+          break myloop
+        case secondVale:
+          let c = 123
+          var d = 456
+        default:
+          a += b
+        }
+      }
+      """
+
+    let expected =
+      """
+      myloop: while a != b {
+        switch a + b {
+        case firstValue:
+          break myloop
+        case secondVale:
+          let c = 123
+          var d = 456
+        default:
+          a += b
+        }
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 35)
+  }
 }
