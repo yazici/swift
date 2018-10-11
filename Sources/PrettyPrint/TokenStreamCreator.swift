@@ -368,6 +368,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: CaseItemSyntax) {
+    before(node.firstToken, tokens: .open)
+    before(node.whereClause?.firstToken, tokens: .break)
+    if let trailingComma = node.trailingComma {
+      after(trailingComma, tokens: .close, .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
+    super.visit(node)
+  }
+
   override func visit(_ node: SwitchDefaultLabelSyntax) {
     // Implementation not needed.
     super.visit(node)
@@ -439,10 +450,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TryExprSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: CaseItemSyntax) {
     super.visit(node)
   }
 
@@ -943,6 +950,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ValueBindingPatternSyntax) {
+    after(node.letOrVarKeyword, tokens: .break)
     super.visit(node)
   }
 
