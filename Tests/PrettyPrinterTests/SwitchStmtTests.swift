@@ -75,6 +75,40 @@ public class SwitchStmtTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 35)
   }
 
+  public func testSwitchCompoundCases() {
+    let input =
+      """
+      switch someChar {
+      case "a":
+        print("a")
+      case "b", "c":
+        print("bc")
+      case "d", "e", "f", "g", "h":
+        print("defgh")
+      default:
+        print("default")
+      }
+      """
+
+    let expected =
+      """
+      switch someChar {
+      case "a":
+        print("a")
+      case "b", "c":
+        print("bc")
+      case "d", "e", "f",
+           "g", "h":
+        print("defgh")
+      default:
+        print("default")
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 20)
+  }
+
   public func testNestedSwitch() {
     let input =
       """
