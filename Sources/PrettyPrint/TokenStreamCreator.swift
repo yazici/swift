@@ -92,6 +92,22 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TupleExprSyntax) {
+    after(
+      node.leftParen,
+      tokens: .break(size: 0, offset: 2), .open(.consistent, 0), .break(size: 0),
+        .open(.consistent, 0)
+    )
+    before(node.rightParen, tokens: .close, .break(size: 0, offset: -2), .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: TupleElementSyntax) {
+    before(node.firstToken, tokens: .open)
+    if let trailingComma = node.trailingComma {
+      after(trailingComma, tokens: .close, .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
@@ -705,11 +721,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SuperRefExprSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: TupleElementSyntax) {
-    after(node.trailingComma, tokens: .break)
     super.visit(node)
   }
 
