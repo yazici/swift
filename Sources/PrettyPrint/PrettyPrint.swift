@@ -180,6 +180,12 @@ public class PrettyPrinter {
         lastBreakOffset = 0
       }
 
+    case .reset:
+      lastBreak = false
+      lastBreakOffset = 0
+      lastBreakValue = 0
+      lastBreakConsecutive = false
+
     // Print out the number of spaces according to the size, and adjust spaceRemaining.
     case .space(let size):
       if lastBreakConsecutive {
@@ -282,6 +288,14 @@ public class PrettyPrinter {
       case .space(let size):
         lengths.append(size)
         total += size
+
+      case .reset:
+        if let index = delimIndexStack.last, case .break = tokens[index] {
+          lengths[index] += total
+          delimIndexStack.removeLast()
+        }
+
+        lengths.append(0)
 
       // The length of newlines are equal to the maximum allowed line length. Calculate the length
       // of any prior break tokens.

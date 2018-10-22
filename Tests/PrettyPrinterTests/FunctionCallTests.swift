@@ -43,4 +43,78 @@ public class FunctionCallTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
   }
+
+  public func testBasicFunctionClosures() {
+    let input =
+      """
+      funcCall(closure: { < })
+      funcCall(closure: { $0 < $1 })
+      funcCall(closure: { s1, s2 in s1 < s2 })
+      funcCall(closure: { s1, s2 in return s1 < s2})
+      funcCall(closure: { s1, s2, s3, s4, s5, s6 in return s1})
+      funcCall(closure: { s1, s2, s3, s4, s5, s6, s7, s8, s9, s10 in return s1 })
+      funcCall(param1: 123, closure: { s1, s2, s3 in return s1 })
+      funcCall(closure: { (s1: String, s2: String) -> Bool in return s1 > s2 })
+      """
+
+    let expected =
+      """
+      funcCall(closure: { < })
+      funcCall(closure: { $0 < $1 })
+      funcCall(closure: { s1, s2 in
+        s1 < s2
+      })
+      funcCall(closure: { s1, s2 in
+        return s1 < s2
+      })
+      funcCall(closure: {
+        s1, s2, s3, s4, s5, s6 in
+        return s1
+      })
+      funcCall(closure: {
+        s1, s2, s3, s4, s5, s6, s7, s8, s9, s10
+          in
+        return s1
+      })
+      funcCall(
+        param1: 123,
+        closure: { s1, s2, s3 in
+          return s1
+        }
+      )
+      funcCall(closure: {
+        (s1: String, s2: String) -> Bool in
+        return s1 > s2
+      })
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 42)
+  }
+
+  public func testTrailingClosure() {
+    let input =
+      """
+      funcCall() { $1 < $2 }
+      funcCall(param1: 2) { $1 < $2 }
+      funcCall(param1: 2) { s1, s2, s3 in return s1}
+      funcCall(param1: 2) { s1, s2, s3, s4, s5 in return s1}
+      """
+
+    let expected =
+      """
+      funcCall() { $1 < $2 }
+      funcCall(param1: 2) { $1 < $2 }
+      funcCall(param1: 2) { s1, s2, s3 in
+        return s1
+      }
+      funcCall(param1: 2) {
+        s1, s2, s3, s4, s5 in
+        return s1
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
+  }
 }
