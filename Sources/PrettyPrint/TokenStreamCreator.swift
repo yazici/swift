@@ -168,15 +168,64 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: FunctionCallExprSyntax) {
+    if node.argumentList.count == 1, node.argumentList[0].expression is ClosureExprSyntax {
+      super.visit(node)
+      return
+    }
+    if node.argumentList.count > 0 {
+      after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+      before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
+    }
+    before(node.trailingClosure?.leftBrace, tokens: .space)
+    super.visit(node)
+  }
+
+  override func visit(_ node: FunctionCallArgumentSyntax) {
+    after(node.colon, tokens: .break)
+
+      before(node.firstToken, tokens: .open)
+      if let trailingComma = node.trailingComma {
+        after(trailingComma, tokens: .close, .break)
+      } else {
+        after(node.lastToken, tokens: .close)
+      }
+      super.visit(node)
+  }
+
+  override func visit(_ node: ClosureExprSyntax) {
+    before(node.firstToken, tokens: .reset)
+    if let signature = node.signature {
+      before(signature.firstToken, tokens: .break(offset: 2))
+      before(node.statements.firstToken, tokens: .newline(offset: 2), .open(.consistent, 0))
+      before(node.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.statements.firstToken, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.rightBrace, tokens: .break(offset: -2), .close)
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: ClosureParamSyntax) {
+    after(node.trailingComma, tokens: .break)
+    super.visit(node)
+  }
+
+  override func visit(_ node: ClosureSignatureSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 2))
+    after(node.input?.lastToken, tokens: .break)
+    after(node.output?.lastToken, tokens: .break)
+    after(node.throwsTok, tokens: .break)
+    after(node.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
   override func visit(_ node: ClosureCaptureSignatureSyntax) {
     super.visit(node)
   }
 
-  override func visit(_ node: ClosureExprSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: FunctionCallExprSyntax) {
+  override func visit(_ node: ClosureCaptureItemSyntax) {
     super.visit(node)
   }
 
@@ -193,6 +242,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AssignmentExprSyntax) {
+    before(node.assignToken, tokens: .break)
+    after(node.assignToken, tokens: .break)
     super.visit(node)
   }
 
@@ -334,7 +385,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: CodeBlockItemSyntax) {
     before(node.firstToken, tokens: .open)
-    if !(node.parent?.parent is CodeBlockSyntax || node.parent?.parent is SwitchCaseSyntax) {
+    if !(node.parent?.parent is CodeBlockSyntax ||
+           node.parent?.parent is SwitchCaseSyntax ||
+           node.parent?.parent is ClosureExprSyntax
+         ) {
       after(node.lastToken, tokens: .close, .newline)
     } else {
       after(node.lastToken, tokens: .close)
@@ -664,10 +718,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: ClosureParamSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: ContinueStmtSyntax) {
     super.visit(node)
   }
@@ -906,10 +956,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: ClosureSignatureSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: DeclNameArgumentSyntax) {
     super.visit(node)
   }
@@ -981,10 +1027,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: ClosureCaptureItemSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: ElseIfContinuationSyntax) {
     super.visit(node)
   }
@@ -1026,10 +1068,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: TuplePatternElementSyntax) {
     after(node.trailingComma, tokens: .break)
-    super.visit(node)
-  }
-
-  override func visit(_ node: FunctionCallArgumentSyntax) {
     super.visit(node)
   }
 

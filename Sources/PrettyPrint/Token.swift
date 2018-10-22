@@ -34,6 +34,7 @@ enum Token {
   case space(size: Int)
   case newlines(Int, offset: Int)
   case comment(Comment, hasTrailingSpace: Bool)
+  case reset
 
   // Convenience overloads for the enum types
   static let open = Token.open(.inconsistent, 0)
