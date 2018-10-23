@@ -363,6 +363,23 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: AccessorDeclSyntax) {
+    super.visit(node)
+  }
+
+  override func visit(_ node: AccessorBlockSyntax) {
+    after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+    before(node.rightBrace, tokens: .break(offset: -2), .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: AccessorListSyntax) {
+    if node.count > 1 {
+      after(node.first?.lastToken, tokens: .break)
+    }
+    super.visit(node)
+  }
+
   func shouldAddOpenCloseNewlines(_ node: Syntax) -> Bool {
     if node is AccessorListSyntax { return true }
     guard let list = node as? CodeBlockItemListSyntax else {
@@ -370,10 +387,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
     if list.count > 1 { return true }
     return FindChildScope().findChildScope(in: list)
-  }
-
-  override func visit(_ node: AccessorBlockSyntax) {
-    super.visit(node)
   }
 
   override func visit(_ node: CodeBlockSyntax) {
@@ -704,10 +717,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: AccessorDeclSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: ArrayElementSyntax) {
     before(node.firstToken, tokens: .open)
     if let trailingComma = node.trailingComma {
@@ -768,6 +777,21 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ProtocolDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
+    after(node.protocolKeyword, tokens: .break)
+    before(node.members.leftBrace, tokens: .break)
+    after(
+      node.members.leftBrace,
+      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+    )
+    before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
+
     super.visit(node)
   }
 
@@ -880,6 +904,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: PatternBindingSyntax) {
+    before(node.accessor?.firstToken, tokens: .break)
     super.visit(node)
   }
 
