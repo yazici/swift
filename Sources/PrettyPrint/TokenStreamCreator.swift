@@ -495,10 +495,31 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AsExprSyntax) {
+    before(node.asTok, tokens: .space)
+    after(node.asTok, tokens: .break)
     super.visit(node)
   }
 
   override func visit(_ node: DoStmtSyntax) {
+    after(node.doKeyword, tokens: .space)
+    after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
+    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: CatchClauseSyntax) {
+    before(node.catchKeyword, tokens: .space)
+    before(node.pattern?.firstToken, tokens: .break)
+
+    if let whereClause = node.whereClause {
+      before(whereClause.firstToken, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.leftBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.body.leftBrace, tokens: .break)
+    }
+
+    after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
+    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
     super.visit(node)
   }
 
@@ -521,10 +542,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IsExprSyntax) {
+    before(node.isTok, tokens: .space)
+    after(node.isTok, tokens: .break)
     super.visit(node)
   }
 
   override func visit(_ node: TryExprSyntax) {
+    before(node.expression.firstToken, tokens: .break)
     super.visit(node)
   }
 
@@ -702,10 +726,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: CatchClauseSyntax) {
-    super.visit(node)
-  }
-
   override func visit(_ node: DotSelfExprSyntax) {
     super.visit(node)
   }
@@ -868,6 +888,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IsTypePatternSyntax) {
+    after(node.isKeyword, tokens: .break)
     super.visit(node)
   }
 
