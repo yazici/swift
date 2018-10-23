@@ -364,6 +364,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AccessorDeclSyntax) {
+    before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+    if let body = node.body {
+      before(node.accessorKind, tokens: .open, .open)
+      before(body.leftBrace, tokens: .break)
+      after(body.leftBrace, tokens: .close, .break(offset: 2), .open(.consistent, 0))
+      before(body.rightBrace, tokens: .break(offset: -2), .close, .close)
+    }
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
