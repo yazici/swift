@@ -268,6 +268,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: IfConfigClauseSyntax) {
+    after(node.poundKeyword, tokens: .break)
+    after(node.condition?.lastToken, tokens: .newline)
+    super.visit(node)
+  }
+
   override func visit(_ node: MemberDeclBlockSyntax) {
     for i in 0..<(node.members.count - 1) {
       after(node.members[i].lastToken, tokens: .newline)
@@ -315,10 +321,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: OperatorDeclSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: IfConfigClauseSyntax) {
     super.visit(node)
   }
 
