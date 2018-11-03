@@ -13,8 +13,8 @@ All rules subclass `Rule` and conform to one or more protocols.
 `Rule`s may be enabled or disabled via configuration; some rules provide
 additional configuration options.
 
-All rules must be implemeneted in `Sources/Rules` as a single file with a type
-matching the name of the file; e.g. `ValidFilename.swift` contains
+All rules must be implemeneted in `Sources/SwiftFormatRules` as a single file
+with a type matching the name of the file; e.g. `ValidFilename.swift` contains
 `public final class ValidFilename`.
 
 ### Formatting Invariants
