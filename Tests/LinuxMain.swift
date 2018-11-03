@@ -1,4 +1,5 @@
 #if os(Linux)
+import CommonMarkTests
 import SwiftFormatTests
 import XCTest
 
@@ -17,5 +18,6 @@ XCTMain([
   OpenBraceWhitespaceTests.allTests,
   CloseBraceWhitespaceTests.allTests,
   AlwaysUseLowerCamelCaseTests.allTests,
+  CommonMarkTests.XCTestManifests.allTests,
 ].joined())
 #endif
