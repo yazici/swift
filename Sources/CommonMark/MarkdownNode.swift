@@ -1,3 +1,17 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift Formatter open source project.
+//
+// Copyright (c) 2018 Apple Inc. and the Swift Formatter project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.txt for the list of Swift Formatter project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
+
 /// A node in the AST representing a parsed Markdown document.
 ///
 /// This protocol is refined by the more specific `BlockContent` and `InlineContent` protocols,
