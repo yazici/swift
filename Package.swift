@@ -1,4 +1,4 @@
-// swift-tools-version:4.1
+// swift-tools-version:4.2
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the Swift Formatter open source project.
@@ -16,47 +16,67 @@
 import PackageDescription
 
 let package = Package(
-  name: "swiftformat",
+  name: "swift-format",
+  products: [
+    .executable(name: "swift-format", targets: ["swift-format"]),
+  ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.1.0"),
     .package(url: "https://github.com/apple/swift-syntax", from: "0.40200.0"),
   ],
   targets: [
     .target(
-      name: "swiftformat",
-      dependencies: ["Rules", "Core", "Configuration", "PrettyPrint", "SwiftSyntax", "Utility"]),
-    .target(
-      name: "generate-pipeline",
-      dependencies: ["SwiftSyntax"]),
-    .target(
-      name: "Rules",
-      dependencies: ["Core", "Configuration"]),
-    .target(
-      name: "PrettyPrint",
-      dependencies: ["Core", "Configuration"]),
-    .target(
-      name: "Core",
-      dependencies: ["Configuration", "SwiftSyntax"]),
-    .target(
-      name: "Configuration",
-      dependencies: []),
-    .target(name: "CommonMark", dependencies: ["CCommonMark"]),
-    .target(
       name: "CCommonMark",
       exclude: [
         "cmark/api_test",
-        // We must exclude main.c or SwiftPM will treat this target as an
-        // executable target and we won't be able to import it from the
-        // CommonMark Swift module.
+        // We must exclude main.c or SwiftPM will treat this target as an executable target instead
+        // of a library, and we won't be able to import it from the CommonMark Swift module.
         "cmark/src/main.c",
       ]
     ),
-    .testTarget(
-      name: "SwiftFormatTests",
-      dependencies: ["Core", "Configuration", "Rules", "PrettyPrint", "SwiftSyntax"]),
-    .testTarget(
-      name: "PrettyPrinterTests",
-      dependencies: ["Core", "Configuration", "Rules", "PrettyPrint", "SwiftSyntax"]),
+    .target(name: "CommonMark", dependencies: ["CCommonMark"]),
+    .target(name: "SwiftFormatConfiguration"),
+    .target(name: "SwiftFormatCore", dependencies: ["SwiftFormatConfiguration", "SwiftSyntax"]),
+    .target(
+      name: "SwiftFormatRules",
+      dependencies: ["SwiftFormatCore", "SwiftFormatConfiguration"]
+    ),
+    .target(
+      name: "SwiftFormatPrettyPrint",
+      dependencies: ["SwiftFormatCore", "SwiftFormatConfiguration"]
+    ),
+    .target(name: "generate-pipeline", dependencies: ["SwiftSyntax"]),
+    .target(
+      name: "swift-format",
+      dependencies: [
+        "SwiftFormatConfiguration",
+        "SwiftFormatCore",
+        "SwiftFormatPrettyPrint",
+        "SwiftFormatRules",
+        "SwiftSyntax",
+        "Utility",
+      ]
+    ),
     .testTarget(name: "CommonMarkTests", dependencies: ["CommonMark"]),
+    .testTarget(
+      name: "SwiftFormatRulesTests",
+      dependencies: [
+        "SwiftFormatConfiguration",
+        "SwiftFormatCore",
+        "SwiftFormatPrettyPrint",
+        "SwiftFormatRules",
+        "SwiftSyntax",
+      ]
+    ),
+    .testTarget(
+      name: "SwiftFormatPrettyPrintTests",
+      dependencies: [
+        "SwiftFormatConfiguration",
+        "SwiftFormatCore",
+        "SwiftFormatPrettyPrint",
+        "SwiftFormatRules",
+        "SwiftSyntax",
+      ]
+    ),
   ]
 )

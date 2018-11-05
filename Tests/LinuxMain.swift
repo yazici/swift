@@ -1,6 +1,6 @@
 #if os(Linux)
 import CommonMarkTests
-import SwiftFormatTests
+import SwiftFormatRulesTests
 import XCTest
 
 XCTMain([
