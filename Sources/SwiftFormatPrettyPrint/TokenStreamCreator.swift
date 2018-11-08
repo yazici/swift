@@ -1205,27 +1205,29 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ token: TokenSyntax) {
-    breakDownTrivia(token.leadingTrivia, before: token)
+    let fileStart = token.previousToken == nil
+    extractTrivia(token.leadingTrivia, fileStart: fileStart)
     if let before = beforeMap[token] {
       tokens += before
     }
     appendToken(.syntax(token))
+    extractTrailingLineComment(token)
     if let afterGroups = afterMap[token] {
       for after in afterGroups.reversed() {
         tokens += after
       }
     }
-    breakDownTrivia(token.trailingTrivia)
+    extractTrivia(token.trailingTrivia)
   }
 
   func appendToken(_ token: Token) {
     if let last = tokens.last {
       switch (last, token) {
-      case (.comment(let c1, _), .comment(let c2, _))
+      case (.comment(let c1), .comment(let c2))
         where c1.kind == .docLine && c2.kind == .docLine:
         var newComment = c1
         newComment.addText(c2.text)
-        tokens[tokens.count - 1] = .comment(newComment, hasTrailingSpace: false)
+        tokens[tokens.count - 1] = .comment(newComment)
         return
       default:
         break
@@ -1242,50 +1244,47 @@ private final class TokenStreamCreator: SyntaxVisitor {
     return true
   }
 
-  private func breakDownTrivia(_ trivia: Trivia, before: TokenSyntax? = nil) {
+  private func extractTrailingLineComment(_ token: TokenSyntax) {
+    guard let nextToken = token.nextToken else {
+      return
+    }
+    let trivia = nextToken.leadingTrivia
     for (offset, piece) in trivia.enumerated() {
       switch piece {
       case .lineComment(let text):
-        appendToken(.comment(Comment(kind: .line, text: text), hasTrailingSpace: false))
-        if case .newlines? = trivia[safe: offset + 1],
-           case .lineComment? = trivia[safe: offset + 2] {
-          /* do nothing */
+        if offset > 0, case .newlines? = trivia[safe: offset - 1] {
+          return
         } else {
+          appendToken(.break(size: 2, offset: 2))
+          appendToken(.comment(Comment(kind: .line, text: text)))
+          if let parent = nextToken.parent?.parent, !(parent is CodeBlockItemSyntax) {
+            appendToken(.newline)
+          }
+          return
+        }
+      default:
+        break
+      }
+    }
+  }
+
+  private func extractTrivia(_ trivia: Trivia, fileStart: Bool = false) {
+    for (offset, piece) in trivia.enumerated() {
+      switch piece {
+      case .lineComment(let text):
+        if fileStart {
+          appendToken(.comment(Comment(kind: .line, text: text)))
+          appendToken(.newline)
+        } else if offset > 0, case .newlines? = trivia[safe: offset - 1] {
+          appendToken(.comment(Comment(kind: .line, text: text)))
           appendToken(.newline)
         }
       case .docLineComment(let text):
-        appendToken(.comment(Comment(kind: .docLine, text: text), hasTrailingSpace: false))
+        appendToken(.comment(Comment(kind: .docLine, text: text)))
         if case .newlines? = trivia[safe: offset + 1],
            case .docLineComment? = trivia[safe: offset + 2] {
           /* do nothing */
         } else {
-          appendToken(.newline)
-        }
-      case .blockComment(let text), .docBlockComment(let text):
-        var hasTrailingSpace = false
-        var hasTrailingNewline = false
-
-        // Detect if a newline or trailing space comes after this comment and preserve it.
-        if let next = trivia[safe: offset + 1] {
-          switch next {
-          case .newlines, .carriageReturns, .carriageReturnLineFeeds:
-            hasTrailingNewline = true
-          case .spaces, .tabs:
-            hasTrailingSpace = true
-          default:
-            break
-          }
-        }
-
-        let commentKind: Comment.Kind
-        if case .blockComment = piece {
-          commentKind = .block
-        } else {
-          commentKind = .docBlock
-        }
-        let comment = Comment(kind: commentKind, text: text)
-        appendToken(.comment(comment, hasTrailingSpace: hasTrailingSpace))
-        if hasTrailingNewline {
           appendToken(.newline)
         }
       case .newlines(let n), .carriageReturns(let n), .carriageReturnLineFeeds(let n):

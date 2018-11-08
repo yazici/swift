@@ -225,8 +225,18 @@ public class PrettyPrinter {
       write(syntaxToken.text)
       spaceRemaining -= syntaxToken.text.count
 
-    // TODO(dabelknap): Implement comments
-    case .comment: ()
+    case .comment(let comment):
+      if lastBreakConsecutive {
+        // If the last token created a new line, we need to apply indentation.
+        writeSpaces(lastBreakValue)
+
+        lastBreak = false
+        lastBreakConsecutive = false
+        lastBreakOffset = 0
+        lastBreakValue = 0
+      }
+      write(comment.print(indent: lastBreakValue))
+      spaceRemaining -= comment.length
     }
   }
 
@@ -317,8 +327,9 @@ public class PrettyPrinter {
         lengths.append(syntaxToken.text.count)
         total += syntaxToken.text.count
 
-      // TODO(dabelknap): Implement comments
-      case .comment: ()
+      case .comment(let comment):
+        lengths.append(comment.length)
+        total += comment.length
       }
     }
 
