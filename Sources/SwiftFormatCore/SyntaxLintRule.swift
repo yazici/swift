@@ -38,9 +38,17 @@ extension Rule {
     on node: Syntax?,
     actions: ((inout Diagnostic.Builder) -> Void)? = nil
   ) {
+    // TODO: node?.startLocation should be returning the position ignoring leading trivia. It isn't
+    // working properly, so we are using this workaround until it is fixed.
+    let loc = node.map {
+      SourceLocation(
+        file: context.fileURL.path,
+        position: $0.positionAfterSkippingLeadingTrivia
+      )
+    }
     context.diagnosticEngine?.diagnose(
       message.withRule(self),
-      location: node?.startLocation(in: context.fileURL),
+      location: loc,
       actions: actions
     )
   }
