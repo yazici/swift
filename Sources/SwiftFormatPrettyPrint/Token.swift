@@ -33,7 +33,7 @@ enum Token {
   case `break`(size: Int, offset: Int)
   case space(size: Int)
   case newlines(Int, offset: Int)
-  case comment(Comment, hasTrailingSpace: Bool)
+  case comment(Comment)
   case reset
 
   // Convenience overloads for the enum types

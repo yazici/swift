@@ -38,13 +38,15 @@ struct Comment {
     }
   }
   let kind: Kind
-  var text: String
+  var text: [String]
+  public var length: Int
 
   init(kind: Kind, text: String) {
-    self.text = text
+    self.text = [text]
     self.kind = kind
+    self.length = text.count + kind.prefixLength + 1
 
-    self.text.removeFirst(kind.prefixLength)
+    self.text[0].removeFirst(kind.prefixLength)
 
     switch kind {
     case .docBlock:
@@ -55,51 +57,15 @@ struct Comment {
     }
   }
 
-  mutating func addText(_ text: String) {
-    self.text += "\n" + text
+  func print(indent: Int) -> String {
+    let separator = "\n" + String(repeating: " ", count: indent) + kind.prefix
+    return kind.prefix + self.text.joined(separator: separator)
   }
 
-  func wordWrap(lineLength: Int) -> [String] {
-    let maxLength = lineLength - (kind.prefixLength + 1)
-    let scanner = Scanner(string: text)
-    var lines = [String]()
-
-    // FIXME: Word wrapping doesn't work for documentation comments, as we need to preserve all the
-    //        intricacies of Markdown formatting.
-    // FIXME: If there's a totally blank comment line, it doesn't get a prefix for some reason.
-    // TODO: Allow for leading `*` characters for each line of a block comment.
-    if kind == .docLine || kind == .docBlock {
-      lines = text.split(separator: "\n").map { "\(kind.prefix)\($0)" }
-    } else {
-      var currentLine = ""
-      var currentLineLength = 0
-      var buffer: NSString! = ""
-      while scanner.scanUpToCharacters(from: .whitespacesAndNewlines, into: &buffer) {
-        let strBuf = buffer as String
-        if currentLineLength + strBuf.count > maxLength {
-          lines.append(currentLine)
-          currentLine = ""
-          currentLineLength = 0
-        }
-        currentLine += strBuf + " "
-        currentLineLength += strBuf.count + 1
-      }
-      if currentLineLength > 0 {
-        lines.append(currentLine.trimmingCharacters(in: .whitespaces))
-      }
-      for i in 0..<lines.count {
-        lines[i] = "\(kind.prefix) \(lines[i])"
-      }
+  mutating func addText(_ text: [String]) {
+    for line in text {
+      self.text.append(line)
+      self.length += line.count + self.kind.prefixLength + 1
     }
-    switch kind {
-    case .block:
-      lines.insert("/*", at: 0)
-      lines.append(" */")
-    case .docBlock:
-      lines.insert("/**", at: 0)
-      lines.append(" */")
-    default: break
-    }
-    return lines
   }
 }
