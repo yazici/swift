@@ -21,45 +21,53 @@ struct Comment {
     /// The length of the characters starting the comment.
     var prefixLength: Int {
       switch self {
-      // `//`, `/*`, and `/**` all will have their continued lines prefixed with 3 characters.
-      case .line, .block, .docBlock: return 2
-
-      // `/// ` is 4 characters.
-      case .docLine: return 3
+      // `//`, `/*`
+      case .line, .block: return 2
+      // `///`, `/**`
+      case .docLine, .docBlock: return 3
       }
     }
 
     var prefix: String {
       switch self {
       case .line: return "//"
-      case .block, .docBlock: return " "
+      case .block: return "/*"
+      case .docBlock: return "/**"
       case .docLine: return "///"
       }
     }
   }
+
   let kind: Kind
   var text: [String]
   public var length: Int
 
   init(kind: Kind, text: String) {
-    self.text = [text]
     self.kind = kind
-    self.length = text.count + kind.prefixLength + 1
-
-    self.text[0].removeFirst(kind.prefixLength)
-
     switch kind {
-    case .docBlock:
-      self.text.removeLast(2)
-    case .block:
-      self.text.removeLast(2)
-    default: break
+    case .line, .docLine:
+      self.text = [text]
+      self.text[0].removeFirst(kind.prefixLength)
+      self.length = self.text.reduce(0, { $0 + $1.count + kind.prefixLength + 1 })
+
+    case .block, .docBlock:
+      var fulltext: String = text
+      fulltext.removeFirst(kind.prefixLength)
+      fulltext.removeLast(2)
+      self.text = fulltext.split(separator: "\n", omittingEmptySubsequences: false).map{ String($0) }
+      self.length = self.text.reduce(0, { $0 + $1.count }) + kind.prefixLength + 3
     }
   }
 
   func print(indent: Int) -> String {
-    let separator = "\n" + String(repeating: " ", count: indent) + kind.prefix
-    return kind.prefix + self.text.joined(separator: separator)
+    switch self.kind {
+    case .line, .docLine:
+      let separator = "\n" + String(repeating: " ", count: indent) + kind.prefix
+      return kind.prefix + self.text.joined(separator: separator)
+    case .block, .docBlock:
+      let separator = "\n" + String(repeating: " ", count: indent)
+      return kind.prefix + self.text.joined(separator: separator) + "*/"
+    }
   }
 
   mutating func addText(_ text: [String]) {
