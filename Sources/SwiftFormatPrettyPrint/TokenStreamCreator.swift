@@ -1262,6 +1262,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
           }
           return
         }
+      case .blockComment(let text):
+        if offset > 0, case .newlines? = trivia[safe: offset - 1] {
+          return
+        } else {
+          appendToken(.break(size: 2, offset: 2))
+          appendToken(.comment(Comment(kind: .block, text: text)))
+          if let parent = nextToken.parent?.parent, !(parent is CodeBlockItemSyntax) {
+            appendToken(.newline)
+          }
+          return
+        }
       default:
         break
       }
@@ -1279,10 +1290,26 @@ private final class TokenStreamCreator: SyntaxVisitor {
           appendToken(.comment(Comment(kind: .line, text: text)))
           appendToken(.newline)
         }
+      case .blockComment(let text):
+        if fileStart {
+          appendToken(.comment(Comment(kind: .block, text: text)))
+          appendToken(.newline)
+        } else if offset > 0, case .newlines? = trivia[safe: offset - 1] {
+          appendToken(.comment(Comment(kind: .block, text: text)))
+          appendToken(.newline)
+        }
       case .docLineComment(let text):
         appendToken(.comment(Comment(kind: .docLine, text: text)))
         if case .newlines? = trivia[safe: offset + 1],
            case .docLineComment? = trivia[safe: offset + 2] {
+          /* do nothing */
+        } else {
+          appendToken(.newline)
+        }
+      case .docBlockComment(let text):
+        appendToken(.comment(Comment(kind: .docBlock, text: text)))
+        if case .newlines? = trivia[safe: offset + 1],
+          case .docLineComment? = trivia[safe: offset + 2] {
           /* do nothing */
         } else {
           appendToken(.newline)
