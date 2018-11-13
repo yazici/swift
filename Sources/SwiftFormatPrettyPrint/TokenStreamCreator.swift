@@ -793,6 +793,36 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: InitializerDeclSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
+
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
+    before(
+      node.genericWhereClause?.firstToken,
+      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
+    )
+    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
+
+    before(node.throwsOrRethrowsKeyword, tokens: .break)
+
+    if let body = node.body {
+      if node.genericWhereClause == nil {
+        before(body.leftBrace, tokens: .break)
+      }
+      after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
+      before(body.rightBrace, tokens: .break(offset: -2), .close)
+    }
+
+    after(node.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
   override func visit(_ node: FunctionSignatureSyntax) {
     before(node.output?.firstToken, tokens: .break)
     super.visit(node)
@@ -983,10 +1013,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     } else {
       after(node.lastToken, tokens: .close)
     }
-    super.visit(node)
-  }
-
-  override func visit(_ node: InitializerDeclSyntax) {
     super.visit(node)
   }
 
