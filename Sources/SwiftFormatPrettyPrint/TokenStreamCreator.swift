@@ -767,6 +767,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionDeclSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
+
     if let attributes = node.attributes {
       before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
       after(attributes.lastToken, tokens: .open)
@@ -790,6 +792,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
       before(body.rightBrace, tokens: .break(offset: -2), .close)
     }
 
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -824,6 +827,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: FunctionSignatureSyntax) {
+    before(node.throwsOrRethrowsKeyword, tokens: .break)
     before(node.output?.firstToken, tokens: .break)
     super.visit(node)
   }
