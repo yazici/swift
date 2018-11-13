@@ -73,6 +73,39 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
   }
 
+  public func testFunctionDeclThrows() {
+    let input =
+      """
+      func myFun(var1: Int) throws -> Double {
+        print("Hello World")
+        return 1.0
+      }
+      func reallyLongName(var1: Int, var2: Double, var3: Bool) throws -> Double {
+        print("Hello World")
+        return 1.0
+      }
+      """
+
+    let expected =
+      """
+      func myFun(var1: Int) throws -> Double {
+        print("Hello World")
+        return 1.0
+      }
+      func reallyLongName(
+        var1: Int,
+        var2: Double,
+        var3: Bool
+      ) throws -> Double {
+        print("Hello World")
+        return 1.0
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
+  }
+
   public func testFunctionGenericParameters() {
     let input =
     """
