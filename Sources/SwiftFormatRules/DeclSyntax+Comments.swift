@@ -1,14 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the Swift Formatter open source project.
+// This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift Formatter project authors
-// Licensed under Apache License v2.0
+// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of Swift Formatter project authors
-//
-// SPDX-License-Identifier: Apache-2.0
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,11 +17,11 @@ extension DeclSyntax {
   public var docComment: String? {
     guard let tok = firstToken else { return nil }
     var comment = [String]()
-    
+
     // We need to skip trivia until we see the first comment. This trivia will include all the
     // spaces and newlines before the doc comment.
     var hasSeenFirstLineComment = false
-    
+
     // Look through for discontiguous doc comments, separated by more than 1 newline.
     gatherComments: for piece in tok.leadingTrivia.reversed() {
       switch piece {

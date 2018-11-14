@@ -1,14 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the Swift Formatter open source project.
+// This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift Formatter project authors
-// Licensed under Apache License v2.0
+// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of Swift Formatter project authors
-//
-// SPDX-License-Identifier: Apache-2.0
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,10 +27,10 @@ public class Context {
 
   /// The URL of the file being linted or formatted.
   public let fileURL: URL
-  
+
   /// Indicates whether the file imports XCTest, and is test code
   public var importsXCTest: Bool
-  
+
   /// Indicates whether the visitor has already determined a value for importsXCTest
   public var didSetImportsXCTest: Bool
 
