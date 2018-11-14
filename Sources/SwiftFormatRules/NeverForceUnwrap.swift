@@ -1,14 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the Swift Formatter open source project.
+// This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift Formatter project authors
-// Licensed under Apache License v2.0
+// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of Swift Formatter project authors
-//
-// SPDX-License-Identifier: Apache-2.0
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,18 +20,18 @@ import SwiftSyntax
 ///
 /// - SeeAlso: https://google.github.io/swift#force-unwrapping-and-force-casts
 public final class NeverForceUnwrap: SyntaxLintRule {
-  
+
   public override func visit(_ node: SourceFileSyntax) {
     // Tracks whether "XCTest" is imported in the source file before processing the individual
     setImportsXCTest(context: context, sourceFile: node)
     super.visit(node)
   }
-  
+
   public override func visit(_ node: ForcedValueExprSyntax) {
     guard !context.importsXCTest else { return }
     diagnose(.doNotForceUnwrap(name: node.expression.description), on: node)
   }
-  
+
   public override func visit(_ node: AsExprSyntax) {
     // Only fire if we're not in a test file and if there is an exclamation mark following the `as`
     // keyword.

@@ -1,14 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the Swift Formatter open source project.
+// This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift Formatter project authors
-// Licensed under Apache License v2.0
+// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of Swift Formatter project authors
-//
-// SPDX-License-Identifier: Apache-2.0
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,7 +38,7 @@ public final class NoBlockComments: SyntaxFormatRule {
       hasBlockComment = true
       validToken = addSpacesBeforeComment(token)
     }
-    
+
     // Ensures that all block comments are replaced with line comment,
     // unless the comment is between tokens on the same line.
     for piece in token.leadingTrivia {
@@ -59,7 +57,7 @@ public final class NoBlockComments: SyntaxFormatRule {
     validToken =  validToken.withLeadingTrivia(Trivia(pieces: pieces))
     return hasBlockComment ? validToken : token
   }
-  
+
   /// Returns a Boolean value indicating if the given trivia has a piece trivia
   /// of block comment inline with code.
   private func containsBlockCommentInline(trivia: Trivia) -> Bool {
@@ -77,7 +75,7 @@ public final class NoBlockComments: SyntaxFormatRule {
     }
     return false
   }
-  
+
   /// Indicates if a block comment is between tokens on the same line.
   /// If it does, it should only raise a lint error.
   private func commentIsBetweenCode(_ token: TokenSyntax) -> Bool {
@@ -87,7 +85,7 @@ public final class NoBlockComments: SyntaxFormatRule {
     }
     return hasCommentBetweenCode
   }
-  
+
   /// Ensures there is always at least 2 spaces before the comment.
   private func addSpacesBeforeComment(_ token: TokenSyntax) -> TokenSyntax {
     let numSpaces = token.trailingTrivia.numberOfSpaces
@@ -98,16 +96,16 @@ public final class NoBlockComments: SyntaxFormatRule {
     }
     return token
   }
-  
+
   /// Receives the text of a Block comment and converts it to a Line Comment format text.
   private func convertBlockCommentsToLineComments(_ text: String) -> String {
     // Removes the '/*', '*/', the extra spaces and newlines from the comment.
     let textTrim = text.dropFirst(2).dropLast(2)
         .trimmingCharacters(in: .whitespacesAndNewlines)
-    
+
     let splitComment = textTrim.split(separator: "\n", omittingEmptySubsequences: false)
     var lineCommentText = [String]()
-    
+
     for line in splitComment {
       let startsComment = line.starts(with: " ") || line.count == 0 ? "//" : "// "
       lineCommentText.append(startsComment + line)
@@ -128,7 +126,7 @@ extension Trivia {
   var isBetweenTokens: Bool {
     var beginsNewLine = false
     var endsNewLine = false
-    
+
     if let firstPiece = self.first,
       let lastPiece = self.reversed().first {
       if case .newlines(_) = firstPiece {

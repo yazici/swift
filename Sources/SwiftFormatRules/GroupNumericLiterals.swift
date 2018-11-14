@@ -1,14 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the Swift Formatter open source project.
+// This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift Formatter project authors
-// Licensed under Apache License v2.0
+// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of Swift Formatter project authors
-//
-// SPDX-License-Identifier: Apache-2.0
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,15 +30,15 @@ import SwiftSyntax
 /// - SeeAlso: https://google.github.io/swift#numeric-literals
 public final class GroupNumericLiterals: SyntaxFormatRule {
   public override func visit(_ node: IntegerLiteralExprSyntax) -> ExprSyntax {
-    
+
     var digits = node.digits.text
     guard !digits.contains("_") else { return node }
-    
+
     let isNegative = digits.first == "-"
     digits = isNegative ? String(digits.dropFirst()) : digits
-    
+
     var newDigits = ""
-    
+
     switch digits.prefix(2) {
     case "0x":
       // Hexadecimal
@@ -66,11 +64,11 @@ public final class GroupNumericLiterals: SyntaxFormatRule {
       diagnose(.groupNumericLiteral(byStride: 3), on: node)
       newDigits = groupDigitsByStride(digits: digits, stride: 3)
     }
-    
+
     newDigits = isNegative ? "-" + newDigits : newDigits
     return node.withDigits(SyntaxFactory.makeIdentifier(newDigits))
   }
-  
+
   func groupDigitsByStride(digits: String, stride: Int) -> String {
     var newGrouping = Array(digits)
     var i = 1

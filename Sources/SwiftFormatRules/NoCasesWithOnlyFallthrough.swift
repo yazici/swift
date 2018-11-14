@@ -1,14 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the Swift Formatter open source project.
+// This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift Formatter project authors
-// Licensed under Apache License v2.0
+// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
 //
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of Swift Formatter project authors
-//
-// SPDX-License-Identifier: Apache-2.0
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,18 +23,18 @@ import SwiftSyntax
 ///
 /// - SeeAlso: https://google.github.io/swift#fallthrough-in-switch-statements
 public final class NoCasesWithOnlyFallthrough: SyntaxFormatRule {
-  
+
   public override func visit(_ node: SwitchStmtSyntax) -> StmtSyntax {
     var newCases: [SwitchCaseSyntax] = []
     var violations: [SwitchCaseLabelSyntax] = []
-    
+
     for switchCase in node.cases {
       guard let switchCase = switchCase as? SwitchCaseSyntax else { continue }
       guard let label = switchCase.label as? SwitchCaseLabelSyntax else {
         newCases.append(switchCase)
         continue
       }
-      
+
       if switchCase.statements.count == 1,
        let only = switchCase.statements.first,
        only.item is FallthroughStmtSyntax {
@@ -64,14 +62,14 @@ public final class NoCasesWithOnlyFallthrough: SyntaxFormatRule {
     }
     return node.withCases(SyntaxFactory.makeSwitchCaseList(newCases))
   }
-  
+
   // Puts all given cases on one line with range operator or commas
   func collapseIntegerCases(violations: [SwitchCaseLabelSyntax],
         validCaseLabel: SwitchCaseLabelSyntax, validCase: SwitchCaseSyntax) -> SwitchCaseSyntax {
     var isConsecutive = true
     var index = 0
     var caseNums: [Int] = []
-    
+
     for item in violations {
       guard let caseNum = retrieveNumericCaseValue(caseLabel: item) else { continue }
       caseNums.append(caseNum)
@@ -123,7 +121,7 @@ public final class NoCasesWithOnlyFallthrough: SyntaxFormatRule {
     let caseItemList = SyntaxFactory.makeCaseItemList(newCaseItems)
     return validCase.withLabel(validCaseLabel.withCaseItems(caseItemList))
   }
-  
+
   // Gets integer value from case label, if possible
   func retrieveNumericCaseValue(caseLabel: SwitchCaseLabelSyntax) -> Int? {
     if let firstTok = caseLabel.caseItems.firstToken,
@@ -132,7 +130,7 @@ public final class NoCasesWithOnlyFallthrough: SyntaxFormatRule {
     }
     return nil
   }
-  
+
   // Puts all given cases on one line separated by commas
   func collapseNonIntegerCases(violations: [SwitchCaseLabelSyntax],
         validCaseLabel: SwitchCaseLabelSyntax, validCase: SwitchCaseSyntax) -> SwitchCaseSyntax {
