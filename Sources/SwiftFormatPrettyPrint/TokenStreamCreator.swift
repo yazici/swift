@@ -398,8 +398,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockSyntax) {
-    for i in 0..<(node.statements.count - 1) {
-      after(node.statements[i].lastToken, tokens: .newline)
+    if node.statements.count > 0 {
+      for i in 0..<(node.statements.count - 1) {
+        after(node.statements[i].lastToken, tokens: .newline)
+      }
     }
     super.visit(node)
   }
@@ -1233,19 +1235,121 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ token: TokenSyntax) {
-    let fileStart = token.previousToken == nil
-    extractTrivia(token.leadingTrivia, fileStart: fileStart)
+    extractLeadingTrivia(token)
     if let before = beforeMap[token] {
       tokens += before
     }
     appendToken(.syntax(token))
-    extractTrailingLineComment(token)
+    extractTrailingComment(token)
     if let afterGroups = afterMap[token] {
       for after in afterGroups.reversed() {
         tokens += after
       }
     }
-    extractTrivia(token.trailingTrivia)
+  }
+
+  private func extractTrailingComment(_ token: TokenSyntax) {
+    let nextToken = token.nextToken
+    guard let trivia = nextToken?.leadingTrivia,
+          let firstPiece = trivia[safe: 0] else {
+      return
+    }
+
+    switch firstPiece {
+    case .lineComment(let text):
+      appendToken(.break(size: 2, offset: 2))
+      appendToken(.comment(Comment(kind: .line, text: text)))
+      if isInContainer(token) {
+        appendToken(.newline)
+      }
+
+    case .blockComment(let text):
+      appendToken(.break(size: 2, offset: 2))
+      appendToken(.comment(Comment(kind: .block, text: text)))
+      if isInContainer(token) {
+        appendToken(.newline)
+      }
+
+    default:
+      return
+    }
+  }
+
+  private func isInContainer(_ token: TokenSyntax) -> Bool {
+    if token.parent is ArrayElementSyntax || token.parent is DictionaryElementSyntax || token.parent is TupleElementSyntax {
+      return true
+    }
+    return false
+  }
+
+  private func extractLeadingTrivia(_ token: TokenSyntax) {
+    let isStartOfFile = token.previousToken == nil
+    let trivia = token.leadingTrivia
+
+    for (index, piece) in trivia.enumerated() {
+      switch piece {
+      case .lineComment(let text):
+        if index > 0 || isStartOfFile {
+          if token.withoutTrivia().text == "}" {
+            if let previousToken = token.previousToken,
+               previousToken.withoutTrivia().text == "{" {
+              // do nothing
+            } else {
+              appendToken(.newline)
+            }
+          }
+
+          appendToken(.comment(Comment(kind: .line, text: text)))
+
+          if token.withoutTrivia().text == "}" {
+            appendToken(.newline(offset: -2))
+          } else {
+            appendToken(.newline)
+          }
+        }
+
+      case .blockComment(let text):
+        if index > 0 || isStartOfFile {
+          if token.withoutTrivia().text == "}" {
+            if let previousToken = token.previousToken,
+              previousToken.withoutTrivia().text == "{" {
+              // do nothing
+            } else {
+              appendToken(.newline)
+            }
+          }
+
+          appendToken(.comment(Comment(kind: .block, text: text)))
+
+          if token.withoutTrivia().text == "}" {
+            appendToken(.newline(offset: -2))
+          } else {
+            appendToken(.newline)
+          }
+        }
+
+      case .docLineComment(let text):
+        appendToken(.comment(Comment(kind: .docLine, text: text)))
+        if case .newlines? = trivia[safe: index + 1],
+           case .docLineComment? = trivia[safe: index + 2] {
+          // do nothing
+        } else {
+          appendToken(.newline)
+        }
+
+      case .docBlockComment(let text):
+        appendToken(.comment(Comment(kind: .docBlock, text: text)))
+        appendToken(.newline)
+
+      case .newlines(let n), .carriageReturns(let n), .carriageReturnLineFeeds(let n):
+        if n > 1 {
+          appendToken(.newlines(min(n - 1, config.maximumBlankLines), offset: 0))
+        }
+
+      default:
+        break
+      }
+    }
   }
 
   func appendToken(_ token: Token) {
@@ -1270,86 +1374,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
       if case .newlines = item { return false }
     }
     return true
-  }
-
-  private func extractTrailingLineComment(_ token: TokenSyntax) {
-    guard let nextToken = token.nextToken else {
-      return
-    }
-    let trivia = nextToken.leadingTrivia
-    for (offset, piece) in trivia.enumerated() {
-      switch piece {
-      case .lineComment(let text):
-        if offset > 0, case .newlines? = trivia[safe: offset - 1] {
-          return
-        } else {
-          appendToken(.break(size: 2, offset: 2))
-          appendToken(.comment(Comment(kind: .line, text: text)))
-          if let parent = nextToken.parent?.parent, !(parent is CodeBlockItemSyntax) {
-            appendToken(.newline)
-          }
-          return
-        }
-      case .blockComment(let text):
-        if offset > 0, case .newlines? = trivia[safe: offset - 1] {
-          return
-        } else {
-          appendToken(.break(size: 2, offset: 2))
-          appendToken(.comment(Comment(kind: .block, text: text)))
-          if let parent = nextToken.parent?.parent, !(parent is CodeBlockItemSyntax) {
-            appendToken(.newline)
-          }
-          return
-        }
-      default:
-        break
-      }
-    }
-  }
-
-  private func extractTrivia(_ trivia: Trivia, fileStart: Bool = false) {
-    for (offset, piece) in trivia.enumerated() {
-      switch piece {
-      case .lineComment(let text):
-        if fileStart {
-          appendToken(.comment(Comment(kind: .line, text: text)))
-          appendToken(.newline)
-        } else if offset > 0, case .newlines? = trivia[safe: offset - 1] {
-          appendToken(.comment(Comment(kind: .line, text: text)))
-          appendToken(.newline)
-        }
-      case .blockComment(let text):
-        if fileStart {
-          appendToken(.comment(Comment(kind: .block, text: text)))
-          appendToken(.newline)
-        } else if offset > 0, case .newlines? = trivia[safe: offset - 1] {
-          appendToken(.comment(Comment(kind: .block, text: text)))
-          appendToken(.newline)
-        }
-      case .docLineComment(let text):
-        appendToken(.comment(Comment(kind: .docLine, text: text)))
-        if case .newlines? = trivia[safe: offset + 1],
-           case .docLineComment? = trivia[safe: offset + 2] {
-          /* do nothing */
-        } else {
-          appendToken(.newline)
-        }
-      case .docBlockComment(let text):
-        appendToken(.comment(Comment(kind: .docBlock, text: text)))
-        if case .newlines? = trivia[safe: offset + 1],
-          case .docLineComment? = trivia[safe: offset + 2] {
-          /* do nothing */
-        } else {
-          appendToken(.newline)
-        }
-      case .newlines(let n), .carriageReturns(let n), .carriageReturnLineFeeds(let n):
-        if n > 1 {
-          appendToken(.newlines(min(n - 1, config.maximumBlankLines), offset: 0))
-        }
-      default:
-        break
-      }
-    }
   }
 }
 
