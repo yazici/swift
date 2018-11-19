@@ -92,6 +92,23 @@ public class CommentTests: PrettyPrintTestCase {
 
       let reallyLongVariableName = 123 // This comment should wrap
 
+      func MyFun() {
+        // just a comment
+      }
+
+      func MyFun() {
+        // Comment 1
+        // Comment 2
+        let a = 123
+
+        let b = 456  // Comment 3
+      }
+
+      func MyFun() {
+        let c = 789 // Comment 4
+        // Comment 5
+      }
+
       let d = 123
       // Trailing Comment
       """
@@ -109,6 +126,23 @@ public class CommentTests: PrettyPrintTestCase {
 
       let reallyLongVariableName = 123
         // This comment should wrap
+
+      func MyFun() {
+        // just a comment
+      }
+
+      func MyFun() {
+        // Comment 1
+        // Comment 2
+        let a = 123
+
+        let b = 456  // Comment 3
+      }
+
+      func MyFun() {
+        let c = 789  // Comment 4
+        // Comment 5
+      }
 
       let d = 123
       // Trailing Comment
