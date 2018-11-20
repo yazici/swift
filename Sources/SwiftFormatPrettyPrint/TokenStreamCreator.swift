@@ -808,6 +808,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
       }
       after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
       before(body.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      // FunctionDecls in protocols won't have bodies, so make sure we close the correct number of
+      // groups in that case as well.
+      after(node.lastToken, tokens: .close, .close)
     }
 
     after(node.lastToken, tokens: .close)
