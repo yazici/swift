@@ -6,6 +6,7 @@ public class ArrayDeclTests: PrettyPrintTestCase {
       let a: [Bool] = [false, true, true, false]
       let a: [String] = ["One", "Two", "Three", "Four"]
       let a: [String] = ["One", "Two", "Three", "Four", "Five", "Six", "Seven"]
+      let a: [String] = ["One", "Two", "Three", "Four", "Five", "Six", "Seven",]
       """
 
     let expected =
@@ -23,6 +24,15 @@ public class ArrayDeclTests: PrettyPrintTestCase {
         "Five",
         "Six",
         "Seven"
+      ]
+      let a: [String] = [
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five",
+        "Six",
+        "Seven",
       ]
 
       """
