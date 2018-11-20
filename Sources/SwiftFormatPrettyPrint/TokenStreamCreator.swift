@@ -406,11 +406,21 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: CodeBlockItemListSyntax) {
+    if node.parent is AccessorBlockSyntax, node.count > 0 {
+      for i in 0..<(node.count - 1) {
+        after(node[i].lastToken, tokens: .newline)
+      }
+    }
+    super.visit(node)
+  }
+
   override func visit(_ node: CodeBlockItemSyntax) {
     before(node.firstToken, tokens: .open)
     if !(node.parent?.parent is CodeBlockSyntax ||
            node.parent?.parent is SwitchCaseSyntax ||
-           node.parent?.parent is ClosureExprSyntax
+           node.parent?.parent is ClosureExprSyntax ||
+           node.parent?.parent is AccessorBlockSyntax
          ) {
       after(node.lastToken, tokens: .close, .newline)
     } else {
@@ -694,7 +704,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: ReturnStmtSyntax) {
     before(node.firstToken, tokens: .open)
-    after(node.returnKeyword, tokens: .break)
+    before(node.expression?.firstToken, tokens: .break(offset: 2))
     after(node.lastToken, tokens: .close)
     super.visit(node)
   }

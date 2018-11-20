@@ -30,6 +30,16 @@ public class AccessorTests: PrettyPrintTestCase {
           }
         }
       }
+      struct MyStruct {
+        var memberValue: Int
+        var SomeValue: Int {
+          return 123
+        }
+        var AnotherValue: Double {
+          let out = 1.23
+          return out
+        }
+      }
       """
 
     let expected =
@@ -61,6 +71,14 @@ public class AccessorTests: PrettyPrintTestCase {
             memberValue = newValue
             memberValue2 = newValue / 2
           }
+        }
+      }
+      struct MyStruct {
+        var memberValue: Int
+        var SomeValue: Int { return 123 }
+        var AnotherValue: Double {
+          let out = 1.23
+          return out
         }
       }
 
