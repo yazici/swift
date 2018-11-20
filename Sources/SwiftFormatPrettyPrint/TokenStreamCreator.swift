@@ -77,6 +77,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
     afterMap[tok, default: []].append(tokens)
   }
 
+  private func insertToken<Node: Collection>(
+    _ token: Token,
+    betweenChildrenOf collectionNode: Node
+  ) where Node.Element: Syntax, Node.Index == Int {
+    if collectionNode.count > 0 {
+      for i in 0..<(collectionNode.count - 1) {
+        after(collectionNode[i].lastToken, tokens: token)
+      }
+    }
+  }
+
   override func visitPre(_ node: Syntax) {}
 
   override func visit(_ node: DeclNameArgumentsSyntax) {
@@ -100,11 +111,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TupleElementListSyntax) {
-    if node.count > 0 {
-      for i in 0..<(node.count - 1) {
-        after(node[i].lastToken, tokens: .break)
-      }
-    }
+    insertToken(.break, betweenChildrenOf: node)
     super.visit(node)
   }
 
@@ -125,11 +132,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ArrayElementListSyntax) {
-    if node.count > 0 {
-      for i in 0..<(node.count - 1) {
-        after(node[i].lastToken, tokens: .break)
-      }
-    }
+    insertToken(.break, betweenChildrenOf: node)
     super.visit(node)
   }
 
@@ -150,11 +153,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: DictionaryElementListSyntax) {
-    if node.count > 0 {
-      for i in 0..<(node.count - 1) {
-        after(node[i].lastToken, tokens: .break)
-      }
-    }
+    insertToken(.break, betweenChildrenOf: node)
     super.visit(node)
   }
 
@@ -423,11 +422,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockSyntax) {
-    if node.statements.count > 0 {
-      for i in 0..<(node.statements.count - 1) {
-        after(node.statements[i].lastToken, tokens: .newline)
-      }
-    }
+    insertToken(.newline, betweenChildrenOf: node.statements)
     super.visit(node)
   }
 
@@ -456,9 +451,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: SwitchCaseSyntax) {
     before(node.firstToken, tokens: .open)
     after(node.label.lastToken, tokens: .newline(offset: 2), .open(.consistent, 0))
-    for i in 0..<(node.statements.count - 1) {
-      after(node.statements[i].lastToken, tokens: .newline)
-    }
+    insertToken(.newline, betweenChildrenOf: node.statements)
     after(node.lastToken, tokens: .break(offset: -2), .close, .close)
     super.visit(node)
   }
