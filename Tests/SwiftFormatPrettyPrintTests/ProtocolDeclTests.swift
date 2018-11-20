@@ -165,4 +165,28 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
     
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
   }
+
+  public func testProtocolWithInitializers() {
+    let input =
+      """
+      protocol MyProtocol {
+        init(bar: Int)
+        init(reallyLongLabel: Int, anotherLongLabel: Bool)
+      }
+      """
+    
+    let expected =
+      """
+      protocol MyProtocol {
+        init(bar: Int)
+        init(
+          reallyLongLabel: Int,
+          anotherLongLabel: Bool
+        )
+      }
+
+      """
+    
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
+  }
 }
