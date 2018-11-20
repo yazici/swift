@@ -77,6 +77,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
     afterMap[tok, default: []].append(tokens)
   }
 
+  private func insertToken<Node: Collection>(
+    _ token: Token,
+    betweenChildrenOf collectionNode: Node
+  ) where Node.Element: Syntax, Node.Index == Int {
+    if collectionNode.count > 0 {
+      for i in 0..<(collectionNode.count - 1) {
+        after(collectionNode[i].lastToken, tokens: token)
+      }
+    }
+  }
+
   override func visitPre(_ node: Syntax) {}
 
   override func visit(_ node: DeclNameArgumentsSyntax) {
@@ -99,13 +110,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: TupleElementListSyntax) {
+    insertToken(.break, betweenChildrenOf: node)
+    super.visit(node)
+  }
+
   override func visit(_ node: TupleElementSyntax) {
     before(node.firstToken, tokens: .open)
-    if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -119,6 +131,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: ArrayElementListSyntax) {
+    insertToken(.break, betweenChildrenOf: node)
+    super.visit(node)
+  }
+
+  override func visit(_ node: ArrayElementSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
   override func visit(_ node: DictionaryExprSyntax) {
     after(
       node.leftSquare,
@@ -126,6 +149,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
       .open(.consistent, 0)
     )
     before(node.rightSquare, tokens: .close, .break(size: 0, offset: -2), .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: DictionaryElementListSyntax) {
+    insertToken(.break, betweenChildrenOf: node)
     super.visit(node)
   }
 
@@ -137,11 +165,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: DictionaryElementSyntax) {
     before(node.firstToken, tokens: .open)
     after(node.colon, tokens: .break(offset: 2))
-    if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -398,11 +422,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockSyntax) {
-    if node.statements.count > 0 {
-      for i in 0..<(node.statements.count - 1) {
-        after(node.statements[i].lastToken, tokens: .newline)
-      }
-    }
+    insertToken(.newline, betweenChildrenOf: node.statements)
     super.visit(node)
   }
 
@@ -441,9 +461,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: SwitchCaseSyntax) {
     before(node.firstToken, tokens: .open)
     after(node.label.lastToken, tokens: .newline(offset: 2), .open(.consistent, 0))
-    for i in 0..<(node.statements.count - 1) {
-      after(node.statements[i].lastToken, tokens: .newline)
-    }
+    insertToken(.newline, betweenChildrenOf: node.statements)
     after(node.lastToken, tokens: .break(offset: -2), .close, .close)
     super.visit(node)
   }
@@ -754,16 +772,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     before(node.whereKeyword, tokens: .open(.inconsistent, 2))
     after(node.whereKeyword, tokens: .space)
     after(node.lastToken, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: ArrayElementSyntax) {
-    before(node.firstToken, tokens: .open)
-    if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
     super.visit(node)
   }
 
