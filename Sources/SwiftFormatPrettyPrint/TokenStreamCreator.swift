@@ -765,6 +765,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TernaryExprSyntax) {
+    before(node.conditionExpression.firstToken, tokens: .open(.inconsistent, 2))
+    before(node.questionMark, tokens: .break)
+    after(node.questionMark, tokens: .space)
+    before(node.colonMark, tokens: .break)
+    after(node.colonMark, tokens: .space)
+    after(node.secondChoice.lastToken, tokens: .close)
     super.visit(node)
   }
 
