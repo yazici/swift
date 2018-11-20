@@ -526,7 +526,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: AsExprSyntax) {
     before(node.asTok, tokens: .space)
-    after(node.asTok, tokens: .break)
+    before(node.typeName.firstToken, tokens: .break)
     super.visit(node)
   }
 
