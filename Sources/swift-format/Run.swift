@@ -56,11 +56,8 @@ public func lintMain(path: String) -> Int {
 public func formatMain(path: String, isDebugMode: Bool, prettyPrint: Bool) -> Int {
   let url = URL(fileURLWithPath: path)
 
-  let config = Configuration()
-  config.lineLength = 80
-
   let context = Context(
-    configuration: config,
+    configuration: Configuration(),
     diagnosticEngine: nil,
     fileURL: url
   )
