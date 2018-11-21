@@ -427,10 +427,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockItemListSyntax) {
-    if node.parent is AccessorBlockSyntax, node.count > 0 {
-      for i in 0..<(node.count - 1) {
-        after(node[i].lastToken, tokens: .newline)
-      }
+    if node.parent is AccessorBlockSyntax || node.parent is ClosureExprSyntax, node.count > 0 {
+      insertToken(.newline, betweenChildrenOf: node)
     }
     super.visit(node)
   }
