@@ -47,7 +47,8 @@ public class FunctionCallTests: PrettyPrintTestCase {
   public func testBasicFunctionClosures() {
     let input =
       """
-      funcCall(closure: { < })
+      funcCall(closure: <)
+      funcCall(closure: { 4 })
       funcCall(closure: { $0 < $1 })
       funcCall(closure: { s1, s2 in s1 < s2 })
       funcCall(closure: { s1, s2 in return s1 < s2})
@@ -59,7 +60,8 @@ public class FunctionCallTests: PrettyPrintTestCase {
 
     let expected =
       """
-      funcCall(closure: { < })
+      funcCall(closure: <)
+      funcCall(closure: { 4 })
       funcCall(closure: { $0 < $1 })
       funcCall(closure: { s1, s2 in
         s1 < s2
@@ -111,6 +113,51 @@ public class FunctionCallTests: PrettyPrintTestCase {
       funcCall(param1: 2) {
         s1, s2, s3, s4, s5 in
         return s1
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
+  }
+
+  public func testClosuresWithIfs() {
+    let input =
+    """
+      let a = afunc() {
+        if condition1 {
+          return true
+        }
+        return false
+      }
+
+      let a = afunc() {
+        if condition1 {
+          return true
+        }
+        if condition2 {
+          return true
+        }
+        return false
+      }
+      """
+
+    let expected =
+    """
+      let a = afunc() {
+        if condition1 {
+          return true
+        }
+        return false
+      }
+
+      let a = afunc() {
+        if condition1 {
+          return true
+        }
+        if condition2 {
+          return true
+        }
+        return false
       }
 
       """
