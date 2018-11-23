@@ -147,31 +147,31 @@ handle.write(
 
   """
 )
-for fileRule in registry.filePasses {
+for fileRule in registry.filePasses.sorted() {
   handle.write("  pipeline.addFileRule(\(fileRule).self)\n")
 }
 handle.write("\n  /// MARK: Formatting Passes\n")
-for (className, types) in registry.formattingPasses {
+for (className, types) in registry.formattingPasses.sorted(by: { $0.key < $1.key }) {
   handle.write(
     """
 
       pipeline.addFormatter(
         \(className).self,
         for:
-          \(types.map { $0 + ".self" }.joined(separator: ",\n      "))
+          \(types.sorted().map { $0 + ".self" }.joined(separator: ",\n      "))
       )
 
     """)
 }
 handle.write("\n  /// MARK: Linting Passes\n")
-for (className, types) in registry.lintingPasses {
+for (className, types) in registry.lintingPasses.sorted(by: { $0.key < $1.key }) {
   handle.write(
     """
 
       pipeline.addLinter(
         \(className).self,
         for:
-          \(types.map { $0 + ".self" }.joined(separator: ",\n      "))
+          \(types.sorted().map { $0 + ".self" }.joined(separator: ",\n      "))
       )
 
     """
