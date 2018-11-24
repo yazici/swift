@@ -20,15 +20,95 @@ import SwiftSyntax
 /// - Parameter pipeline: The pipeline to populate with passes.
 func populate(_ pipeline: Pipeline) {
   /// MARK: File Passes
-  pipeline.addFileRule(UseSpecialEscapeSequences.self)
   pipeline.addFileRule(UseOnlySpaces.self)
-  pipeline.addFileRule(ValidFilename.self)
   pipeline.addFileRule(UseOnlyUTF8.self)
+  pipeline.addFileRule(UseSpecialEscapeSequences.self)
+  pipeline.addFileRule(ValidFilename.self)
 
   /// MARK: Formatting Passes
 
   pipeline.addFormatter(
-    OneSpaceAfterKeywords.self,
+    AvoidInitializersForLiterals.self,
+    for:
+      FunctionCallExprSyntax.self
+  )
+
+  pipeline.addFormatter(
+    BlankLineBetweenMembers.self,
+    for:
+      MemberDeclBlockSyntax.self
+  )
+
+  pipeline.addFormatter(
+    CaseIndentLevelEqualsSwitch.self,
+    for:
+      SwitchStmtSyntax.self
+  )
+
+  pipeline.addFormatter(
+    CloseBraceWhitespace.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addFormatter(
+    CollectionLiteralWhitespace.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addFormatter(
+    ColonWhitespace.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addFormatter(
+    CommaWhitespace.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addFormatter(
+    DoNotUseSemicolons.self,
+    for:
+      CodeBlockSyntax.self,
+      SourceFileSyntax.self
+  )
+
+  pipeline.addFormatter(
+    FullyIndirectEnum.self,
+    for:
+      EnumDeclSyntax.self
+  )
+
+  pipeline.addFormatter(
+    GroupNumericLiterals.self,
+    for:
+      IntegerLiteralExprSyntax.self
+  )
+
+  pipeline.addFormatter(
+    MaximumBlankLines.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addFormatter(
+    MultiLineTrailingCommas.self,
+    for:
+      ArrayExprSyntax.self,
+      DictionaryExprSyntax.self
+  )
+
+  pipeline.addFormatter(
+    NoAccessLevelOnExtensionDeclaration.self,
+    for:
+      ExtensionDeclSyntax.self
+  )
+
+  pipeline.addFormatter(
+    NoBlockComments.self,
     for:
       TokenSyntax.self
   )
@@ -40,72 +120,15 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    OrderedImports.self,
-    for:
-      SourceFileSyntax.self
-  )
-
-  pipeline.addFormatter(
-    OneVariableDeclarationPerLine.self,
-    for:
-      CodeBlockSyntax.self,
-      ClosureExprSyntax.self,
-      AccessorBlockSyntax.self,
-      SourceFileSyntax.self
-  )
-
-  pipeline.addFormatter(
-    CloseBraceWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
-    CaseIndentLevelEqualsSwitch.self,
-    for:
-      SwitchStmtSyntax.self
-  )
-
-  pipeline.addFormatter(
-    UseWhereClausesInForLoops.self,
-    for:
-      ForInStmtSyntax.self
-  )
-
-  pipeline.addFormatter(
     NoEmptyAssociatedValues.self,
     for:
       EnumCaseDeclSyntax.self
   )
 
   pipeline.addFormatter(
-    UseEarlyExits.self,
+    NoEmptyTrailingClosureParentheses.self,
     for:
-      CodeBlockSyntax.self
-  )
-
-  pipeline.addFormatter(
-    OneCasePerLine.self,
-    for:
-      EnumDeclSyntax.self
-  )
-
-  pipeline.addFormatter(
-    NoBlockComments.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
-    FullyIndirectEnum.self,
-    for:
-      EnumDeclSyntax.self
-  )
-
-  pipeline.addFormatter(
-    OpenBraceWhitespace.self,
-    for:
-      TokenSyntax.self
+      FunctionCallExprSyntax.self
   )
 
   pipeline.addFormatter(
@@ -115,7 +138,28 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    CommaWhitespace.self,
+    NoParensAroundConditions.self,
+    for:
+      ConditionElementSyntax.self,
+      IfStmtSyntax.self,
+      RepeatWhileStmtSyntax.self,
+      SwitchStmtSyntax.self
+  )
+
+  pipeline.addFormatter(
+    NoVoidReturnOnFunctionSignature.self,
+    for:
+      FunctionSignatureSyntax.self
+  )
+
+  pipeline.addFormatter(
+    OneCasePerLine.self,
+    for:
+      EnumDeclSyntax.self
+  )
+
+  pipeline.addFormatter(
+    OneSpaceAfterKeywords.self,
     for:
       TokenSyntax.self
   )
@@ -127,55 +171,50 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
+    OneVariableDeclarationPerLine.self,
+    for:
+      AccessorBlockSyntax.self,
+      ClosureExprSyntax.self,
+      CodeBlockSyntax.self,
+      SourceFileSyntax.self
+  )
+
+  pipeline.addFormatter(
+    OpenBraceWhitespace.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addFormatter(
+    OperatorWhitespace.self,
+    for:
+      CompositionTypeElementListSyntax.self,
+      ExprListSyntax.self
+  )
+
+  pipeline.addFormatter(
+    OrderedImports.self,
+    for:
+      SourceFileSyntax.self
+  )
+
+  pipeline.addFormatter(
     ReturnVoidInsteadOfEmptyTuple.self,
     for:
       FunctionTypeSyntax.self
   )
 
   pipeline.addFormatter(
-    MaximumBlankLines.self,
+    UseEarlyExits.self,
     for:
-      TokenSyntax.self
+      CodeBlockSyntax.self
   )
 
   pipeline.addFormatter(
-    BlankLineBetweenMembers.self,
+    UseEnumForNamespacing.self,
     for:
-      MemberDeclBlockSyntax.self
-  )
-
-  pipeline.addFormatter(
-    OperatorWhitespace.self,
-    for:
-      ExprListSyntax.self,
-      CompositionTypeElementListSyntax.self
-  )
-
-  pipeline.addFormatter(
-    NoEmptyTrailingClosureParentheses.self,
-    for:
-      FunctionCallExprSyntax.self
-  )
-
-  pipeline.addFormatter(
-    NoVoidReturnOnFunctionSignature.self,
-    for:
-      FunctionSignatureSyntax.self
-  )
-
-  pipeline.addFormatter(
-    NoParensAroundConditions.self,
-    for:
-      IfStmtSyntax.self,
-      ConditionElementSyntax.self,
-      SwitchStmtSyntax.self,
-      RepeatWhileStmtSyntax.self
-  )
-
-  pipeline.addFormatter(
-    CollectionLiteralWhitespace.self,
-    for:
-      TokenSyntax.self
+      ClassDeclSyntax.self,
+      StructDeclSyntax.self
   )
 
   pipeline.addFormatter(
@@ -186,93 +225,122 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    AvoidInitializersForLiterals.self,
-    for:
-      FunctionCallExprSyntax.self
-  )
-
-  pipeline.addFormatter(
-    GroupNumericLiterals.self,
-    for:
-      IntegerLiteralExprSyntax.self
-  )
-
-  pipeline.addFormatter(
-    UseTripleSlashForDocumentationComments.self,
-    for:
-      FunctionDeclSyntax.self,
-      EnumDeclSyntax.self,
-      InitializerDeclSyntax.self,
-      DeinitializerDeclSyntax.self,
-      SubscriptDeclSyntax.self,
-      ClassDeclSyntax.self,
-      VariableDeclSyntax.self,
-      StructDeclSyntax.self,
-      ProtocolDeclSyntax.self,
-      TypealiasDeclSyntax.self,
-      ExtensionDeclSyntax.self
-  )
-
-  pipeline.addFormatter(
-    MultiLineTrailingCommas.self,
-    for:
-      ArrayExprSyntax.self,
-      DictionaryExprSyntax.self
-  )
-
-  pipeline.addFormatter(
-    ColonWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
-    UseEnumForNamespacing.self,
-    for:
-      StructDeclSyntax.self,
-      ClassDeclSyntax.self
-  )
-
-  pipeline.addFormatter(
-    NoAccessLevelOnExtensionDeclaration.self,
-    for:
-      ExtensionDeclSyntax.self
-  )
-
-  pipeline.addFormatter(
     UseSingleLinePropertyGetter.self,
     for:
       AccessorBlockSyntax.self
   )
 
   pipeline.addFormatter(
-    DoNotUseSemicolons.self,
+    UseTripleSlashForDocumentationComments.self,
     for:
-      CodeBlockSyntax.self,
-      SourceFileSyntax.self
+      ClassDeclSyntax.self,
+      DeinitializerDeclSyntax.self,
+      EnumDeclSyntax.self,
+      ExtensionDeclSyntax.self,
+      FunctionDeclSyntax.self,
+      InitializerDeclSyntax.self,
+      ProtocolDeclSyntax.self,
+      StructDeclSyntax.self,
+      SubscriptDeclSyntax.self,
+      TypealiasDeclSyntax.self,
+      VariableDeclSyntax.self
+  )
+
+  pipeline.addFormatter(
+    UseWhereClausesInForLoops.self,
+    for:
+      ForInStmtSyntax.self
   )
 
   /// MARK: Linting Passes
 
   pipeline.addLinter(
-    NeverUseImplicitlyUnwrappedOptionals.self,
+    AllPublicDeclarationsHaveDocumentation.self,
     for:
-      SourceFileSyntax.self,
+      ClassDeclSyntax.self,
+      DeinitializerDeclSyntax.self,
+      FunctionDeclSyntax.self,
+      InitializerDeclSyntax.self,
+      ProtocolDeclSyntax.self,
+      StructDeclSyntax.self,
+      SubscriptDeclSyntax.self,
+      TypealiasDeclSyntax.self,
       VariableDeclSyntax.self
   )
 
   pipeline.addLinter(
     AlwaysUseLowerCamelCase.self,
     for:
-      VariableDeclSyntax.self,
+      EnumCaseElementSyntax.self,
       FunctionDeclSyntax.self,
-      EnumCaseElementSyntax.self
+      VariableDeclSyntax.self
   )
 
   pipeline.addLinter(
-    UseLetInEveryBoundCaseVariable.self,
+    AmbiguousTrailingClosureOverload.self,
     for:
-      SwitchCaseLabelSyntax.self
+      CodeBlockSyntax.self,
+      MemberDeclBlockSyntax.self,
+      SourceFileSyntax.self
+  )
+
+  pipeline.addLinter(
+    BeginDocumentationCommentWithOneLineSummary.self,
+    for:
+      ClassDeclSyntax.self,
+      DeinitializerDeclSyntax.self,
+      EnumDeclSyntax.self,
+      FunctionDeclSyntax.self,
+      InitializerDeclSyntax.self,
+      ProtocolDeclSyntax.self,
+      StructDeclSyntax.self,
+      SubscriptDeclSyntax.self,
+      TypealiasDeclSyntax.self,
+      VariableDeclSyntax.self
+  )
+
+  pipeline.addLinter(
+    CommentWhitespace.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addLinter(
+    DontRepeatTypeInStaticProperties.self,
+    for:
+      ClassDeclSyntax.self,
+      EnumDeclSyntax.self,
+      ExtensionDeclSyntax.self,
+      ProtocolDeclSyntax.self,
+      StructDeclSyntax.self
+  )
+
+  pipeline.addLinter(
+    IdentifiersMustBeASCII.self,
+    for:
+      IdentifierPatternSyntax.self
+  )
+
+  pipeline.addLinter(
+    NeverForceUnwrap.self,
+    for:
+      AsExprSyntax.self,
+      ForcedValueExprSyntax.self,
+      SourceFileSyntax.self
+  )
+
+  pipeline.addLinter(
+    NeverUseForceTry.self,
+    for:
+      SourceFileSyntax.self,
+      TryExprSyntax.self
+  )
+
+  pipeline.addLinter(
+    NeverUseImplicitlyUnwrappedOptionals.self,
+    for:
+      SourceFileSyntax.self,
+      VariableDeclSyntax.self
   )
 
   pipeline.addLinter(
@@ -293,82 +361,15 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addLinter(
-    CommentWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addLinter(
-    DontRepeatTypeInStaticProperties.self,
-    for:
-      ClassDeclSyntax.self,
-      EnumDeclSyntax.self,
-      ProtocolDeclSyntax.self,
-      StructDeclSyntax.self,
-      ExtensionDeclSyntax.self
-  )
-
-  pipeline.addLinter(
-    AmbiguousTrailingClosureOverload.self,
-    for:
-      SourceFileSyntax.self,
-      CodeBlockSyntax.self,
-      MemberDeclBlockSyntax.self
-  )
-
-  pipeline.addLinter(
-    ValidateDocumentationComments.self,
-    for:
-      FunctionDeclSyntax.self
-  )
-
-  pipeline.addLinter(
     OnlyOneTrailingClosureArgument.self,
     for:
       FunctionCallExprSyntax.self
   )
 
   pipeline.addLinter(
-    AllPublicDeclarationsHaveDocumentation.self,
+    UseLetInEveryBoundCaseVariable.self,
     for:
-      FunctionDeclSyntax.self,
-      InitializerDeclSyntax.self,
-      DeinitializerDeclSyntax.self,
-      SubscriptDeclSyntax.self,
-      ClassDeclSyntax.self,
-      VariableDeclSyntax.self,
-      StructDeclSyntax.self,
-      ProtocolDeclSyntax.self,
-      TypealiasDeclSyntax.self
-  )
-
-  pipeline.addLinter(
-    NeverForceUnwrap.self,
-    for:
-      SourceFileSyntax.self,
-      ForcedValueExprSyntax.self,
-      AsExprSyntax.self
-  )
-
-  pipeline.addLinter(
-    IdentifiersMustBeASCII.self,
-    for:
-      IdentifierPatternSyntax.self
-  )
-
-  pipeline.addLinter(
-    BeginDocumentationCommentWithOneLineSummary.self,
-    for:
-      FunctionDeclSyntax.self,
-      EnumDeclSyntax.self,
-      InitializerDeclSyntax.self,
-      DeinitializerDeclSyntax.self,
-      SubscriptDeclSyntax.self,
-      ClassDeclSyntax.self,
-      VariableDeclSyntax.self,
-      StructDeclSyntax.self,
-      ProtocolDeclSyntax.self,
-      TypealiasDeclSyntax.self
+      SwitchCaseLabelSyntax.self
   )
 
   pipeline.addLinter(
@@ -378,9 +379,8 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addLinter(
-    NeverUseForceTry.self,
+    ValidateDocumentationComments.self,
     for:
-      SourceFileSyntax.self,
-      TryExprSyntax.self
+      FunctionDeclSyntax.self
   )
 }
