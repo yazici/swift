@@ -1250,6 +1250,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: MatchingPatternConditionSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 2))
+    after(node.caseKeyword, tokens: .break)
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
