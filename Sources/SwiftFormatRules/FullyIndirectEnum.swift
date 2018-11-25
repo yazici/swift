@@ -27,78 +27,95 @@ public final class FullyIndirectEnum: SyntaxFormatRule {
 
   public override func visit(_ node: EnumDeclSyntax) -> DeclSyntax {
     let enumMembers = node.members.members
-    guard allAreIndirectCases(members: enumMembers) else { return node }
-    diagnose(.reassignIndirectKeyword(name: node.identifier.text), on: node.identifier)
-
-    // Removes 'indirect' keyword from cases, reformats
-    var newMembers: [DeclSyntax] = []
-    for member in enumMembers {
-      if let caseMember = member as? EnumCaseDeclSyntax {
-        guard let caseModifiers = caseMember.modifiers else { continue }
-        guard let firstModifier = caseModifiers.first else { continue }
-        let newCase = caseMember.withModifiers(caseModifiers.remove(name: "indirect"))
-        let formattedCase = formatCase(unformattedCase: newCase,
-                                       leadingTrivia: firstModifier.leadingTrivia)
-        newMembers.append(formattedCase)
-      } else {
-        newMembers.append(member)
-      }
+    guard let enumModifiers = node.modifiers,
+          !enumModifiers.has(modifier: "indirect"),
+          allCasesAreIndirect(in: enumMembers)
+    else {
+      return node
     }
 
-    let newMemberBlock = SyntaxFactory.makeMemberDeclBlock(
-      leftBrace: node.members.leftBrace,
-      members: SyntaxFactory.makeDeclList(newMembers),
-      rightBrace: node.members.rightBrace)
+    diagnose(.moveIndirectKeywordToEnumDecl(name: node.identifier.text), on: node.identifier)
 
-    // Format indirect keyword and following token, if necessary
-    guard let firstTok = node.firstToken else { return node }
-    var leadingTrivia: Trivia = []
-    var newDecl = node
+    // Removes 'indirect' keyword from cases, reformats
+    let newMembers = enumMembers.map { (member: DeclSyntax) -> DeclSyntax in
+      guard let caseMember = member as? EnumCaseDeclSyntax,
+            let modifiers = caseMember.modifiers,
+            modifiers.has(modifier: "indirect"),
+            let firstModifier = modifiers.first
+      else {
+        return member
+      }
+
+      let newCase = caseMember.withModifiers(modifiers.remove(name: "indirect"))
+      let formattedCase = formatCase(
+        unformattedCase: newCase, leadingTrivia: firstModifier.leadingTrivia)
+      return formattedCase
+    }
+
+    // If the `indirect` keyword being added would be the first token in the decl, we need to move
+    // the leading trivia from the `enum` keyword to the new modifier to preserve the existing
+    // line breaks/comments/indentation.
+    let firstTok = node.firstToken!
+    let leadingTrivia: Trivia
+    let newEnumDecl: EnumDeclSyntax
+
     if firstTok.tokenKind == .enumKeyword {
       leadingTrivia = firstTok.leadingTrivia
-      newDecl = replaceTrivia(on: node,
-                              token: node.firstToken,
-                              leadingTrivia: []) as! EnumDeclSyntax
+      newEnumDecl = replaceTrivia(
+        on: node, token: node.firstToken, leadingTrivia: []) as! EnumDeclSyntax
+    } else {
+      leadingTrivia = []
+      newEnumDecl = node
     }
 
     let newModifier = SyntaxFactory.makeDeclModifier(
-                      name: SyntaxFactory.makeIdentifier("indirect",
-                                                         leadingTrivia: leadingTrivia,
-                                                         trailingTrivia: .spaces(1)),
-                      detail: nil)
+      name: SyntaxFactory.makeIdentifier(
+        "indirect", leadingTrivia: leadingTrivia, trailingTrivia: .spaces(1)),
+      detail: nil)
 
-    return newDecl.addModifier(newModifier).withMembers(newMemberBlock)
+    let newMemberBlock = node.members.withMembers(SyntaxFactory.makeDeclList(newMembers))
+    return newEnumDecl.addModifier(newModifier).withMembers(newMemberBlock)
   }
 
-  // Determines if all given cases are indirect
-  func allAreIndirectCases(members: DeclListSyntax) -> Bool {
+  /// Returns a value indicating whether all enum cases in the given list are indirect.
+  ///
+  /// Note that if the enum has no cases, this returns false.
+  private func allCasesAreIndirect(in members: DeclListSyntax) -> Bool {
+    var hadCases = false
     for member in members {
       if let caseMember = member as? EnumCaseDeclSyntax {
-        guard let caseModifiers = caseMember.modifiers else { return false }
-        if caseModifiers.has(modifier: "indirect") { continue }
-        else { return false }
+        hadCases = true
+        guard let modifiers = caseMember.modifiers, modifiers.has(modifier: "indirect") else {
+          return false
+        }
       }
     }
-    return true
+    return hadCases
   }
 
-  // Transfers given leading trivia to the first token in the case declaration
-  func formatCase(unformattedCase: EnumCaseDeclSyntax,
-                  leadingTrivia: Trivia?) -> EnumCaseDeclSyntax {
+  /// Transfers given leading trivia to the first token in the case declaration.
+  private func formatCase(
+    unformattedCase: EnumCaseDeclSyntax,
+    leadingTrivia: Trivia?
+  ) -> EnumCaseDeclSyntax {
     if let modifiers = unformattedCase.modifiers, let first = modifiers.first {
-      return replaceTrivia(on: unformattedCase,
-                           token: first.firstToken,
-                           leadingTrivia: leadingTrivia) as! EnumCaseDeclSyntax
+      return replaceTrivia(
+        on: unformattedCase, token: first.firstToken, leadingTrivia: leadingTrivia
+      ) as! EnumCaseDeclSyntax
     } else {
-      return replaceTrivia(on: unformattedCase,
-                           token: unformattedCase.caseKeyword,
-                           leadingTrivia: leadingTrivia) as! EnumCaseDeclSyntax
+      return replaceTrivia(
+        on: unformattedCase, token: unformattedCase.caseKeyword, leadingTrivia: leadingTrivia
+      ) as! EnumCaseDeclSyntax
     }
   }
 }
 
 extension Diagnostic.Message {
-  static func reassignIndirectKeyword(name: String) -> Diagnostic.Message {
-    return .init(.warning, "move 'indirect' to \(name) enum declaration")
+
+  static func moveIndirectKeywordToEnumDecl(name: String) -> Diagnostic.Message {
+    return .init(
+      .warning,
+      "move 'indirect' to \(name) enum declaration when all cases are indirect"
+    )
   }
 }
