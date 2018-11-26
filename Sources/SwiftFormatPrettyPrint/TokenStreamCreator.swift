@@ -14,23 +14,6 @@ import SwiftFormatConfiguration
 import SwiftFormatCore
 import SwiftSyntax
 
-private class FindChildScope: SyntaxVisitor {
-  var found = false
-  override func visit(_ node: CodeBlockSyntax) {
-    found = true
-  }
-  override func visit(_ node: SwitchStmtSyntax) {
-    found = true
-  }
-  func findChildScope(in items: CodeBlockItemListSyntax) -> Bool {
-    for child in items {
-      visit(child)
-      if found { return true }
-    }
-    return false
-  }
-}
-
 private let rangeOperators: Set = ["...", "..<"]
 
 private final class TokenStreamCreator: SyntaxVisitor {
@@ -410,15 +393,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
       after(node.first?.lastToken, tokens: .break)
     }
     super.visit(node)
-  }
-
-  func shouldAddOpenCloseNewlines(_ node: Syntax) -> Bool {
-    if node is AccessorListSyntax { return true }
-    guard let list = node as? CodeBlockItemListSyntax else {
-      return false
-    }
-    if list.count > 1 { return true }
-    return FindChildScope().findChildScope(in: list)
   }
 
   override func visit(_ node: CodeBlockSyntax) {
@@ -1399,14 +1373,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
       }
     }
     tokens.append(token)
-  }
-
-  private func shouldAddNewlineBefore(_ token: TokenSyntax?) -> Bool {
-    guard let token = token, let before = beforeMap[token] else { return false }
-    for item in before {
-      if case .newlines = item { return false }
-    }
-    return true
   }
 }
 
