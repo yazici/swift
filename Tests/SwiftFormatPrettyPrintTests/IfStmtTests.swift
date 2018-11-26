@@ -97,4 +97,34 @@ public class IfStmtTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 20)
   }
+
+  public func testMatchingPatternConditions() {
+    let input =
+      """
+      if case .foo = bar {
+        let a = 123
+        var b = "abc"
+      }
+      if case .reallyLongCaseName = reallyLongVariableName {
+        let a = 123
+        var b = "abc"
+      }
+      """
+
+    let expected =
+      """
+      if case .foo = bar {
+        let a = 123
+        var b = "abc"
+      }
+      if case .reallyLongCaseName =
+             reallyLongVariableName {
+        let a = 123
+        var b = "abc"
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
+  }
 }
