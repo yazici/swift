@@ -201,7 +201,7 @@ func populate(_ pipeline: Pipeline) {
   pipeline.addFormatter(
     UseEarlyExits.self,
     for:
-      CodeBlockSyntax.self
+      CodeBlockItemListSyntax.self
   )
 
   pipeline.addFormatter(
