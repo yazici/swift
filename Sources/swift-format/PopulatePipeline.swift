@@ -40,12 +40,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    CaseIndentLevelEqualsSwitch.self,
-    for:
-      SwitchStmtSyntax.self
-  )
-
-  pipeline.addFormatter(
     CloseBraceWhitespace.self,
     for:
       TokenSyntax.self
@@ -297,6 +291,12 @@ func populate(_ pipeline: Pipeline) {
       SubscriptDeclSyntax.self,
       TypealiasDeclSyntax.self,
       VariableDeclSyntax.self
+  )
+
+  pipeline.addLinter(
+    CaseIndentLevelEqualsSwitch.self,
+    for:
+      SwitchStmtSyntax.self
   )
 
   pipeline.addLinter(
