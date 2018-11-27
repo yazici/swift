@@ -559,6 +559,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ArrowExprSyntax) {
+    before(node.throwsToken, tokens: .break)
+    before(node.arrowToken, tokens: .break)
+    after(node.arrowToken, tokens: .break)
     super.visit(node)
   }
 
