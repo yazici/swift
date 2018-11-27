@@ -400,8 +400,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AccessorBlockSyntax) {
-    after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-    before(node.rightBrace, tokens: .break(offset: -2), .close)
+    if !(node.parent is SubscriptDeclSyntax) {
+      after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.rightBrace, tokens: .break(offset: -2), .close)
+    }
     super.visit(node)
   }
 
@@ -856,6 +858,38 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: SubscriptDeclSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
+
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
+    before(node.result.firstToken, tokens: .break)
+
+    before(
+      node.genericWhereClause?.firstToken,
+      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
+    )
+    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
+
+    if let accessorBlock = node.accessor {
+      if node.genericWhereClause == nil {
+        before(accessorBlock.leftBrace, tokens: .break)
+      }
+      after(accessorBlock.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
+      before(accessorBlock.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      after(node.lastToken, tokens: .close, .close)
+    }
+
+    after(node.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
   override func visit(_ node: FunctionSignatureSyntax) {
     before(node.throwsOrRethrowsKeyword, tokens: .break)
     before(node.output?.firstToken, tokens: .break)
@@ -971,10 +1005,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: StringSegmentSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: SubscriptDeclSyntax) {
     super.visit(node)
   }
 
