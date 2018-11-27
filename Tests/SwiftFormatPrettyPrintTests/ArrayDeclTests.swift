@@ -39,4 +39,21 @@ public class ArrayDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
   }
+
+  public func testArrayOfFunctions() {
+    let input =
+      """
+      let A = [(Int, Double) -> Bool]()
+      let A = [(Int, Double) throws -> Bool]()
+      """
+
+    let expected =
+      """
+      let A = [(Int, Double) -> Bool]()
+      let A = [(Int, Double) throws -> Bool]()
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
+  }
 }
