@@ -73,6 +73,7 @@ public class ValidateDocumentationCommentsTests: DiagnosingTestCase {
     /// - Parameters:
     ///   - p1: Parameter 1.
     ///   - p2: Parameter 2.
+    ///   - p3: Parameter 3.
     /// - Returns: an integer.
     func noReturn(p1: Int, p2: Int, p3: Int) {}
 
@@ -81,6 +82,7 @@ public class ValidateDocumentationCommentsTests: DiagnosingTestCase {
     /// - Parameters:
     ///   - p1: Parameter 1.
     ///   - p2: Parameter 2.
+    ///   - p3: Parameter 3.
     func foo(p1: Int, p2: Int, p3: Int) -> Int {}
     """
     performLint(ValidateDocumentationComments.self, input: input)

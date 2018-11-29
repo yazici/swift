@@ -15,6 +15,9 @@ public class IdentifiersMustBeASCIITests: DiagnosingTestCase {
       """
     performLint(IdentifiersMustBeASCII.self, input: input)
     XCTAssertDiagnosed(.nonASCIICharsNotAllowed(["😎"],"fo😎o"))
+    // TODO: It would be nice to allow Δ (among other mathematically meaningful symbols) without
+    // a lot of special cases; investigate this.
+    XCTAssertDiagnosed(.nonASCIICharsNotAllowed(["Δ"],"Δx"))
     XCTAssertDiagnosed(.nonASCIICharsNotAllowed(["🤩", "😆"], "🤩😆"))
   }
   
