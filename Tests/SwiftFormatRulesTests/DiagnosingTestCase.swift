@@ -12,6 +12,10 @@ public class DiagnosingTestCase: XCTestCase {
   /// A helper that will keep track of the number of times a specific diagnostic was emitted.
   private var consumer = DiagnosticTrackingConsumer()
 
+  /// Set during lint tests to indicate that we should check for any unasserted diagnostics when the
+  /// test is torn down.
+  private var shouldCheckForUnassertedDiagnostics = false
+
   private class DiagnosticTrackingConsumer: DiagnosticConsumer {
     var registeredDiagnostics = [String]()
     func handle(_ diagnostic: Diagnostic) {
@@ -35,14 +39,13 @@ public class DiagnosingTestCase: XCTestCase {
   }
 
   public override func tearDown() {
+    guard shouldCheckForUnassertedDiagnostics else { return }
+
     // This will emit a test failure if a diagnostic is thrown but we don't explicitly call
-    // XCTAssertDiagnosed for it. I (hbh) am personally on the fence about whether to include
-    // this test.
-    #if false
-    for (diag, count) in consumer.registeredDiagnostics where count > 0 {
-      XCTFail("unexpected diagnostic '\(diag)' thrown \(count) time\(count == 1 ? "" : "s")")
+    // XCTAssertDiagnosed for it.
+    for diag in consumer.registeredDiagnostics {
+      XCTFail("unexpected diagnostic '\(diag)' emitted")
     }
-    #endif
   }
 
   /// Performs a lint using the provided linter rule on the provided input.
@@ -56,7 +59,12 @@ public class DiagnosingTestCase: XCTestCase {
     _ type: SyntaxLintRule.Type,
     input: String,
     file: StaticString = #file,
-    line: UInt = #line) {
+    line: UInt = #line
+  ) {
+    // If we're linting, then indicate that we want to fail for unasserted diagnostics when the test
+    // is torn down.
+    shouldCheckForUnassertedDiagnostics = true
+
     do {
       let syntax = try SyntaxTreeParser.parse(input)
       let linter = type.init(context: context!)
