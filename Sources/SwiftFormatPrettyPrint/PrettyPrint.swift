@@ -220,7 +220,11 @@ public class PrettyPrinter {
         lastBreakOffset = 0
         lastBreakValue = 0
       }
-      write(syntaxToken.text)
+      if syntaxToken.leadingTrivia.hasBackticks {
+        write("`" + syntaxToken.text + "`")
+      } else {
+        write(syntaxToken.text)
+      }
       spaceRemaining -= syntaxToken.text.count
 
     case .comment(let comment):
@@ -322,8 +326,13 @@ public class PrettyPrinter {
 
       // Syntax tokens have a length equal to the number of columns needed to print its contents.
       case .syntax(let syntaxToken):
-        lengths.append(syntaxToken.text.count)
-        total += syntaxToken.text.count
+        if syntaxToken.leadingTrivia.hasBackticks {
+          lengths.append(syntaxToken.text.count + 2)
+          total += syntaxToken.text.count + 2
+        } else {
+          lengths.append(syntaxToken.text.count)
+          total += syntaxToken.text.count
+        }
 
       case .comment(let comment):
         lengths.append(comment.length)
