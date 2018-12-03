@@ -31,3 +31,17 @@ extension FunctionParameterSyntax {
     return nil
   }
 }
+
+extension TupleTypeElementSyntax {
+  public var secondNameWorkaround: TokenSyntax? {
+    if let secondName = secondName { return secondName }
+    if let secondName = name { return secondName }
+    return nil
+  }
+
+  public var trailingCommaWorkaround: TokenSyntax? {
+    if let comma = trailingComma { return comma }
+    if let comma = ellipsis, comma.tokenKind == .comma { return comma }
+    return nil
+  }
+}

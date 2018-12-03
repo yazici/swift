@@ -476,13 +476,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: TupleTypeSyntax) {
     after(node.leftParen, tokens: .open(.consistent, 2), .break(size: 0))
     before(node.rightParen, tokens: .break(size: 0), .close)
-    for index in 0..<(node.elements.count - 1) {
-      after(node.elements[index].lastToken, tokens: .break)
-    }
     super.visit(node)
   }
 
   override func visit(_ node: FunctionTypeSyntax) {
+    after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
+    before(node.arrow, tokens: .break)
+    before(node.returnType.firstToken, tokens: .break)
     super.visit(node)
   }
 
@@ -990,6 +991,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AttributedTypeSyntax) {
+    after(node.specifier, tokens: .break)
     super.visit(node)
   }
 
@@ -1107,6 +1109,15 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TupleTypeElementSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.colon, tokens: .break)
+    before(node.secondNameWorkaround, tokens: .break)
+
+    if let trailingComma = node.trailingCommaWorkaround {
+      after(trailingComma, tokens: .close, .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
