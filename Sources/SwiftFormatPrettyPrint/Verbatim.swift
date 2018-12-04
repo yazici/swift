@@ -28,6 +28,8 @@ struct Verbatim {
       lines.remove(at: 0)
     }
 
+    guard lines.count > 0 else { return }
+
     // Get the number of leading whitespaces of the first line, and subract this from the number of
     // leading whitespaces for subsequent lines (if possible). Record the new leading whitespaces
     // counts, and trim off whitespace from the ends of the strings.
