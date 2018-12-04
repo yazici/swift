@@ -835,6 +835,24 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: DeinitializerDeclSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
+
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
+    before(node.body.leftBrace, tokens: .break)
+    after(node.body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
+    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
+
+    after(node.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
   override func visit(_ node: SubscriptDeclSyntax) {
     before(node.firstToken, tokens: .open(.inconsistent, 0))
 
@@ -1107,10 +1125,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TupleTypeElementSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: DeinitializerDeclSyntax) {
     super.visit(node)
   }
 
