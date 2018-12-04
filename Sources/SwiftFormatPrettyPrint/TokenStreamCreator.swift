@@ -1274,6 +1274,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ token: UnknownStmtSyntax) {
+    appendToken(.verbatim(Verbatim(text: token.description)))
+    if let nextToken = token.nextToken, case .eof = nextToken.tokenKind {
+      appendToken(.newline)
+    }
+    // Call to super.visit is not needed here.
+  }
+
   override func visit(_ token: TokenSyntax) {
     extractLeadingTrivia(token)
     if let before = beforeMap[token] {
