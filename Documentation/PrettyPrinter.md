@@ -243,18 +243,69 @@ Tokens = [docBlock(" Doc Block comment\n  * Second line *")]
 
 Token generation begins with the abstract syntax tree (AST) of the Swift source
 file, provided by the [SwiftSyntax](https://github.com/apple/swift-syntax)
-library. We have a `visit` method for each of the different syntax node types
-(e.g. `FunctionDeclSyntax`, `GenericWhereClause`, etc.). Within each of these
-visit methods, we can attach pretty-printer `Token` objects before and after
-syntax tokens from the AST. For example, if we wanted a group after the opening
-brace of a function declaration, it might look like:
+library. We have overloaded a `visit` method for each of the different kinds of
+syntax nodes. Most of these nodes are higher-level, and are composed of other
+nodes. For example, `FunctionDeclSyntax` contains
+`GenericParameterClauseSyntax`, `FunctionSignatureSyntax` nodes among others.
+These member nodes are called via a call to `super.visit` at the end of the
+function. That being said, we visit the higher level nodes before the lower
+level nodes.
+
+Within the visit methods, you can attach pretty-printing tokens at different
+points within the syntax structures. For example, if you wanted to place an
+indenting group around the body of a function declaration with consistent
+breaking, and you want the trailing brace forced to the next line, it might look
+like:
 
 ```
-# node: FunctionDeclSyntax
-after(node.body?.leftBrace, tokens: .break(size: 1, offset: 2), .open(.consistent, 0))
+// In visit(_ node: FunctionDeclSyntax)
+after(node.body?.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+before(node.body?.rightBrace, tokens: .break(offset: -2), .close)
 ```
 
-All of the tokens are placed into an array, which are then passed on to the
-*scan* phase of the pretty printer.
+Two dictionaries are maintained to keep track of the pretty-printing tokens
+attached to the syntax tokens: `beforeMap`, and `afterMap`. Calls to `before`
+and `after` populate these dictionaries. In the above example, `node.body?` may
+return `nil`, in which case `before` and `after` gracefully do nothing.
+
+The lowest level in the AST is `TokenSyntax`, and it is at this point that we
+actually add the syntax token and its attached pretty-printer tokens to the
+output array. This is done in `visit(_ token: TokenSyntax)`. We first check the
+syntax token's leading trivia for the presence of newlines and comments
+(excluding end-of-line comments), and add corresponding printing tokens to the
+output array. Next, we look at the token's entry in the `beforeMap` dictionary
+and add any accumulated `before` tokens to the output array. Next, we add the
+syntax token itself to the array. We look ahead to the leading trivia of the
+next syntax token to check for an end-of-line comment, and we add it to the
+array if needed. Finally, we add the `after` tokens. The ordering of the `after`
+tokens is adjusted such that the token attached by lower level `visit` method
+are added to the array before the higher level `visit` methods.
+
+The only types of trivia we are interested in are newlines and comments. Since
+these only appear as leading trivia, we don't need to look at trailing trivia.
+It is important to note that `SwiftSyntax` always attaches comments as the
+leading trivia on the following token.  Spaces are handled directly by inserting
+`break` and `space` tokens, and backticks are handled in the *scan* and *print*
+phases of the algorithm, after token generation.
+
+When examining trivia for comments, a distinction is made for end-of-line
+comments:
+
+```
+// not end-of-line
+let a = 123  // end-of-line comment
+let b = "abc"
+
+// In the above example, "not end-of-line" is part of the leading trivia of
+// "let" for "let a", and "end-of-line comment" is leading trivia for "let" of
+// "let b".
+```
+
+A comment is determined to be end-of-line when it appears as the first item in a
+token's leading trivia (it is not preceded by a newline, and we are not at the
+beginning of a source file).
+
+When we have visited all nodes in the AST, the array of printing tokens is then
+passed on to the *scan* phase of the pretty-printer.
 
 See: [`TokenStreamCreator.swift`](../Sources/SwiftFormatPrettyPrint/TokenStreamCreator.swift)
