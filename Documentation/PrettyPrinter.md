@@ -178,6 +178,13 @@ Tokens = ["one", break(1), "two", break(1), open, "three", newline, "four", clos
 Lengths = [3, 4, 3, 60, 59, 5, 50, 4, 0]
 ```
 
+#### Space
+
+*Space* tokens are used to insert whitespace between tokens, as you might do
+with a *break* token. However, line-breaks may not occur at *space* tokens. They
+have a size assigned to them, corresponding to the number of spaces you wish to
+print.
+
 #### Reset
 
 Reset tokens are used to reset the state created by break tokens if needed, and
@@ -341,3 +348,85 @@ When we have visited all nodes in the AST, the array of printing tokens is then
 passed on to the *scan* phase of the pretty-printer.
 
 See: [`TokenStreamCreator.swift`](../Sources/SwiftFormatPrettyPrint/TokenStreamCreator.swift)
+
+## Scan
+
+The purpose of the scan phase is to calculate the lengths of all tokens;
+primarily the `break` and `open` tokens. It takes as input the array of tokens
+produced by `TokenStreamCreator`.
+
+There are three main variables used in the scan phase: an index stack
+(`delimIndexStack`), a running total of the lengths (`total`), and an array of
+lengths (`lengths`). The index stack is used to store the locations of `open`
+and `break` tokens, since we need to look back to fill in the lengths. The
+running total adds the lengths of each token as we encounter it. The length
+array is the same size as the token array, and stores the computed lengths of
+the tokens.
+
+After having iterated over the entire list of tokens and calculated their
+lengths, we then loop over the tokens and call `print` for each token with its
+corresponding length.
+
+See: [`PrettyPrint.swift:prettyPrint()`](../Sources/SwiftFormatPrettyPrint/PrettyPrint.swift)
+
+### Syntax Tokens
+
+The length of a `syntax` token is the number of columns needed to print it. This
+value goes directly into the length array, and `total` is incremented by the
+same amount.
+
+### Open Tokens
+
+If we encounter an `open` token, we push its index onto `delimIndexStack`,
+initialize its length to `-total`, and append this value to the length array.
+
+### Close Tokens
+
+At a `close` token, we pop an index off the top of the stack. This index will
+correspond to either an `open` or `break` token. If it is an `open` token, we
+add `total` to its length. The `total` variable will have been accumulating
+lengths since encountering the `open` token. The `open` token's length is
+`total_at_close - total_at_open` (hence the reason for initializing to
+`-total`).
+
+If the index is a `break`, we add `total` to its length. We pop the stack again
+to get the location of the `open` token corresponding to this `close`. We are
+guaranteed for this to be an `open` since any other `break` tokens will have
+been handled by the logic in the next subsection.
+
+### Break Tokens
+
+If a `break` token is encountered, first check the top of the index stack. Only
+if the index corresponds to another `break`, pop it from the stack, and add
+`total` to its length. Initialize the length of the current `break` to `-total`
+on the length array, push its index onto the stack, and then increment `total`
+by the size of the `break`.
+
+### Newline Tokens
+
+A `newline` token executes the same logic as for `break` tokens. However, we
+assign it a length equal to the maximum allowed line length, and increment
+`total` by the same amount. We do not push its index onto the stack since we
+already know its length and do not need to calculate it at a later time.
+
+### Space Tokens
+
+A `space` token has a length equal to its `size` value. This is appended to the
+length array and added to `total`.
+
+### Reset Tokens
+
+If a `reset` token is encountered, check if the top of the index stack
+corresponds to a `break`. If it does, pop it from the stack, and add `total` to
+its length in the length array. Append a length of 0 to the length array for the
+`reset` token.
+
+### Comment Tokens
+
+A `comment` token has a length equal to the number of characters required to
+print it. This value is appended to the length array, and added to `total`.
+
+### Verbatim Tokens
+
+A `verbatim` token has a length equal to the maximum allowed line length. This
+value is appended to the length array, and added to `total`.
