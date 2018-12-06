@@ -430,3 +430,120 @@ print it. This value is appended to the length array, and added to `total`.
 
 A `verbatim` token has a length equal to the maximum allowed line length. This
 value is appended to the length array, and added to `total`.
+
+## Print
+
+The purpose of the *print* phase is to print the contents of a syntax node to
+the console or to append it to a string buffer as we do in SwiftFormat. It
+tracks the remaining space left on the line, and it decides whether or not to
+insert a line break based on the length of the token. It uses the following
+variables to track state in between calls to `print`:
+- `indentStack` - keeps track of the overall offset level based on the groups.
+- `relativeIndentStack` - keeps track of the incremental offsets applied within
+  each group. This is used to correct the indentation of a `break` when exiting
+  a group.
+- `forceBreakStack` - keeps track of the force break state of the groups (used
+  for consistent breaking).
+- `spaceRemaining` - how many columns remain on the current line?
+- `lastBreak` - Did the previous break token create a line break? This is used
+  by `open` tokens when calculating indentation value.
+- `lastBreakConsecutive` - This becomes true whenever a `break` produces a new
+  line, and only becomes false when a `syntax`, `space`, `reset`, `comment`, or
+  `verbatim` token is encountered. Its purpose is to prevent consecutive `break`
+  tokens from producing new lines.
+- `lastBreakOffset` - The offset value of the last `break`.
+- `lastBreakValue` - The total amount of white space needed to indent the last
+  `break`.
+
+See: [`PrettyPrint.swift:printToken(...)`](../Sources/SwiftFormatPrettyPrint/PrettyPrint.swift)
+
+### Syntax Tokens
+
+When we encounter a `syntax` token, we check `lastBreakConsecutive` to see if
+this token was preceded by a `break` that created a new line. If so, we first
+print the number of spaces according to `lastBreakValue`.
+
+In all cases, we print the text of the token and subtract its length from
+`spaceRemaining`. We also reset the `lastBreak` variables. That is, we set:
+
+```
+lastBreak = false
+lastBreakConsecutive = flase
+lastBreakOffset = 0
+lastBreakValue = 0
+```
+
+### Open Tokens
+
+If we encounter an `open` token, we check to see if we need to impose consistent
+breaking or not for this group. If the `open` token has consistent breaking and
+`lastBreak` is true (or the length of the group is greater than
+`spaceRemaining`), we push `true` onto `forceBreakStack` (`false`, otherwise).
+
+Next we calculate the indentation for this group. We read the indentation value
+from the top of the stack. We add to it the offset of this `open` token and
+`lastBreakOffset`, then push it onto `indentStack`. We add the sum of just the
+`open` token's offset and `lastBreakOffset` to the top of `relativeIndentStack`.
+
+`open` tokens do not affect `spaceRemaining`.
+
+### Close Tokens
+
+Pop the values from the top of `forceBreakStack` and `indentStack`. Next, we pop
+the value off the top of `relativeIndentStack`. We then add this to
+`lastBreakOffset`. `lastBreakOffset` is a relative value itself, so if a `break`
+creates a new line from within the group, this value will no longer correspond
+to the correct global indentation. This is why we correct it with the relative
+indentation value of its containing group.
+
+### Break Tokens
+
+At `break` tokens we need to decide whether or not to create a line break. This
+occurs if the top of the `forceBreakStack` is true, or of the length of the
+`break` exceeds `spaceRemaining`. `lastBreakConsecutive` must be false.
+
+If we need to create a line break, we need to calcualte the indentation level
+and propagate that information to future `syntax` and `open` tokens. First read
+the top of `indentStack`, and add the indentation to the `break` token's offset
+value; this will be `lastBreakValue`. Set `lastBreak` and `lastBreakConsecutive`
+to true, and `lastBreakOffset` to the `break`'s offset. The `spaceRemaining` is
+set to the maximum line length minus `lastBreakValue`.
+
+If we do not need to create a new line, we print the `break`. We write out the
+number of spaces corresponding to the `break` token's size, and subtract the
+value of `size` from `spaceRemaining`. We then reset the `lastBreak` variables
+as we did for `syntax` tokens, except we leave `lastBreakConsecutive` unchanged.
+
+### Newline Tokens
+
+`newline` tokens do the same indentation calculations as `break` tokens do when
+they are creating a line break. Additionally, `newline` tokens also print the
+number of `\n` characters specified. We do not need to check lengths or
+`forceBreakStack`, since `newline` tokens always create line breaks.
+
+### Space Tokens
+
+`space` tokens behave similarly to `syntax` tokens. If the token is preceded by
+a `break` token that created a new line (`lastBreakConsecutive` is true), the
+number of spaces for the indent are printed, and the `lastBreak` variables are
+reset. Then, we print the number of spaces according to the `space` token's
+length, and adjust `spaceRemaining` accordingly.
+
+### Reset Tokens
+
+`reset` tokens reset the `lastBreak` variables. They do nothing else.
+
+### Comment Tokens
+
+`comment` tokens also be have similarly to `syntax` tokens. If
+`lastBreakConsecutive` is true, we apply the indent and reset the `lastBreak`
+variables as usual. Next, we print the contents of the `comment` tokens
+including any necessary delimiters. `spaceRemaining` is adjusted according to
+the length of the `comment`.
+
+### Verbatim Tokens
+
+When we encounter a `verbatim` token, we simply print it's contents and apply a
+global indentation according to `lastBreakValue`. We reset the `lastBreak`
+variables, and adjust `spaceRemaining` according to the token's length, which is
+equivalent to the maximum line width.
