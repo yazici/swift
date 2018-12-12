@@ -466,7 +466,7 @@ print the number of spaces according to `lastBreakValue`.
 In all cases, we print the text of the token and subtract its length from
 `spaceRemaining`. We also reset the `lastBreak` variables. That is, we set:
 
-```
+```swift
 lastBreak = false
 lastBreakConsecutive = flase
 lastBreakOffset = 0
@@ -588,8 +588,8 @@ and does not depend on what follows it.
 When Oppen encounters `open` tokens, he pushes the location of the token onto
 the indentation stack. It produces something that looks like this:
 
-```
-myFunc(one, # Assuming an open token occurs after the "("
+```swift
+myFunc(one,  // Assuming an open token occurs after the "("
        two,
        three)
 ```
