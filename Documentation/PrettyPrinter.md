@@ -430,3 +430,192 @@ print it. This value is appended to the length array, and added to `total`.
 
 A `verbatim` token has a length equal to the maximum allowed line length. This
 value is appended to the length array, and added to `total`.
+
+## Print
+
+The purpose of the *print* phase is to print the contents of a syntax node to
+the console or to append it to a string buffer as we do in SwiftFormat. It
+tracks the remaining space left on the line, and it decides whether or not to
+insert a line break based on the length of the token. It uses the following
+variables to track state in between calls to `print`:
+- `indentStack` - keeps track of the overall offset level based on the groups.
+- `relativeIndentStack` - keeps track of the incremental offsets applied within
+  each group. This is used to correct the indentation of a `break` when exiting
+  a group.
+- `forceBreakStack` - keeps track of the force break state of the groups (used
+  for consistent breaking).
+- `spaceRemaining` - how many columns remain on the current line?
+- `lastBreak` - Did the previous break token create a line break? This is used
+  by `open` tokens when calculating indentation value.
+- `lastBreakConsecutive` - This becomes true whenever a `break` produces a new
+  line, and only becomes false when a `syntax`, `space`, `reset`, `comment`, or
+  `verbatim` token is encountered. Its purpose is to prevent consecutive `break`
+  tokens from producing new lines.
+- `lastBreakOffset` - The offset value of the last `break`.
+- `lastBreakValue` - The total amount of white space needed to indent the last
+  `break`.
+
+See: [`PrettyPrint.swift:printToken(...)`](../Sources/SwiftFormatPrettyPrint/PrettyPrint.swift)
+
+### Syntax Tokens
+
+When we encounter a `syntax` token, we check `lastBreakConsecutive` to see if
+this token was preceded by a `break` that created a new line. If so, we first
+print the number of spaces according to `lastBreakValue`.
+
+In all cases, we print the text of the token and subtract its length from
+`spaceRemaining`. We also reset the `lastBreak` variables. That is, we set:
+
+```swift
+lastBreak = false
+lastBreakConsecutive = flase
+lastBreakOffset = 0
+lastBreakValue = 0
+```
+
+### Open Tokens
+
+If we encounter an `open` token, we check to see if we need to impose consistent
+breaking or not for this group. If the `open` token has consistent breaking and
+`lastBreak` is true (or the length of the group is greater than
+`spaceRemaining`), we push `true` onto `forceBreakStack` (`false`, otherwise).
+
+Next we calculate the indentation for this group. We read the indentation value
+from the top of the stack. We add to it the offset of this `open` token and
+`lastBreakOffset`, then push it onto `indentStack`. We add the sum of just the
+`open` token's offset and `lastBreakOffset` to the top of `relativeIndentStack`.
+
+`open` tokens do not affect `spaceRemaining`.
+
+### Close Tokens
+
+Pop the values from the top of `forceBreakStack` and `indentStack`. Next, we pop
+the value off the top of `relativeIndentStack`. We then add this to
+`lastBreakOffset`. `lastBreakOffset` is a relative value itself, so if a `break`
+creates a new line from within the group, this value will no longer correspond
+to the correct global indentation. This is why we correct it with the relative
+indentation value of its containing group.
+
+### Break Tokens
+
+At `break` tokens we need to decide whether or not to create a line break. This
+occurs if the top of the `forceBreakStack` is true, or of the length of the
+`break` exceeds `spaceRemaining`. `lastBreakConsecutive` must be false.
+
+If we need to create a line break, we need to calcualte the indentation level
+and propagate that information to future `syntax` and `open` tokens. First read
+the top of `indentStack`, and add the indentation to the `break` token's offset
+value; this will be `lastBreakValue`. Set `lastBreak` and `lastBreakConsecutive`
+to true, and `lastBreakOffset` to the `break`'s offset. The `spaceRemaining` is
+set to the maximum line length minus `lastBreakValue`.
+
+If we do not need to create a new line, we print the `break`. We write out the
+number of spaces corresponding to the `break` token's size, and subtract the
+value of `size` from `spaceRemaining`. We then reset the `lastBreak` variables
+as we did for `syntax` tokens, except we leave `lastBreakConsecutive` unchanged.
+
+### Newline Tokens
+
+`newline` tokens do the same indentation calculations as `break` tokens do when
+they are creating a line break. Additionally, `newline` tokens also print the
+number of `\n` characters specified. We do not need to check lengths or
+`forceBreakStack`, since `newline` tokens always create line breaks.
+
+### Space Tokens
+
+`space` tokens behave similarly to `syntax` tokens. If the token is preceded by
+a `break` token that created a new line (`lastBreakConsecutive` is true), the
+number of spaces for the indent are printed, and the `lastBreak` variables are
+reset. Then, we print the number of spaces according to the `space` token's
+length, and adjust `spaceRemaining` accordingly.
+
+### Reset Tokens
+
+`reset` tokens reset the `lastBreak` variables. They do nothing else.
+
+### Comment Tokens
+
+`comment` tokens also be have similarly to `syntax` tokens. If
+`lastBreakConsecutive` is true, we apply the indent and reset the `lastBreak`
+variables as usual. Next, we print the contents of the `comment` tokens
+including any necessary delimiters. `spaceRemaining` is adjusted according to
+the length of the `comment`.
+
+### Verbatim Tokens
+
+When we encounter a `verbatim` token, we simply print it's contents and apply a
+global indentation according to `lastBreakValue`. We reset the `lastBreak`
+variables, and adjust `spaceRemaining` according to the token's length, which is
+equivalent to the maximum line width.
+
+## Differences from Oppen's Algorithm
+
+For those who might already be familiar with Oppen's pretty-printing algorithm,
+described below are ways in which SwiftFormat's pretty-printer differs from
+Oppen's.
+
+### Absence of a "stream"
+
+Oppen's algorithm was designed to run like a server. It accepts tokens one at a
+time ad infinitum, so it requires a buffer to accumulate tokens. It prints them
+out as it goes along. All of SwiftFormat's tokens are already available as an
+array in memory, so we don't need a buffer. We access the token array directly,
+rather than using a separate `stream`.
+
+### Use of the "simple" rather than the "optimized" algorithm
+
+Oppen's simple algorithm has to wait until `break` and `open` tokens have their
+lengths calculated before it can start printing. The buffer could conceivably
+get quite large before anything can be printed. The optimized algorithm allows
+you to start printing tokens much sooner, and optimizes the size of the buffer.
+Because we aren't accumulating tokens in a buffer, we don't benefit from the
+optimized (and more complicated) algorithm.
+
+### "Break" instead of "Blank"
+
+What Oppen refers to as "blanks", we call "breaks". The change was made since,
+arguably, "break" better describes the token's function than "blank".
+
+### `newline` tokens
+
+Oppen used "blanks" as catch-all tokens for spaces and line breaks. Indeed,
+`newlines` behave almost identically to `break` tokens with a size of
+`maximumLineWidth`. However, unlike `break` tokens, the `newline` size is fixed,
+and does not depend on what follows it.
+
+### Indentation scheme
+
+When Oppen encounters `open` tokens, he pushes the location of the token onto
+the indentation stack. It produces something that looks like this:
+
+```swift
+myFunc(one,  // Assuming an open token occurs after the "("
+       two,
+       three)
+```
+
+We don't dynamically compute our indentation levels in this way, since we use a
+fixed indentation step of 2 spaces (in most cases). Instead, we control ours
+explicitly through the use of offsets on `open` and `break` tokens.
+
+### Consistent breaking on `open` tokens
+
+We specify the consistent breaking condition on the `open` tokens rather than on
+the `break` tokens, whereas Oppen specifies the condition on the `break` tokens.
+`break` tokens that break consistently are grouped together, so it made more
+sense to place this label on the containing group.
+
+### Offsets on `open` tokens
+
+The purpose of this way to aid the construction of the token array. We have to
+calculate the necessary total offsets on `break` tokens dynamically in some
+cases, depending on their context. Placing offsets on the `open` tokens allows
+us to do much of this automatically, and helps keep the visit functions
+simpler.
+
+### Printing spaces on `syntax` tokens rather than on `break` tokens
+
+Oppen's algorithm prints the indentation whitespace when `break` tokens are
+encountered. If we have extra blank lines in between source code, this can
+result in hanging whitespace. Waiting to print the indentation whitespace until
+encountering a `syntax` token prevents this.

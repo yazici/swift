@@ -242,6 +242,12 @@ public class PrettyPrinter {
 
     case .verbatim(let verbatim):
       write(verbatim.print(indent: lastBreakValue))
+      if lastBreakConsecutive {
+        lastBreak = false
+        lastBreakConsecutive = false
+        lastBreakOffset = 0
+        lastBreakValue = 0
+      }
       spaceRemaining -= length
     }
   }
