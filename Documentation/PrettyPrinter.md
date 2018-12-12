@@ -547,3 +547,75 @@ When we encounter a `verbatim` token, we simply print it's contents and apply a
 global indentation according to `lastBreakValue`. We reset the `lastBreak`
 variables, and adjust `spaceRemaining` according to the token's length, which is
 equivalent to the maximum line width.
+
+## Differences from Oppen's Algorithm
+
+For those who might already be familiar with Oppen's pretty-printing algorithm,
+described below are ways in which SwiftFormat's pretty-printer differs from
+Oppen's.
+
+### Absence of a "stream"
+
+Oppen's algorithm was designed to run like a server. It accepts tokens one at a
+time ad infinitum, so it requires a buffer to accumulate tokens. It prints them
+out as it goes along. All of SwiftFormat's tokens are already available as an
+array in memory, so we don't need a buffer. We access the token array directly,
+rather than using a separate `stream`.
+
+### Use of the "simple" rather than the "optimized" algorithm
+
+Oppen's simple algorithm has to wait until `break` and `open` tokens have their
+lengths calculated before it can start printing. The buffer could conceivably
+get quite large before anything can be printed. The optimized algorithm allows
+you to start printing tokens much sooner, and optimizes the size of the buffer.
+Because we aren't accumulating tokens in a buffer, we don't benefit from the
+optimized (and more complicated) algorithm.
+
+### "Break" instead of "Blank"
+
+What Oppen refers to as "blanks", we call "breaks". The change was made since,
+arguably, "break" better describes the token's function than "blank".
+
+### `newline` tokens
+
+Oppen used "blanks" as catch-all tokens for spaces and line breaks. Indeed,
+`newlines` behave almost identically to `break` tokens with a size of
+`maximumLineWidth`. However, unlike `break` tokens, the `newline` size is fixed,
+and does not depend on what follows it.
+
+### Indentation scheme
+
+When Oppen encounters `open` tokens, he pushes the location of the token onto
+the indentation stack. It produces something that looks like this:
+
+```
+myFunc(one, # Assuming an open token occurs after the "("
+       two,
+       three)
+```
+
+We don't dynamically compute our indentation levels in this way, since we use a
+fixed indentation step of 2 spaces (in most cases). Instead, we control ours
+explicitly through the use of offsets on `open` and `break` tokens.
+
+### Consistent breaking on `open` tokens
+
+We specify the consistent breaking condition on the `open` tokens rather than on
+the `break` tokens, whereas Oppen specifies the condition on the `break` tokens.
+`break` tokens that break consistently are grouped together, so it made more
+sense to place this label on the containing group.
+
+### Offsets on `open` tokens
+
+The purpose of this way to aid the construction of the token array. We have to
+calculate the necessary total offsets on `break` tokens dynamically in some
+cases, depending on their context. Placing offsets on the `open` tokens allows
+us to do much of this automatically, and helps keep the visit functions
+simpler.
+
+### Printing spaces on `syntax` tokens rather than on `break` tokens
+
+Oppen's algorithm prints the indentation whitespace when `break` tokens are
+encountered. If we have extra blank lines in between source code, this can
+result in hanging whitespace. Waiting to print the indentation whitespace until
+encountering a `syntax` token prevents this.
