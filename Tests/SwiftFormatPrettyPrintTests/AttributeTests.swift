@@ -15,8 +15,6 @@ public class AttributeTests: PrettyPrintTestCase {
       @available(*, unavailable, renamed: "MyRenamedProtocol")
       @available(iOS 10.0, macOS 10.12, *)
 
-
-
       """
 
     // Do not wrap attributes

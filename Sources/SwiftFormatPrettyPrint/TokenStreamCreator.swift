@@ -71,6 +71,18 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
   }
 
+  private func unknownToken(_ node: Syntax) {
+    if let firstToken = node.firstToken, let before = beforeMap[firstToken] {
+      tokens += before
+    }
+    appendToken(.verbatim(Verbatim(text: node.description)))
+    if let lastToken = node.lastToken, let afterGroups = afterMap[lastToken] {
+      for after in afterGroups.reversed() {
+        tokens += after
+      }
+    }
+  }
+
   override func visitPre(_ node: Syntax) {}
 
   override func visit(_ node: DeclNameArgumentsSyntax) {
@@ -1308,19 +1320,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: UnknownDeclSyntax) {
+    unknownToken(node)
+    // Call to super.visit is not needed here.
+  }
+
   override func visit(_ node: UnknownStmtSyntax) {
-    if let firstToken = node.firstToken, let before = beforeMap[firstToken] {
-      tokens += before
-    }
-    appendToken(.verbatim(Verbatim(text: node.description)))
-    if let nextToken = node.nextToken, case .eof = nextToken.tokenKind {
-      appendToken(.newline)
-    }
-    if let lastToken = node.lastToken, let afterGroups = afterMap[lastToken] {
-      for after in afterGroups.reversed() {
-        tokens += after
-      }
-    }
+    unknownToken(node)
     // Call to super.visit is not needed here.
   }
 
