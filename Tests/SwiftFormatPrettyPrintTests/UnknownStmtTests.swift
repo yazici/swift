@@ -35,6 +35,15 @@ public class UnknownStmtTests: PrettyPrintTestCase {
         let b = "abc"
       }
 
+      #if canImport(os)
+        if #available(OSX 10.12, *) {
+          // Do stuff
+        } else {
+          let a = 123
+          let b = "abc"
+        }
+      #endif
+
       """
 
     let expected =
@@ -68,6 +77,15 @@ public class UnknownStmtTests: PrettyPrintTestCase {
         let a = 123
         let b = "abc"
       }
+
+      #if canImport(os)
+        if #available(OSX 10.12, *) {
+          // Do stuff
+        } else {
+          let a = 123
+          let b = "abc"
+        }
+      #endif
 
       """
 
