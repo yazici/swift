@@ -274,8 +274,16 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IfConfigClauseSyntax) {
-    after(node.poundKeyword, tokens: .break)
-    after(node.condition?.lastToken, tokens: .newline)
+    switch node.poundKeyword.tokenKind {
+    case .poundIfKeyword, .poundElseifKeyword:
+      after(node.poundKeyword, tokens: .break)
+    case .poundElseKeyword:
+      break
+    default:
+      preconditionFailure()
+    }
+    before(node.elements.firstToken, tokens: .newline(offset: 2), .open(.consistent, 0))
+    after(node.elements.lastToken, tokens: .newline(offset: -2), .close)
     super.visit(node)
   }
 
@@ -403,7 +411,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockItemListSyntax) {
-    if node.parent is AccessorBlockSyntax || node.parent is ClosureExprSyntax, node.count > 0 {
+    if node.parent is AccessorBlockSyntax || node.parent is ClosureExprSyntax || node.parent is IfConfigClauseSyntax, node.count > 0 {
       insertToken(.newline, betweenChildrenOf: node)
     }
     super.visit(node)
@@ -414,7 +422,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
     if !(node.parent?.parent is CodeBlockSyntax ||
            node.parent?.parent is SwitchCaseSyntax ||
            node.parent?.parent is ClosureExprSyntax ||
-           node.parent?.parent is AccessorBlockSyntax
+           node.parent?.parent is AccessorBlockSyntax ||
+           node.parent?.parent is IfConfigClauseSyntax
          ) {
       after(node.lastToken, tokens: .close, .newline)
     } else {
@@ -1299,10 +1308,18 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ token: UnknownStmtSyntax) {
-    appendToken(.verbatim(Verbatim(text: token.description)))
-    if let nextToken = token.nextToken, case .eof = nextToken.tokenKind {
+  override func visit(_ node: UnknownStmtSyntax) {
+    if let firstToken = node.firstToken, let before = beforeMap[firstToken] {
+      tokens += before
+    }
+    appendToken(.verbatim(Verbatim(text: node.description)))
+    if let nextToken = node.nextToken, case .eof = nextToken.tokenKind {
       appendToken(.newline)
+    }
+    if let lastToken = node.lastToken, let afterGroups = afterMap[lastToken] {
+      for after in afterGroups.reversed() {
+        tokens += after
+      }
     }
     // Call to super.visit is not needed here.
   }
