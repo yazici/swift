@@ -68,6 +68,9 @@ public class PrettyPrinter {
   /// breaks occur in the formatted output.
   private var isDebugMode: Bool
 
+  /// If true, the token stream is printed to the console for debugging purposes.
+  private var printTokenStream: Bool
+
   /// The current index (0..<6) of the color to be used for the next color group.
   private var currentDebugGroupMarkerColor = 0
 
@@ -84,12 +87,13 @@ public class PrettyPrinter {
   /// - Parameters:
   ///   - configuration: The configuration used to decide whitespace or breaking behavior.
   ///   - node: The node to be pretty printed.
-  public init(configuration: Configuration, node: Syntax, isDebugMode: Bool) {
+  public init(configuration: Configuration, node: Syntax, isDebugMode: Bool, printTokenStream: Bool) {
     self.configuration = configuration
     self.tokens = node.makeTokenStream(configuration: configuration)
     self.maxLineLength = configuration.lineLength
     self.isDebugMode = isDebugMode
     self.spaceRemaining = self.maxLineLength
+    self.printTokenStream = printTokenStream
   }
 
   /// Append the input string to the output buffer
@@ -107,6 +111,9 @@ public class PrettyPrinter {
   ///   - token: The token to be printed.
   ///   - length: The length of the token (number of columns).
   private func printToken(token: Token, length: Int) {
+    if self.printTokenStream {
+      printDebugToken(token: token, length: length)
+    }
     assert(length >= 0, "Token lengths must be positive")
     switch token {
 
@@ -413,6 +420,73 @@ public class PrettyPrinter {
     write(currentGroupColorString)
     write(closeGroupMarker)
     write(Ansi.reset)
+  }
+
+  /// Used to track the indentation level for the debug token stream output
+  var debugIndent: Int = 0
+
+  /// Print out the token stream to the console for debugging.
+  ///
+  /// Indentation is applied to make identification of groups easier.
+  private func printDebugToken(token: Token, length: Int) {
+    func printDebugIndent() {
+      print(String(repeating: " ", count: debugIndent), terminator:"")
+    }
+    switch token {
+    case .syntax(let syntax):
+      printDebugIndent()
+      print("[SYNTAX \"\(syntax.text)\" Length: \(length)]")
+
+    case .break(let size, let offset):
+      printDebugIndent()
+      print("[BREAK Size: \(size) Offset: \(offset) Length: \(length)]")
+
+    case .open(let breakstyle, let offset):
+      printDebugIndent()
+      switch breakstyle {
+      case .consistent:
+        print("[OPEN Consistent Offset: \(offset) Length: \(length)]")
+      case .inconsistent:
+        print("[OPEN Inconsistent Offset: \(offset) Length: \(length)]")
+      }
+      debugIndent += 2
+
+    case .close:
+      debugIndent -= 2
+      printDebugIndent()
+      print("[CLOSE]")
+
+    case .newlines(let N, let offset):
+      printDebugIndent()
+      print("[NEWLINES N: \(N) Offset: \(offset) Length: \(length)]")
+
+    case .space(let size):
+      printDebugIndent()
+      print("[SPACE Size: \(size) Length: \(length)]")
+
+    case .reset:
+      print("[RESET]")
+
+    case .comment(let comment):
+      printDebugIndent()
+      switch comment.kind {
+      case .line:
+        print("[COMMENT Line Length: \(length)]")
+      case .docLine:
+        print("[COMMENT DocLine Length: \(length)]")
+      case .block:
+        print("[COMMENT Block Length: \(length)]")
+      case .docBlock:
+        print("[COMMENT DocBlock Length: \(length)]")
+      }
+      printDebugIndent()
+      print(comment.print(indent: debugIndent))
+
+    case .verbatim(let verbatim):
+      printDebugIndent()
+      print("[VERBATIM Length: \(length)]")
+      print(verbatim.print(indent: debugIndent))
+    }
   }
 
   /// Writes the given number of spaces to the output.

@@ -22,7 +22,8 @@ public class PrettyPrintTestCase: XCTestCase {
       let printer = PrettyPrinter(
         configuration: context.configuration,
         node: syntax,
-        isDebugMode: false
+        isDebugMode: false,
+        printTokenStream: false
       )
       let output = printer.prettyPrint()
       XCTAssertEqual(expected, output)
