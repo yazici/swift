@@ -1026,6 +1026,20 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypealiasDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+    after(node.lastToken, tokens: .close, .close)
+    after(node.typealiasKeyword, tokens: .break)
+    super.visit(node)
+  }
+
+  override func visit(_ node: TypeInitializerClauseSyntax) {
+    before(node.equal, tokens: .break)
+    after(node.equal, tokens: .break)
     super.visit(node)
   }
 
@@ -1272,10 +1286,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     after(node.colon, tokens: .break(offset: 2))
     before(node.inheritedTypeCollection.firstToken, tokens: .open(.consistent, 0))
     after(node.inheritedTypeCollection.lastToken, tokens: .break(size: 0, offset: -2), .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: TypeInitializerClauseSyntax) {
     super.visit(node)
   }
 
