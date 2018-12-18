@@ -42,6 +42,7 @@ struct CommandLineOptions: Codable {
   var mode: Mode = .format
   var isDebugMode: Bool = false
   var prettyPrint: Bool = false
+  var printTokenStream: Bool = false
 }
 
 func processArguments(commandName: String, _ arguments: [String]) -> CommandLineOptions {
@@ -95,6 +96,14 @@ func processArguments(commandName: String, _ arguments: [String]) -> CommandLine
   )) {
     $0.prettyPrint = $1
   }
+  binder.bind(
+    option: parser.add(
+      option: "--token-stream",
+      kind: Bool.self,
+      usage: "Print out the pretty-printer token stream."
+  )) {
+    $0.printTokenStream = $1
+  }
 
   var opts = CommandLineOptions()
   do {
@@ -118,7 +127,8 @@ func main(_ arguments: [String]) -> Int32 {
       ret |= formatMain(
         path: path,
         isDebugMode: options.isDebugMode,
-        prettyPrint: options.prettyPrint
+        prettyPrint: options.prettyPrint,
+        printTokenStream: options.printTokenStream
       )
     }
     return Int32(ret)
