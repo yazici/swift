@@ -75,7 +75,7 @@ public class FunctionCallTests: PrettyPrintTestCase {
       })
       funcCall(closure: {
         s1, s2, s3, s4, s5, s6, s7, s8, s9, s10
-          in
+        in
         return s1
       })
       funcCall(
@@ -163,5 +163,61 @@ public class FunctionCallTests: PrettyPrintTestCase {
       """
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
+  }
+
+  public func testClosureCapture() {
+    let input =
+      """
+      let a = funcCall() { [weak self] (a: Int) in
+        return a + 1
+      }
+      let a = funcCall() { [weak self, weak a = self.b] (a: Int) in
+        return a + 1
+      }
+      let b = funcCall() { [unowned self, weak delegate = self.delegate!] (a: Int, b: String) -> String in
+        return String(a) + b
+      }
+      """
+
+    let expected =
+      """
+      let a = funcCall() { [weak self] (a: Int) in
+        return a + 1
+      }
+      let a = funcCall() {
+        [weak self, weak a = self.b] (a: Int) in
+        return a + 1
+      }
+      let b = funcCall() {
+        [unowned self, weak delegate = self.delegate!]
+        (a: Int, b: String) -> String in
+        return String(a) + b
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
+  }
+
+  public func testBodilessClosure() {
+    let input =
+      """
+      let a = funcCall() { s1, s2 in
+        // Move along, nothing here to see
+      }
+      let a = funcCall() { s1, s2 in }
+      """
+
+
+    let expected =
+      """
+      let a = funcCall() { s1, s2 in
+        // Move along, nothing here to see
+      }
+      let a = funcCall() { s1, s2 in }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
   }
 }

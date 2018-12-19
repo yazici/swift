@@ -200,27 +200,29 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: FunctionCallArgumentSyntax) {
     after(node.colon, tokens: .break)
-
-      before(node.firstToken, tokens: .open)
-      if let trailingComma = node.trailingComma {
-        after(trailingComma, tokens: .close, .break)
-      } else {
-        after(node.lastToken, tokens: .close)
-      }
-      super.visit(node)
+    before(node.firstToken, tokens: .open)
+    if let trailingComma = node.trailingComma {
+      after(trailingComma, tokens: .close, .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
+    super.visit(node)
   }
 
   override func visit(_ node: ClosureExprSyntax) {
     before(node.firstToken, tokens: .reset)
     if let signature = node.signature {
       before(signature.firstToken, tokens: .break(offset: 2))
-      before(node.statements.firstToken, tokens: .newline(offset: 2), .open(.consistent, 0))
+      if node.statements.count > 0 {
+        after(signature.inTok, tokens: .newline(offset: 2), .open(.consistent, 0))
+      } else {
+        after(signature.inTok, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+      }
       before(node.rightBrace, tokens: .break(offset: -2), .close)
     } else {
-      before(node.statements.firstToken, tokens: .break(offset: 2), .open(.consistent, 0))
+      after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
       before(node.rightBrace, tokens: .break(offset: -2), .close)
     }
-
     super.visit(node)
   }
 
@@ -230,8 +232,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ClosureSignatureSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 2))
-    after(node.input?.lastToken, tokens: .break)
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
+    after(node.capture?.lastToken, tokens: .break)
+    before(node.input?.firstToken, tokens: .open)
+    after(node.input?.lastToken, tokens: .close, .break)
     after(node.output?.lastToken, tokens: .break)
     after(node.throwsTok, tokens: .break)
     after(node.lastToken, tokens: .close)
@@ -239,10 +243,22 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ClosureCaptureSignatureSyntax) {
+    after(node.leftSquare, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    before(node.rightSquare, tokens: .break(size: 0, offset: -2), .close)
     super.visit(node)
   }
 
   override func visit(_ node: ClosureCaptureItemSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.specifier?.lastToken, tokens: .break)
+    before(node.assignToken, tokens: .break)
+    after(node.assignToken, tokens: .break)
+    if let trailingComma = node.trailingComma {
+      before(trailingComma, tokens: .close)
+      after(trailingComma, tokens: .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
@@ -1398,7 +1414,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
         if index > 0 || isStartOfFile {
           if token.withoutTrivia().text == "}" {
             if let previousToken = token.previousToken,
-               previousToken.withoutTrivia().text == "{" {
+              (["{", "in"].contains { $0 == previousToken.withoutTrivia().text }) {
               // do nothing
             } else {
               appendToken(.newline)
