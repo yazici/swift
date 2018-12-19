@@ -200,4 +200,26 @@ public class FunctionCallTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
   }
+
+  public func testBodilessClosure() {
+    let input =
+      """
+      let a = funcCall() { s1, s2 in
+        // Move along, nothing here to see
+      }
+      let a = funcCall() { s1, s2 in }
+      """
+
+
+    let expected =
+      """
+      let a = funcCall() { s1, s2 in
+        // Move along, nothing here to see
+      }
+      let a = funcCall() { s1, s2 in }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
+  }
 }
