@@ -96,4 +96,39 @@ public class ForInStmtTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
   }
+
+  public func testForLabels() {
+    let input =
+      """
+      loopLabel:for element in container {
+        let a = 123
+        let b = "abc"
+        if element == "" {
+          continue
+        }
+        for c in anotherContainer {
+          let d = "456"
+          continue elementLoop
+        }
+      }
+      """
+
+    let expected =
+      """
+      loopLabel:for element in container {
+        let a = 123
+        let b = "abc"
+        if element == "" {
+          continue
+        }
+        for c in anotherContainer {
+          let d = "456"
+          continue elementLoop
+        }
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
+  }
 }

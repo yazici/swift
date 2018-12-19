@@ -781,6 +781,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ContinueStmtSyntax) {
+    before(node.label, tokens: .break)
     super.visit(node)
   }
 
