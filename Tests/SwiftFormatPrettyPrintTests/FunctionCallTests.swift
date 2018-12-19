@@ -75,7 +75,7 @@ public class FunctionCallTests: PrettyPrintTestCase {
       })
       funcCall(closure: {
         s1, s2, s3, s4, s5, s6, s7, s8, s9, s10
-          in
+        in
         return s1
       })
       funcCall(
@@ -189,10 +189,8 @@ public class FunctionCallTests: PrettyPrintTestCase {
         return a + 1
       }
       let b = funcCall() {
-        [unowned self, weak delegate = self.delegate!] (
-            a: Int,
-            b: String
-          ) -> String in
+        [unowned self, weak delegate = self.delegate!]
+        (a: Int, b: String) -> String in
         return String(a) + b
       }
 

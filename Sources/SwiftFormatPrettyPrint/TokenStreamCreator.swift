@@ -232,9 +232,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ClosureSignatureSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 2))
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
     after(node.capture?.lastToken, tokens: .break)
-    after(node.input?.lastToken, tokens: .break)
+    before(node.input?.firstToken, tokens: .open)
+    after(node.input?.lastToken, tokens: .close, .break)
     after(node.output?.lastToken, tokens: .break)
     after(node.throwsTok, tokens: .break)
     after(node.lastToken, tokens: .close)
