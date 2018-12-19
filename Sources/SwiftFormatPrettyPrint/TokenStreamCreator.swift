@@ -700,6 +700,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ThrowStmtSyntax) {
+    before(node.expression.firstToken, tokens: .break)
     super.visit(node)
   }
 
