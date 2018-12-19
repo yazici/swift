@@ -100,7 +100,7 @@ public class ForInStmtTests: PrettyPrintTestCase {
   public func testForLabels() {
     let input =
       """
-      loopLabel:for element in container {
+      loopLabel: for element in container {
         let a = 123
         let b = "abc"
         if element == "" {
@@ -115,7 +115,7 @@ public class ForInStmtTests: PrettyPrintTestCase {
 
     let expected =
       """
-      loopLabel:for element in container {
+      loopLabel: for element in container {
         let a = 123
         let b = "abc"
         if element == "" {

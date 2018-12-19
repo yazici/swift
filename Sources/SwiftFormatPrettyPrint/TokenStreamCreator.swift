@@ -658,7 +658,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ForInStmtSyntax) {
-    before(node.forKeyword, tokens: .open(.inconsistent, 4))
+    before(node.firstToken, tokens: .open(.inconsistent, 4))
+    after(node.labelColon, tokens: .break)
     after(node.forKeyword, tokens: .space)
     before(node.inKeyword, tokens: .break)
     after(node.inKeyword, tokens: .space)
