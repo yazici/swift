@@ -231,6 +231,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: ClosureSignatureSyntax) {
     before(node.firstToken, tokens: .open(.inconsistent, 2))
+    after(node.capture?.lastToken, tokens: .break)
     after(node.input?.lastToken, tokens: .break)
     after(node.output?.lastToken, tokens: .break)
     after(node.throwsTok, tokens: .break)
@@ -239,10 +240,22 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ClosureCaptureSignatureSyntax) {
+    after(node.leftSquare, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+    before(node.rightSquare, tokens: .break(size: 0, offset: -2), .close)
     super.visit(node)
   }
 
   override func visit(_ node: ClosureCaptureItemSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.specifier?.lastToken, tokens: .break)
+    before(node.assignToken, tokens: .break)
+    after(node.assignToken, tokens: .break)
+    if let trailingComma = node.trailingComma {
+      before(trailingComma, tokens: .close)
+      after(trailingComma, tokens: .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 

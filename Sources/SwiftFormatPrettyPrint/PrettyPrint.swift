@@ -465,6 +465,7 @@ public class PrettyPrinter {
       print("[SPACE Size: \(size) Length: \(length)]")
 
     case .reset:
+      printDebugIndent()
       print("[RESET]")
 
     case .comment(let comment):
