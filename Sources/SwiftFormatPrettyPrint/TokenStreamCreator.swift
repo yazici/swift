@@ -90,8 +90,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: BinaryOperatorExprSyntax) {
-    before(node.operatorToken, tokens: .break)
-    after(node.operatorToken, tokens: .break)
+    switch node.operatorToken.tokenKind {
+    case .unspacedBinaryOperator:
+      break
+    default:
+      before(node.operatorToken, tokens: .break)
+      after(node.operatorToken, tokens: .break)
+    }
     super.visit(node)
   }
 
@@ -1486,6 +1491,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
         newComment.addText(c2.text)
         tokens[tokens.count - 1] = .comment(newComment)
         return
+
+      case (.newlines(let N1, let offset1), .newlines(let N2, let offset2)):
+        tokens[tokens.count - 1] = .newlines(N1 + N2, offset: offset1 + offset2)
+        return
+
       default:
         break
       }

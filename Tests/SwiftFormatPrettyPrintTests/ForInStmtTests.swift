@@ -131,4 +131,35 @@ public class ForInStmtTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
   }
+
+  public func testForWithRanges() {
+    let input =
+      """
+      for i in 0...10 {
+        let a = 123
+        print(i)
+      }
+
+      for i in 0..<10 {
+        let a = 123
+        print(i)
+      }
+      """
+
+    let expected =
+      """
+      for i in 0...10 {
+        let a = 123
+        print(i)
+      }
+
+      for i in 0..<10 {
+        let a = 123
+        print(i)
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
+  }
 }
