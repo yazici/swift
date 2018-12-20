@@ -90,8 +90,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: BinaryOperatorExprSyntax) {
-    before(node.operatorToken, tokens: .break)
-    after(node.operatorToken, tokens: .break)
+    switch node.operatorToken.tokenKind {
+    case .unspacedBinaryOperator:
+      break
+    default:
+      before(node.operatorToken, tokens: .break)
+      after(node.operatorToken, tokens: .break)
+    }
     super.visit(node)
   }
 
