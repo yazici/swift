@@ -1491,6 +1491,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
         newComment.addText(c2.text)
         tokens[tokens.count - 1] = .comment(newComment)
         return
+
+      case (.newlines(let N1, let offset1), .newlines(let N2, let offset2)):
+        tokens[tokens.count - 1] = .newlines(N1 + N2, offset: offset1 + offset2)
+        return
+
       default:
         break
       }
