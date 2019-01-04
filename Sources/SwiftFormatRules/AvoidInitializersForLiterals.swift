@@ -38,6 +38,16 @@ public final class AvoidInitializersForLiterals: SyntaxFormatRule {
       return super.visit(node)
     }
 
+    guard node.argumentList.count <= 1 else {
+      return super.visit(node)
+    }
+
+    for arg in node.argumentList {
+      if arg.label != nil {
+        return super.visit(node)
+      }
+    }
+
     let typeName = callee.identifier.text
 
     guard let literal = extractLiteral(node, typeName) else {
@@ -61,6 +71,12 @@ public final class AvoidInitializersForLiterals: SyntaxFormatRule {
       )
     }
 
+    let newAs = replaceTrivia(
+      on: asExpr,
+      token: asExpr.lastToken,
+      trailingTrivia: node.trailingTrivia
+    ) as! AsExprSyntax
+
     let newLiteral = replaceTrivia(
       on: literal,
       token: literal.firstToken,
@@ -70,7 +86,7 @@ public final class AvoidInitializersForLiterals: SyntaxFormatRule {
     return SyntaxFactory.makeSequenceExpr(
       elements: SyntaxFactory.makeExprList([
         newLiteral,
-        asExpr,
+        newAs
       ]))
   }
 }
