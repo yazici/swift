@@ -71,7 +71,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
   }
 
-  private func unknownToken(_ node: Syntax) {
+  private func verbatimToken(_ node: Syntax) {
     if let firstToken = node.firstToken, let before = beforeMap[firstToken] {
       tokens += before
     }
@@ -272,7 +272,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ExpressionSegmentSyntax) {
-    super.visit(node)
+    verbatimToken(node)
+    // Call to super.visit is not needed here.
   }
 
   override func visit(_ node: ObjcKeyPathExprSyntax) {
@@ -321,8 +322,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: MemberDeclBlockSyntax) {
-    for i in 0..<(node.members.count - 1) {
-      after(node.members[i].lastToken, tokens: .newline)
+    // Ordinarily, we would use `insertToken` here, but it causes a build error for an unknown
+    // reason.
+    if node.members.count > 1 {
+      for i in 0..<(node.members.count - 1) {
+        after(node.members[i].lastToken, tokens: .newline)
+      }
     }
     super.visit(node)
   }
@@ -1355,12 +1360,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: UnknownDeclSyntax) {
-    unknownToken(node)
+    verbatimToken(node)
     // Call to super.visit is not needed here.
   }
 
   override func visit(_ node: UnknownStmtSyntax) {
-    unknownToken(node)
+    verbatimToken(node)
     // Call to super.visit is not needed here.
   }
 
