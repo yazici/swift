@@ -21,6 +21,9 @@ let outputFile =  sourcesDir.appendingPathComponent("swift-format")
                             .appendingPathComponent("PopulatePipeline.swift")
 let fm = FileManager.default
 
+// These rules will not be added to the pipeline
+let suppressRules = ["UseEarlyExits"]
+
 enum PassKind {
   case format, lint, file
 }
@@ -59,6 +62,7 @@ for baseName in rulesEnumerator {
   for stmt in sourceFile.statements {
     guard let classDecl = stmt.item as? ClassDeclSyntax else { continue }
     let className = classDecl.identifier.text
+    if suppressRules.contains(className) { continue }
     guard let inheritanceClause = classDecl.inheritanceClause else { continue }
     var maybeKind: PassKind? = nil
     for item in inheritanceClause.inheritedTypeCollection {

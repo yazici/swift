@@ -199,12 +199,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    UseEarlyExits.self,
-    for:
-      CodeBlockItemListSyntax.self
-  )
-
-  pipeline.addFormatter(
     UseEnumForNamespacing.self,
     for:
       ClassDeclSyntax.self,
