@@ -66,8 +66,9 @@ public final class UseEnumForNamespacing: SyntaxFormatRule {
     name: TokenSyntax,
     members: MemberDeclBlockSyntax
   ) -> EnumDeclSyntax {
+    let newModifiers = modifiers?.remove(name: "final")
     return EnumDeclSyntax {
-      if let mods = modifiers {
+      if let mods = newModifiers {
         for mod in mods { $0.addModifier(mod) }
       }
       $0.useEnumKeyword(declarationKeyword.withKind(.enumKeyword))

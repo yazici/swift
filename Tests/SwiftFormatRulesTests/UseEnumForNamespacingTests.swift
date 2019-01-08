@@ -21,6 +21,9 @@ public class UseEnumForNamespacingTests: DiagnosingTestCase {
              class C {
                static func foo() {}
              }
+             public final class D {
+               static func bar()
+             }
              """,
       expected: """
                 enum A {
@@ -33,6 +36,9 @@ public class UseEnumForNamespacingTests: DiagnosingTestCase {
                 }
                 enum C {
                   static func foo() {}
+                }
+                public enum D {
+                  static func bar()
                 }
                 """)
   }
