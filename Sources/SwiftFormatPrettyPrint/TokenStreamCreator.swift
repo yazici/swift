@@ -117,6 +117,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: TupleElementSyntax) {
     before(node.firstToken, tokens: .open)
+    after(node.colon, tokens: .break)
     after(node.lastToken, tokens: .close)
     super.visit(node)
   }
