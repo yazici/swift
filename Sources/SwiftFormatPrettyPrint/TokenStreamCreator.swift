@@ -1232,6 +1232,15 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AssociatedtypeDeclSyntax) {
+    if let attributes = node.attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+    after(node.lastToken, tokens: .close, .close)
+    after(node.associatedtypeKeyword, tokens: .break)
+    before(node.genericWhereClause?.firstToken, tokens: .break)
     super.visit(node)
   }
 

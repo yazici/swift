@@ -189,4 +189,41 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
     
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
   }
+
+  public func testProtocolWithAssociatedtype() {
+    let input =
+      """
+      protocol MyProtocol {
+        var A: Int
+
+        associatedtype TypeOne
+
+        associatedtype TypeTwo: AnotherType
+
+        associatedtype TypeThree: SomeType where TypeThree.Item == Item
+
+        @available(swift 4.0)
+        associatedtype TypeFour
+      }
+      """
+
+    let expected =
+      """
+      protocol MyProtocol {
+        var A: Int
+
+        associatedtype TypeOne
+
+        associatedtype TypeTwo: AnotherType
+
+        associatedtype TypeThree: SomeType where TypeThree.Item == Item
+
+        @available(swift 4.0)
+        associatedtype TypeFour
+      }
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 65)
+  }
 }
