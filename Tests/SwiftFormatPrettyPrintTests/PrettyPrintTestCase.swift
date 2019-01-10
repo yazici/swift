@@ -6,7 +6,13 @@ import XCTest
 @testable import SwiftFormatPrettyPrint
 
 public class PrettyPrintTestCase: XCTestCase {
-  public func assertPrettyPrintEqual(input: String, expected: String, linelength: Int) {
+  public func assertPrettyPrintEqual(
+    input: String,
+    expected: String,
+    linelength: Int,
+    file: StaticString = #file,
+    line: UInt = #line
+  ) {
     let config = Configuration()
     config.lineLength = linelength
 
@@ -26,7 +32,7 @@ public class PrettyPrintTestCase: XCTestCase {
         printTokenStream: false
       )
       let output = printer.prettyPrint()
-      XCTAssertEqual(expected, output)
+      XCTAssertEqual(expected, output, file: file, line: line)
     } catch {
       fatalError("\(error)")
     }
