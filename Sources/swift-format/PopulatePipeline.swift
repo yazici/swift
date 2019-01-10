@@ -234,12 +234,6 @@ func populate(_ pipeline: Pipeline) {
       VariableDeclSyntax.self
   )
 
-  pipeline.addFormatter(
-    UseWhereClausesInForLoops.self,
-    for:
-      ForInStmtSyntax.self
-  )
-
   /// MARK: Linting Passes
 
   pipeline.addLinter(
