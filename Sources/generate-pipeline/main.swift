@@ -22,7 +22,7 @@ let outputFile =  sourcesDir.appendingPathComponent("swift-format")
 let fm = FileManager.default
 
 // These rules will not be added to the pipeline
-let suppressRules = ["UseEarlyExits"]
+let suppressRules = ["UseEarlyExits", "UseWhereClausesInForLoops"]
 
 enum PassKind {
   case format, lint, file

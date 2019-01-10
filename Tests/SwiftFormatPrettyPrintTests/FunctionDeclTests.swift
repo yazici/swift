@@ -301,6 +301,36 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
   }
 
+  public func testBodilessFunctionDecl() {
+    let input =
+      """
+      func myFun()
+
+      func myFun(arg1: Int)
+
+      func myFun() -> Int
+
+      func myFun<T>(arg1: Int)
+
+      func myFun<T>(arg1: Int) where T: S
+      """
+
+    let expected =
+      """
+      func myFun()
+
+      func myFun(arg1: Int)
+
+      func myFun() -> Int
+
+      func myFun<T>(arg1: Int)
+
+      func myFun<T>(arg1: Int) where T: S
+
+      """
+
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
+  }
 
   public func testFunctionFullWrap() {
     let input =
