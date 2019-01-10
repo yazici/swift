@@ -835,7 +835,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
       node.genericWhereClause?.firstToken,
       tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
     )
-    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
+    if node.body != nil {
+      after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
+    } else {
+      after(node.genericWhereClause?.lastToken, tokens: .close, .close)
+    }
 
     if let body = node.body {
       if node.genericWhereClause == nil {
