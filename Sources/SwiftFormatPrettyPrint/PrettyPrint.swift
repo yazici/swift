@@ -29,7 +29,8 @@ fileprivate let closeGroupMarker = "\u{27ED}"
 /// PrettyPrinter takes a Syntax node and outputs a well-formatted, re-indented reproduction of the
 /// code as a String.
 public class PrettyPrinter {
-  private let configuration: Configuration
+  private let context: Context
+  private var configuration: Configuration { return context.configuration }
   private let maxLineLength: Int
   private var tokens: [Token]
   private var outputBuffer: String = ""
@@ -85,10 +86,11 @@ public class PrettyPrinter {
   /// Creates a new PrettyPrinter with the provided formatting configuration.
   ///
   /// - Parameters:
-  ///   - configuration: The configuration used to decide whitespace or breaking behavior.
+  ///   - context: The formatter context.
   ///   - node: The node to be pretty printed.
-  public init(configuration: Configuration, node: Syntax, isDebugMode: Bool, printTokenStream: Bool) {
-    self.configuration = configuration
+  public init(context: Context, node: Syntax, isDebugMode: Bool, printTokenStream: Bool) {
+    self.context = context
+    let configuration = context.configuration
     self.tokens = node.makeTokenStream(configuration: configuration)
     self.maxLineLength = configuration.lineLength
     self.isDebugMode = isDebugMode
@@ -234,7 +236,7 @@ public class PrettyPrinter {
       }
       spaceRemaining -= syntaxToken.text.count
 
-    case .comment(let comment):
+    case .comment(let comment, let wasEndOfLine):
       if lastBreakConsecutive {
         // If the last token created a new line, we need to apply indentation.
         writeSpaces(lastBreakValue)
@@ -245,7 +247,13 @@ public class PrettyPrinter {
         lastBreakValue = 0
       }
       write(comment.print(indent: lastBreakValue))
-      spaceRemaining -= comment.length
+      if wasEndOfLine {
+        if comment.length > spaceRemaining {
+          diagnose(.moveEndOfLineComment, at: comment.position)
+        }
+      } else {
+        spaceRemaining -= comment.length
+      }
 
     case .verbatim(let verbatim):
       write(verbatim.print(indent: lastBreakValue))
@@ -351,9 +359,9 @@ public class PrettyPrinter {
           total += syntaxToken.text.count
         }
 
-      case .comment(let comment):
+      case .comment(let comment, let wasEndOfLine):
         lengths.append(comment.length)
-        total += comment.length
+        total += wasEndOfLine ? 0 : comment.length
 
       case .verbatim(let verbatim):
         var length: Int
@@ -476,17 +484,17 @@ public class PrettyPrinter {
       printDebugIndent()
       print("[RESET]")
 
-    case .comment(let comment):
+    case .comment(let comment, let wasEndOfLine):
       printDebugIndent()
       switch comment.kind {
       case .line:
-        print("[COMMENT Line Length: \(length)]")
+        print("[COMMENT Line Length: \(length) EOL: \(wasEndOfLine)]")
       case .docLine:
-        print("[COMMENT DocLine Length: \(length)]")
+        print("[COMMENT DocLine Length: \(length) EOL: \(wasEndOfLine)]")
       case .block:
-        print("[COMMENT Block Length: \(length)]")
+        print("[COMMENT Block Length: \(length) EOL: \(wasEndOfLine)]")
       case .docBlock:
-        print("[COMMENT DocBlock Length: \(length)]")
+        print("[COMMENT DocBlock Length: \(length) EOL: \(wasEndOfLine)]")
       }
       printDebugIndent()
       print(comment.print(indent: debugIndent))
@@ -513,6 +521,16 @@ public class PrettyPrinter {
         write(String(repeating: " ", count: count))
       }
     }
+  }
+
+  private func diagnose(_ message: Diagnostic.Message, at position: AbsolutePosition?) {
+    let location: SourceLocation?
+    if let position = position {
+      location = SourceLocation(file: context.fileURL.path, position: position)
+    } else {
+      location = nil
+    }
+    context.diagnosticEngine?.diagnose(message, location: location)
   }
 }
 
@@ -542,4 +560,10 @@ enum Ansi {
   ///
   /// The number 30 is added to the given index to determine the actual color code.
   static func color(_ index: Int) -> String { return isTerminal ? "\u{001b}[\(30 + index)m" : "" }
+}
+
+extension Diagnostic.Message {
+
+  static let moveEndOfLineComment =
+    Diagnostic.Message(.warning, "End-of-line comment exceeds the line length")
 }

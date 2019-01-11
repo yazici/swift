@@ -1371,23 +1371,22 @@ private final class TokenStreamCreator: SyntaxVisitor {
       return
     }
 
+    let commentToken: Comment
+    let position = token.endPositionAfterTrailingTrivia
     switch firstPiece {
     case .lineComment(let text):
-      appendToken(.break(size: 2, offset: 2))
-      appendToken(.comment(Comment(kind: .line, text: text)))
-      if isInContainer(token) {
-        appendToken(.newline)
-      }
-
+      commentToken = Comment(kind: .line, text: text, position: position)
     case .blockComment(let text):
-      appendToken(.break(size: 2, offset: 2))
-      appendToken(.comment(Comment(kind: .block, text: text)))
-      if isInContainer(token) {
-        appendToken(.newline)
-      }
-
+      commentToken = Comment(kind: .block, text: text, position: position)
     default:
       return
+    }
+
+    appendToken(.break(size: 2, offset: 0))
+    appendToken(.comment(commentToken, wasEndOfLine: true))
+
+    if isInContainer(token) {
+      appendToken(.newline)
     }
   }
 
@@ -1415,7 +1414,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
             }
           }
 
-          appendToken(.comment(Comment(kind: .line, text: text)))
+          appendToken(.comment(Comment(kind: .line, text: text), wasEndOfLine: false))
 
           if token.withoutTrivia().text == "}" {
             appendToken(.newline(offset: -2))
@@ -1435,7 +1434,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
             }
           }
 
-          appendToken(.comment(Comment(kind: .block, text: text)))
+          appendToken(.comment(Comment(kind: .block, text: text), wasEndOfLine: false))
 
           if token.withoutTrivia().text == "}" {
             appendToken(.newline(offset: -2))
@@ -1445,7 +1444,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
         }
 
       case .docLineComment(let text):
-        appendToken(.comment(Comment(kind: .docLine, text: text)))
+        appendToken(.comment(Comment(kind: .docLine, text: text), wasEndOfLine: false))
         if case .newlines? = trivia[safe: index + 1],
            case .docLineComment? = trivia[safe: index + 2] {
           // do nothing
@@ -1454,7 +1453,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
         }
 
       case .docBlockComment(let text):
-        appendToken(.comment(Comment(kind: .docBlock, text: text)))
+        appendToken(.comment(Comment(kind: .docBlock, text: text), wasEndOfLine: false))
         appendToken(.newline)
 
       case .newlines(let n), .carriageReturns(let n), .carriageReturnLineFeeds(let n):
@@ -1471,11 +1470,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
   func appendToken(_ token: Token) {
     if let last = tokens.last {
       switch (last, token) {
-      case (.comment(let c1), .comment(let c2))
-        where c1.kind == .docLine && c2.kind == .docLine:
+      case (.comment(let c1, _), .comment(let c2, _))
+      where c1.kind == .docLine && c2.kind == .docLine:
         var newComment = c1
         newComment.addText(c2.text)
-        tokens[tokens.count - 1] = .comment(newComment)
+        tokens[tokens.count - 1] = .comment(newComment, wasEndOfLine: false)
         return
 
       case (.newlines(let N1, let offset1), .newlines(let N2, let offset2)):

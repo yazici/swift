@@ -24,9 +24,7 @@ import SwiftSyntax
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
 public func lintMain(path: String) -> Int {
   let url = URL(fileURLWithPath: path)
-  let engine = DiagnosticEngine()
-  let consumer = PrintingDiagnosticConsumer()
-  engine.addConsumer(consumer)
+  let engine = makeDiagnosticEngine()
 
   let context = Context(
     configuration: Configuration(),
@@ -55,12 +53,8 @@ public func lintMain(path: String) -> Int {
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
 public func formatMain(path: String, isDebugMode: Bool, prettyPrint: Bool, printTokenStream: Bool) -> Int {
   let url = URL(fileURLWithPath: path)
-
-  let context = Context(
-    configuration: Configuration(),
-    diagnosticEngine: nil,
-    fileURL: url
-  )
+  let configuration = Configuration()
+  let context = Context(configuration: configuration, diagnosticEngine: nil, fileURL: url)
 
   let pipeline = FormatPipeline(context: context)
   populate(pipeline)
@@ -72,8 +66,15 @@ public func formatMain(path: String, isDebugMode: Bool, prettyPrint: Bool, print
     let formatted = pipeline.visit(file as Syntax)
 
     if prettyPrint {
+      // We create a different context here because we only want diagnostics from the pretty printer
+      // phase when formatting.
+      let prettyPrintContext = Context(
+        configuration: configuration,
+        diagnosticEngine: makeDiagnosticEngine(),
+        fileURL: url)
+
       let printer = PrettyPrinter(
-        configuration: context.configuration,
+        context: prettyPrintContext,
         node: formatted,
         isDebugMode: isDebugMode,
         printTokenStream: printTokenStream
@@ -86,4 +87,12 @@ public func formatMain(path: String, isDebugMode: Bool, prettyPrint: Bool, print
     fatalError("\(error)")
   }
   return 0
+}
+
+/// Makes and returns a new configured diagnostic engine.
+private func makeDiagnosticEngine() -> DiagnosticEngine {
+  let engine = DiagnosticEngine()
+  let consumer = PrintingDiagnosticConsumer()
+  engine.addConsumer(consumer)
+  return engine
 }
