@@ -23,26 +23,14 @@ public class TryCatchTests: PrettyPrintTestCase {
       """
       do { foo() } catch { bar() }
 
-      do {
-        try thisFuncMightFail()
-      } catch error1 {
-        print("Nope")
-      }
+      do { try thisFuncMightFail() } catch error1 { print("Nope") }
 
-      do {
-        try thisFuncMightFail()
-      } catch error1 {
-        print("Nope")
-      } catch error2(let someVar) {
+      do { try thisFuncMightFail() } catch error1 { print("Nope") } catch error2(let someVar) {
         print(someVar)
         print("Don't do it!")
       }
 
-      do {
-        try thisFuncMightFail()
-      } catch is ABadError{
-        print("Nope")
-      }
+      do { try thisFuncMightFail() } catch is ABadError{ print("Nope") }
       """
 
     let expected =
@@ -85,15 +73,21 @@ public class TryCatchTests: PrettyPrintTestCase {
 
     let expected =
       """
-      do { try thisFuncMightFail() }
+      do {
+        try thisFuncMightFail()
+      }
       catch error1 where error1 is ErrorType {
         print("Nope")
       }
 
-      do { try thisFuncMightFail() }
+      do {
+        try thisFuncMightFail()
+      }
       catch error1
       where error1 is LongerErrorType
-      { print("Nope") }
+      {
+        print("Nope")
+      }
 
       """
 

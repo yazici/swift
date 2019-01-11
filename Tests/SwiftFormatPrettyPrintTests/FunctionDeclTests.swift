@@ -30,7 +30,9 @@ public class FunctionDeclTests: PrettyPrintTestCase {
         print("Hello World")
         let a = 23
       }
-      func myFun() { let a = 23 }
+      func myFun() {
+        let a = 23
+      }
       func myFun() {
         let a = "AAAA BBBB CCCC DDDD EEEE FFFF"
       }
@@ -96,7 +98,9 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       """
       func myFun(var1: Int) throws -> Double {
         print("Hello World")
-        if badCondition { throw Error }
+        if badCondition {
+          throw Error
+        }
         return 1.0
       }
       func reallyLongName(
@@ -105,7 +109,9 @@ public class FunctionDeclTests: PrettyPrintTestCase {
         var3: Bool
       ) throws -> Double {
         print("Hello World")
-        if badCondition { throw Error }
+        if badCondition {
+          throw Error
+        }
         return 1.0
       }
 

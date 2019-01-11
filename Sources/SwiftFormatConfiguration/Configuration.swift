@@ -33,6 +33,15 @@ public class Configuration: Codable {
   /// All indentation will be conducted in multiples of this configuration.
   public var indentation: Indent = .spaces(2)
 
+  /// Indicates that the formatter should try to respect users' discretionary line breaks when
+  /// possible.
+  ///
+  /// For example, a short `if` statement and its single-statement body might be able to fit on one
+  /// line, but for readability the user might break it inside the curly braces. If this setting is
+  /// true, those line breaks will be kept. If this setting is false, the formatter will act more
+  /// "opinionated" and collapse the statement onto a single line.
+  public var respectsExistingLineBreaks = true
+
   /// MARK: Rule-specific configuration
 
   /// Rules for limiting blank lines between members.
