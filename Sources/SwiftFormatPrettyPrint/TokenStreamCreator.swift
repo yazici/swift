@@ -172,9 +172,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
     if !members.members.isEmpty {
       after(
         members.leftBrace,
-        tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+        tokens: .close, .close, .break(size: 1, offset: 2), .open(.consistent, 0)
       )
-      before(members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
+      before(members.rightBrace, tokens: .break(size: 1, offset: -2), .close)
     } else {
       // The size-0 break in the empty case allows for a break between the braces in the rare event
       // that the declaration would be exactly the column limit + 1.

@@ -290,4 +290,9 @@ public class StructDeclTests: PrettyPrintTestCase {
       """
     assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 12)
   }
+
+  public func testOneMemberStruct() {
+    let input = "struct Foo { var bar: Int }"
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+  }
 }

@@ -245,4 +245,9 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
       """
     assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 15)
   }
+
+  public func testOneMemberExtension() {
+    let input = "extension Foo { var bar: Int { return 0 } }"
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+  }
 }
