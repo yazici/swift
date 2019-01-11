@@ -3,6 +3,7 @@ public class StringTests: PrettyPrintTestCase {
     let input =
       """
       let a = "abc"
+      myFun("Some string \\(a + b)")
       let b = "A really long string that should not wrap"
       let c = "A really long string with \\(a + b) some expressions \\(c + d)"
       """
@@ -10,6 +11,7 @@ public class StringTests: PrettyPrintTestCase {
     let expected =
       """
       let a = "abc"
+      myFun("Some string \\(a + b)")
       let b =
         "A really long string that should not wrap"
       let c =
@@ -17,6 +19,6 @@ public class StringTests: PrettyPrintTestCase {
 
       """
 
-    assertPrettyPrintEqual(input: input, expected: expected, linelength: 20)
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 35)
   }
 }

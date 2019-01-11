@@ -355,9 +355,17 @@ public class PrettyPrinter {
         lengths.append(comment.length)
         total += comment.length
 
-      case .verbatim:
-        lengths.append(maxLineLength)
-        total += maxLineLength
+      case .verbatim(let verbatim):
+        var length: Int
+        if verbatim.lines.count > 1 {
+          length = maxLineLength
+        } else if verbatim.lines.count == 0 {
+          length = 0
+        } else {
+          length = verbatim.lines[0].count
+        }
+        lengths.append(length)
+        total += length
       }
     }
 
