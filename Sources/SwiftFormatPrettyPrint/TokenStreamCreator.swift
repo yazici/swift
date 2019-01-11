@@ -601,6 +601,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: FunctionTypeSyntax) {
     after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
     before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
+    before(node.throwsOrRethrowsKeyword, tokens: .break)
     before(node.arrow, tokens: .break)
     before(node.returnType.firstToken, tokens: .break)
     super.visit(node)
