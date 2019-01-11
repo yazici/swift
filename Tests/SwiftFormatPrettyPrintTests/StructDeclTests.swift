@@ -278,4 +278,16 @@ public class StructDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
   }
+
+  public func testEmptyStruct() {
+    let input = "struct Foo {}"
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+
+    let wrapped = """
+      struct Foo {
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 12)
+  }
 }

@@ -85,6 +85,105 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visitPre(_ node: Syntax) {}
 
+  // MARK: - Type declaration nodes
+
+  override func visit(_ node: ClassDeclSyntax) {
+    arrangeTypeDeclBlock(
+      node,
+      attributes: node.attributes,
+      typeKeyword: node.classKeyword,
+      members: node.members,
+      genericWhereClause: node.genericWhereClause)
+    super.visit(node)
+  }
+
+  override func visit(_ node: StructDeclSyntax) {
+    arrangeTypeDeclBlock(
+      node,
+      attributes: node.attributes,
+      typeKeyword: node.structKeyword,
+      members: node.members,
+      genericWhereClause: node.genericWhereClause)
+    super.visit(node)
+  }
+
+  override func visit(_ node: EnumDeclSyntax) {
+    arrangeTypeDeclBlock(
+      node,
+      attributes: node.attributes,
+      typeKeyword: node.enumKeyword,
+      members: node.members,
+      genericWhereClause: node.genericWhereClause)
+    super.visit(node)
+  }
+
+  override func visit(_ node: ProtocolDeclSyntax) {
+    arrangeTypeDeclBlock(
+      node,
+      attributes: node.attributes,
+      typeKeyword: node.protocolKeyword,
+      members: node.members,
+      genericWhereClause: node.genericWhereClause)
+    super.visit(node)
+  }
+
+  override func visit(_ node: ExtensionDeclSyntax) {
+    arrangeTypeDeclBlock(
+      node,
+      attributes: node.attributes,
+      typeKeyword: node.extensionKeyword,
+      members: node.members,
+      genericWhereClause: node.genericWhereClause)
+    super.visit(node)
+  }
+
+  /// Applies formatting tokens to the tokens in the given type declaration node (i.e., a class,
+  /// struct, enum, protocol, or extension).
+  private func arrangeTypeDeclBlock(
+    _ node: Syntax,
+    attributes: AttributeListSyntax?,
+    typeKeyword: TokenSyntax,
+    members: MemberDeclBlockSyntax,
+    genericWhereClause: GenericWhereClauseSyntax?
+  ) {
+    // TODO(allevato): If `EnumDeclSyntax` is updated to extend `DeclGroupSyntax` (I can't see a
+    // reason that it shouldn't), then we can simplify this function's signature by constraining
+    // `node` to that protocol and removing the explicit `attributes` and `members` arguments.
+
+    if let attributes = attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
+    after(typeKeyword, tokens: .break)
+
+    if let genericWhereClause = genericWhereClause {
+      before(
+        genericWhereClause.firstToken,
+        tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
+      )
+      after(genericWhereClause.lastToken, tokens: .break, .close, .close)
+    } else {
+      before(members.leftBrace, tokens: .break)
+    }
+
+    if !members.members.isEmpty {
+      after(
+        members.leftBrace,
+        tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
+      )
+      before(members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
+    } else {
+      // The size-0 break in the empty case allows for a break between the braces in the rare event
+      // that the declaration would be exactly the column limit + 1.
+      after(members.leftBrace, tokens: .close, .close, .break(size: 0))
+    }
+  }
+
+  // TODO: - Other nodes (yet to be organized)
+
   override func visit(_ node: DeclNameArgumentsSyntax) {
     super.visit(node)
   }
@@ -334,34 +433,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SourceFileSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: EnumDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    after(node.enumKeyword, tokens: .break)
-
-    before(
-      node.genericWhereClause?.firstToken,
-      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-    )
-    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
-
-    if node.genericWhereClause == nil {
-      before(node.members.leftBrace, tokens: .break)
-    }
-    after(
-      node.members.leftBrace,
-      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
-    )
-    before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
-
     super.visit(node)
   }
 
@@ -645,34 +716,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: ClassDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    after(node.classKeyword, tokens: .break)
-
-    before(
-      node.genericWhereClause?.firstToken,
-      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-    )
-    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
-
-    if node.genericWhereClause == nil {
-      before(node.members.leftBrace, tokens: .break)
-    }
-    after(
-      node.members.leftBrace,
-      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
-    )
-    before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
-
-    super.visit(node)
-  }
-
   override func visit(_ node: DeferStmtSyntax) {
     after(node.deferKeyword, tokens: .break)
     after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
@@ -752,35 +795,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     before(node.firstToken, tokens: .open)
     before(node.expression?.firstToken, tokens: .break(offset: 2))
     after(node.lastToken, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: StructDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    after(node.structKeyword, tokens: .break)
-
-    before(
-      node.genericWhereClause?.firstToken,
-      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-    )
-    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
-
-
-    if node.genericWhereClause == nil {
-      before(node.members.leftBrace, tokens: .break)
-    }
-    after(
-      node.members.leftBrace,
-      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
-    )
-    before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
-
     super.visit(node)
   }
 
@@ -955,25 +969,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: ProtocolDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    after(node.protocolKeyword, tokens: .break)
-    before(node.members.leftBrace, tokens: .break)
-    after(
-      node.members.leftBrace,
-      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
-    )
-    before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
-
-    super.visit(node)
-  }
-
   override func visit(_ node: SequenceExprSyntax) {
     before(node.firstToken, tokens: .open)
     after(node.lastToken, tokens: .close)
@@ -997,34 +992,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AsTypePatternSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: ExtensionDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    after(node.extensionKeyword, tokens: .break)
-
-    before(
-      node.genericWhereClause?.firstToken,
-      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-    )
-    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
-
-    if node.genericWhereClause == nil {
-      before(node.members.leftBrace, tokens: .break)
-    }
-    after(
-      node.members.leftBrace,
-      tokens: .close, .close, .break(size: 0, offset: 2), .open(.consistent, 0)
-    )
-    before(node.members.rightBrace, tokens: .break(size: 0, offset: -2), .close)
-
     super.visit(node)
   }
 

@@ -226,4 +226,16 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 65)
   }
+
+  public func testEmptyProtocol() {
+    let input = "protocol Foo {}"
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+
+    let wrapped = """
+      protocol Foo {
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 14)
+  }
 }
