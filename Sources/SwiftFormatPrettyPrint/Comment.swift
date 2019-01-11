@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import SwiftSyntax
 
 struct Comment {
   enum Kind {
@@ -38,10 +39,13 @@ struct Comment {
 
   let kind: Kind
   var text: [String]
+  let position: AbsolutePosition?
   public var length: Int
 
-  init(kind: Kind, text: String) {
+  init(kind: Kind, text: String, position: AbsolutePosition? = nil) {
     self.kind = kind
+    self.position = position
+
     switch kind {
     case .line, .docLine:
       self.text = [text]

@@ -31,7 +31,7 @@ enum Token {
   case `break`(size: Int, offset: Int)
   case space(size: Int)
   case newlines(Int, offset: Int)
-  case comment(Comment)
+  case comment(Comment, wasEndOfLine: Bool)
   case reset
   case verbatim(Verbatim)
 
