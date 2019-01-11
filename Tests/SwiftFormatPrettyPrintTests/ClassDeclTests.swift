@@ -278,4 +278,16 @@ public class ClassDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
   }
+
+  public func testEmptyClass() {
+    let input = "class Foo {}"
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+
+    let wrapped = """
+      class Foo {
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 11)
+  }
 }

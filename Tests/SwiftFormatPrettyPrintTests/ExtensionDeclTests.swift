@@ -233,4 +233,16 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 50)
   }
+
+  public func testEmptyExtension() {
+    let input = "extension Foo {}"
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+
+    let wrapped = """
+      extension Foo {
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 15)
+  }
 }
