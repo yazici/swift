@@ -109,6 +109,22 @@ public class CommentTests: PrettyPrintTestCase {
         // Comment 5
       }
 
+      let a = myfun(var1: 123 // Cmt 7
+      )
+
+      guard condition else { return // Cmt 6
+      }
+
+      switch myvar {
+      case .one, .two, // three
+           .four:
+        dostuff()
+      default: ()
+      }
+
+      let a = 123 +  // comment
+        b + c
+
       let d = 123
       // Trailing Comment
       """
@@ -142,6 +158,27 @@ public class CommentTests: PrettyPrintTestCase {
         let c = 789  // Comment 4
         // Comment 5
       }
+
+      let a = myfun(
+        var1: 123  // Cmt 7
+      )
+
+      guard condition else {
+        return  // Cmt 6
+      }
+
+      switch myvar {
+      case .one,
+           .two,  // three
+           .four:
+        dostuff()
+      default:
+        ()
+      }
+
+      let a =
+        123 +  // comment
+        b + c
 
       let d = 123
       // Trailing Comment
@@ -299,6 +336,12 @@ public class CommentTests: PrettyPrintTestCase {
 
       let reallyLongVariableName = 123  /* This comment should not wrap */
 
+      let a = myfun(var1: 123 /* Cmt 5 */
+      )
+
+      guard condition else { return /* Cmt 6 */
+      }
+
       let d = 123
       /* Trailing Comment */
       """
@@ -315,6 +358,14 @@ public class CommentTests: PrettyPrintTestCase {
          Comment 4 */
 
       let reallyLongVariableName = 123  /* This comment should not wrap */
+
+      let a = myfun(
+        var1: 123  /* Cmt 5 */
+      )
+
+      guard condition else {
+        return  /* Cmt 6 */
+      }
 
       let d = 123
       /* Trailing Comment */
