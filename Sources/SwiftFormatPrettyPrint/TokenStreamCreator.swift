@@ -21,9 +21,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
   private var beforeMap = [TokenSyntax: [Token]]()
   private var afterMap = [TokenSyntax: [[Token]]]()
   private let config: Configuration
+  private let maxlinelength: Int
 
   init(configuration: Configuration) {
     self.config = configuration
+    self.maxlinelength = config.lineLength
   }
 
   func makeStream(from node: Syntax) -> [Token] {
@@ -516,13 +518,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockSyntax) {
-    insertToken(.newline, betweenChildrenOf: node.statements)
+    insertToken(.break(size: maxlinelength), betweenChildrenOf: node.statements)
     super.visit(node)
   }
 
   override func visit(_ node: CodeBlockItemListSyntax) {
-    if node.parent is AccessorBlockSyntax || node.parent is ClosureExprSyntax || node.parent is IfConfigClauseSyntax, node.count > 0 {
-      insertToken(.newline, betweenChildrenOf: node)
+    if node.parent is AccessorBlockSyntax || node.parent is ClosureExprSyntax ||
+       node.parent is IfConfigClauseSyntax, node.count > 0 {
+      insertToken(.break(size: maxlinelength), betweenChildrenOf: node)
     }
     super.visit(node)
   }
@@ -535,7 +538,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
            node.parent?.parent is AccessorBlockSyntax ||
            node.parent?.parent is IfConfigClauseSyntax
          ) {
-      after(node.lastToken, tokens: .close, .newline)
+      after(node.lastToken, tokens: .close, .break(size: maxlinelength))
     } else {
       after(node.lastToken, tokens: .close)
     }
@@ -1386,16 +1389,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
     appendToken(.break(size: 2, offset: 0))
     appendToken(.comment(commentToken, wasEndOfLine: true))
 
-    if isInContainer(token) {
-      appendToken(.newline)
+    if nextToken != nil, ["}", ")"].contains(nextToken?.withoutTrivia().text), trivia.numberOfComments == 1 {
+      appendToken(.break(size: maxlinelength, offset: -2))
+    } else {
+      appendToken(.break(size: maxlinelength))
     }
-  }
-
-  private func isInContainer(_ token: TokenSyntax) -> Bool {
-    if token.parent is ArrayElementSyntax || token.parent is DictionaryElementSyntax || token.parent is TupleElementSyntax {
-      return true
-    }
-    return false
   }
 
   private func extractLeadingTrivia(_ token: TokenSyntax) {
@@ -1411,16 +1409,16 @@ private final class TokenStreamCreator: SyntaxVisitor {
               (["{", "in"].contains { $0 == previousToken.withoutTrivia().text }) {
               // do nothing
             } else {
-              appendToken(.newline)
+              appendToken(.break(size: maxlinelength))
             }
           }
 
           appendToken(.comment(Comment(kind: .line, text: text), wasEndOfLine: false))
 
           if token.withoutTrivia().text == "}" {
-            appendToken(.newline(offset: -2))
+            appendToken(.break(size: maxlinelength, offset: -2))
           } else {
-            appendToken(.newline)
+            appendToken(.break(size: maxlinelength))
           }
         }
 
@@ -1431,16 +1429,16 @@ private final class TokenStreamCreator: SyntaxVisitor {
               previousToken.withoutTrivia().text == "{" {
               // do nothing
             } else {
-              appendToken(.newline)
+              appendToken(.break(size: maxlinelength))
             }
           }
 
           appendToken(.comment(Comment(kind: .block, text: text), wasEndOfLine: false))
 
           if token.withoutTrivia().text == "}" {
-            appendToken(.newline(offset: -2))
+            appendToken(.break(size: maxlinelength, offset: -2))
           } else {
-            appendToken(.newline)
+            appendToken(.break(size: maxlinelength))
           }
         }
 

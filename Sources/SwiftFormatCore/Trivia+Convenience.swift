@@ -35,6 +35,19 @@ extension Trivia {
     return count
   }
 
+  public var numberOfComments: Int {
+    var count = 0
+    for piece in self {
+      switch piece {
+      case .lineComment, .docLineComment, .blockComment, .docBlockComment:
+        count += 1
+      default:
+        continue
+      }
+    }
+    return count
+  }
+
   public var hasSpaces: Bool {
     for piece in self {
       if case .tabs = piece { return true }
