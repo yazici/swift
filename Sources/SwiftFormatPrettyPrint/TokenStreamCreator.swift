@@ -171,12 +171,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
       before(members.leftBrace, tokens: .break)
     }
 
-    if !members.members.isEmpty {
-      after(
-        members.leftBrace,
-        tokens: .close, .close, .break(size: 1, offset: 2), .open(.consistent, 0)
-      )
-      before(members.rightBrace, tokens: .break(size: 1, offset: -2), .close)
+    // The body may be free of other syntax nodes, but we still need to insert the breaks if it
+    // contains a comment (which will be in the leading trivia of the right brace).
+    let commentPrecedesRightBrace = members.rightBrace.leadingTrivia.numberOfComments > 0
+    let isBodyCompletelyEmpty = members.members.isEmpty && !commentPrecedesRightBrace
+
+    if !isBodyCompletelyEmpty {
+      after(members.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
+      before(members.rightBrace, tokens: .break(offset: -2), .close)
     } else {
       // The size-0 break in the empty case allows for a break between the braces in the rare event
       // that the declaration would be exactly the column limit + 1.
