@@ -295,4 +295,25 @@ public class InitializerDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 40)
   }
+
+  public func testEmptyInitializer() {
+    // The comment inside the struct prevents it from *also* being collapsed onto a single line.
+    let input = """
+      struct X {
+        //
+        init() {}
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+    
+    let wrapped = """
+      struct X {
+        //
+        init() {
+        }
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 10)
+  }
 }

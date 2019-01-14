@@ -76,4 +76,25 @@ public class DeinitializerDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 25)
   }
+
+  public func testEmptyDeinitializer() {
+    // The comment inside the class prevents it from *also* being collapsed onto a single line.
+    let input = """
+      class X {
+        //
+        deinit {}
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+    
+    let wrapped = """
+      class X {
+        //
+        deinit {
+        }
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 10)
+  }
 }

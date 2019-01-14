@@ -184,6 +184,124 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
   }
 
+  // MARK: - Function and function-like declaration nodes (initializers, deinitializers, subscripts)
+
+  override func visit(_ node: FunctionDeclSyntax) {
+    arrangeFunctionLikeDecl(
+      node,
+      attributes: node.attributes,
+      genericWhereClause: node.genericWhereClause,
+      body: node.body,
+      bodyContentsAreEmpty: node.body?.statements.isEmpty ?? true)
+
+    after(node.funcKeyword, tokens: .break)
+    super.visit(node)
+  }
+
+  override func visit(_ node: InitializerDeclSyntax) {
+    arrangeFunctionLikeDecl(
+      node,
+      attributes: node.attributes,
+      genericWhereClause: node.genericWhereClause,
+      body: node.body,
+      bodyContentsAreEmpty: node.body?.statements.isEmpty ?? true)
+
+    before(node.throwsOrRethrowsKeyword, tokens: .break)
+    super.visit(node)
+  }
+
+  override func visit(_ node: DeinitializerDeclSyntax) {
+    arrangeFunctionLikeDecl(
+      node,
+      attributes: node.attributes,
+      genericWhereClause: nil,
+      body: node.body,
+      bodyContentsAreEmpty: node.body.statements.isEmpty)
+    super.visit(node)
+  }
+
+  override func visit(_ node: SubscriptDeclSyntax) {
+    let bodyContentsAreEmpty: Bool
+    if let accessor = node.accessor {
+      if let accessorList = accessor.accessorListOrStmtList as? AccessorListSyntax {
+        bodyContentsAreEmpty = accessorList.isEmpty
+      } else if let stmtList = accessor.accessorListOrStmtList as? CodeBlockItemListSyntax {
+        bodyContentsAreEmpty = stmtList.isEmpty
+      } else {
+        // We shouldn't get here because it should be one of the two above, but to be future-proof,
+        // we'll use false if we see something else.
+        bodyContentsAreEmpty = false
+      }
+    } else {
+      bodyContentsAreEmpty = true
+    }
+
+    arrangeFunctionLikeDecl(
+      node,
+      attributes: node.attributes,
+      genericWhereClause: node.genericWhereClause,
+      body: node.accessor,
+      bodyContentsAreEmpty: bodyContentsAreEmpty)
+
+    before(node.result.firstToken, tokens: .break)
+    super.visit(node)
+  }
+
+  /// Applies formatting tokens to the tokens in the given function or function-like declaration
+  /// node (e.g., initializers, deinitiailizers, and subscripts).
+  private func arrangeFunctionLikeDecl(
+    _ node: Syntax,
+    attributes: AttributeListSyntax?,
+    genericWhereClause: GenericWhereClauseSyntax?,
+    body: BracedSyntax?,
+    bodyContentsAreEmpty: Bool
+  ) {
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
+    
+    if let attributes = attributes {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+      after(attributes.lastToken, tokens: .open)
+    } else {
+      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
+    }
+
+    if let genericWhereClause = genericWhereClause {
+      before(
+        genericWhereClause.firstToken,
+        tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
+      )
+      if body?.leftBrace != nil {
+        after(genericWhereClause.lastToken, tokens: .break, .close, .close)
+      } else {
+        after(genericWhereClause.lastToken, tokens: .close, .close)
+      }
+    } else {
+      before(body?.leftBrace, tokens: .break)
+    }
+
+    if let body = body {
+      // The body may be free of other syntax nodes, but we still need to insert the breaks if it
+      // contains a comment (which will be in the leading trivia of the right brace).
+      let commentPrecedesRightBrace = body.rightBrace.leadingTrivia.numberOfComments > 0
+      let isBodyCompletelyEmpty = bodyContentsAreEmpty && !commentPrecedesRightBrace
+
+      if !isBodyCompletelyEmpty {
+        after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
+        before(body.rightBrace, tokens: .break(offset: -2), .close)
+      } else {
+        // The size-0 break in the empty case allows for a break between the braces in the rare
+        // event that the declaration would be exactly the column limit + 1.
+        after(body.leftBrace, tokens: .close, .close, .break(size: 0))
+      }
+    } else {
+      // Function-like declarations in protocols won't have bodies, so make sure we close the
+      // correct number of groups in that case as well.
+      after(node.lastToken, tokens: .close, .close)
+    }
+    
+    after(node.lastToken, tokens: .close)
+  }
+
   // TODO: - Other nodes (yet to be organized)
 
   override func visit(_ node: DeclNameArgumentsSyntax) {
@@ -834,128 +952,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: DeclModifierSyntax) {
     after(node.name, tokens: .break)
-    super.visit(node)
-  }
-
-  override func visit(_ node: FunctionDeclSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    after(node.funcKeyword, tokens: .break)
-
-    before(
-      node.genericWhereClause?.firstToken,
-      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-    )
-    if node.body != nil {
-      after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
-    } else {
-      after(node.genericWhereClause?.lastToken, tokens: .close, .close)
-    }
-
-    if let body = node.body {
-      if node.genericWhereClause == nil {
-        before(body.leftBrace, tokens: .break)
-      }
-      after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
-      before(body.rightBrace, tokens: .break(offset: -2), .close)
-    } else {
-      // FunctionDecls in protocols won't have bodies, so make sure we close the correct number of
-      // groups in that case as well.
-      after(node.lastToken, tokens: .close, .close)
-    }
-
-    after(node.lastToken, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: InitializerDeclSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    before(
-      node.genericWhereClause?.firstToken,
-      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-    )
-    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
-
-    before(node.throwsOrRethrowsKeyword, tokens: .break)
-
-    if let body = node.body {
-      if node.genericWhereClause == nil {
-        before(body.leftBrace, tokens: .break)
-      }
-      after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
-      before(body.rightBrace, tokens: .break(offset: -2), .close)
-    } else {
-      // FunctionDecls in protocols won't have bodies, so make sure we close the correct number of
-      // groups in that case as well.
-      after(node.lastToken, tokens: .close, .close)
-    }
-
-    after(node.lastToken, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: DeinitializerDeclSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    before(node.body.leftBrace, tokens: .break)
-    after(node.body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
-
-    after(node.lastToken, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: SubscriptDeclSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-
-    before(node.result.firstToken, tokens: .break)
-
-    before(
-      node.genericWhereClause?.firstToken,
-      tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-    )
-    after(node.genericWhereClause?.lastToken, tokens: .break, .close, .close)
-
-    if let accessorBlock = node.accessor {
-      if node.genericWhereClause == nil {
-        before(accessorBlock.leftBrace, tokens: .break)
-      }
-      after(accessorBlock.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
-      before(accessorBlock.rightBrace, tokens: .break(offset: -2), .close)
-    } else {
-      after(node.lastToken, tokens: .close, .close)
-    }
-
-    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
