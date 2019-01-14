@@ -370,6 +370,15 @@ public class EnumDeclTests: PrettyPrintTestCase {
     assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 10)
   }
 
+  public func testEmptyEnumWithComment() {
+    let input = """
+      enum Foo {
+        // foo
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+  }
+
   public func testOneMemberEnum() {
     let input = "enum Foo { var bar: Int }"
     assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
