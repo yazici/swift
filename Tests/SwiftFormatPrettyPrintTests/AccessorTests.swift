@@ -86,4 +86,62 @@ public class AccessorTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
   }
+
+  public func testEmptyAccessorList() {
+    // The comment inside the struct prevents it from *also* being collapsed onto a single line.
+    let input = """
+      struct Foo {
+        //
+        var x: Int {}
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+
+    let wrapped = """
+      struct Foo {
+        //
+        var x: Int {
+        }
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 14)
+  }
+
+  public func testEmptyAccessorBody() {
+    // The comment inside the struct prevents it from *also* being collapsed onto a single line.
+    let input = """
+      struct Foo {
+        //
+        var x: Int { set(longNewValueName) {} }
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+
+    let wrapped = """
+      struct Foo {
+        //
+        var x: Int {
+          set(longNewValueName) {
+          }
+        }
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 27)
+  }
+
+  public func testEmptyAccessorBodyWithComment() {
+    let input = """
+      struct Foo {
+        //
+        var x: Int {
+          get {
+            // comment
+          }
+        }
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+  }
 }

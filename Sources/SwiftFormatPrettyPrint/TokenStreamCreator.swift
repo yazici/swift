@@ -223,27 +223,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SubscriptDeclSyntax) {
-    let bodyContentsAreEmpty: Bool
-    if let accessor = node.accessor {
-      if let accessorList = accessor.accessorListOrStmtList as? AccessorListSyntax {
-        bodyContentsAreEmpty = accessorList.isEmpty
-      } else if let stmtList = accessor.accessorListOrStmtList as? CodeBlockItemListSyntax {
-        bodyContentsAreEmpty = stmtList.isEmpty
-      } else {
-        // We shouldn't get here because it should be one of the two above, but to be future-proof,
-        // we'll use false if we see something else.
-        bodyContentsAreEmpty = false
-      }
-    } else {
-      bodyContentsAreEmpty = true
-    }
-
     arrangeFunctionLikeDecl(
       node,
       attributes: node.attributes,
       genericWhereClause: node.genericWhereClause,
       body: node.accessor,
-      bodyContentsAreEmpty: bodyContentsAreEmpty)
+      bodyContentsAreEmpty: isBodyEmpty(node.accessor))
 
     before(node.result.firstToken, tokens: .break)
     super.visit(node)
@@ -302,6 +287,81 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
     
     after(node.lastToken, tokens: .close)
+  }
+
+  // MARK: - Property and subscript accessor block nodes
+
+  override func visit(_ node: AccessorBlockSyntax) {
+    if !(node.parent is SubscriptDeclSyntax) {
+      // The body may be free of other syntax nodes, but we still need to insert the breaks if it
+      // contains a comment (which will be in the leading trivia of the right brace).
+      let commentPrecedesRightBrace = node.rightBrace.leadingTrivia.numberOfComments > 0
+      let isBodyCompletelyEmpty = isBodyEmpty(node) && !commentPrecedesRightBrace
+
+      if !isBodyCompletelyEmpty {
+        after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+        before(node.rightBrace, tokens: .break(offset: -2), .close)
+      } else {
+        // The size-0 break in the empty case allows for a break between the braces in the rare
+        // event that the declaration would be exactly the column limit + 1.
+        after(node.leftBrace, tokens: .break(size: 0))
+      }
+    }
+    super.visit(node)
+  }
+
+  override func visit(_ node: AccessorListSyntax) {
+    if node.count > 1 {
+      after(node.first?.lastToken, tokens: .break)
+    }
+    super.visit(node)
+  }
+
+  override func visit(_ node: AccessorDeclSyntax) {
+    before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
+
+    if let body = node.body {
+      before(node.accessorKind, tokens: .open, .open)
+      before(body.leftBrace, tokens: .break)
+
+      // The body may be free of other syntax nodes, but we still need to insert the breaks if it
+      // contains a comment (which will be in the leading trivia of the right brace).
+      let commentPrecedesRightBrace = body.rightBrace.leadingTrivia.numberOfComments > 0
+      let isBodyCompletelyEmpty = body.statements.isEmpty && !commentPrecedesRightBrace
+
+      if !isBodyCompletelyEmpty {
+        after(body.leftBrace, tokens: .close, .break(offset: 2), .open(.consistent, 0))
+        before(body.rightBrace, tokens: .break(offset: -2), .close, .close)
+      } else {
+        // The size-0 break in the empty case allows for a break between the braces in the rare
+        // event that the declaration would be exactly the column limit + 1.
+        after(body.leftBrace, tokens: .close, .close, .break(size: 0))
+      }
+    }
+
+    after(node.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: AccessorParameterSyntax) {
+    super.visit(node)
+  }
+
+  /// Returns a value indicating whether the body of the accessor block (regardless of whether it
+  /// contains accessors or statements) is empty.
+  private func isBodyEmpty(_ node: AccessorBlockSyntax?) -> Bool {
+    guard let node = node else { return true }
+
+    if let accessorList = node.accessorListOrStmtList as? AccessorListSyntax {
+      return accessorList.isEmpty
+    }
+    if let stmtList = node.accessorListOrStmtList as? CodeBlockItemListSyntax {
+      return stmtList.isEmpty
+    }
+
+    // We shouldn't get here because it should be one of the two above, but to be future-proof,
+    // we'll use false if we see something else.
+    return false
   }
 
   // TODO: - Other nodes (yet to be organized)
@@ -603,37 +663,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AccessLevelModifierSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: AccessorParameterSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: AccessorDeclSyntax) {
-    before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-    if let body = node.body {
-      before(node.accessorKind, tokens: .open, .open)
-      before(body.leftBrace, tokens: .break)
-      after(body.leftBrace, tokens: .close, .break(offset: 2), .open(.consistent, 0))
-      before(body.rightBrace, tokens: .break(offset: -2), .close, .close)
-    }
-    after(node.lastToken, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: AccessorBlockSyntax) {
-    if !(node.parent is SubscriptDeclSyntax) {
-      after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-      before(node.rightBrace, tokens: .break(offset: -2), .close)
-    }
-    super.visit(node)
-  }
-
-  override func visit(_ node: AccessorListSyntax) {
-    if node.count > 1 {
-      after(node.first?.lastToken, tokens: .break)
-    }
     super.visit(node)
   }
 
