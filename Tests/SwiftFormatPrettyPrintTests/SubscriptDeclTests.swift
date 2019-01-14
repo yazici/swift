@@ -233,4 +233,24 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 34)
   }
+
+  public func testEmptySubscript() {
+    // The comment inside the struct prevents it from *also* being collapsed onto a single line.
+    let input = """
+      struct X {
+        //
+        subscript(i: Int) {}
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+    
+    let wrapped = """
+      struct X {
+        //
+        subscript(i: Int) {}
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 21)
+  }
 }

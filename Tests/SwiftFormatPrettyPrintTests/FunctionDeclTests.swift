@@ -365,4 +365,16 @@ public class FunctionDeclTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
   }
+
+  public func testEmptyFunction() {
+    let input = "func foo() {}"
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+    
+    let wrapped = """
+      func foo() {
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 12)
+  }
 }
