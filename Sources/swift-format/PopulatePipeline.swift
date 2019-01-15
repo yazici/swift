@@ -28,12 +28,6 @@ func populate(_ pipeline: Pipeline) {
   /// MARK: Formatting Passes
 
   pipeline.addFormatter(
-    AvoidInitializersForLiterals.self,
-    for:
-      FunctionCallExprSyntax.self
-  )
-
-  pipeline.addFormatter(
     BlankLineBetweenMembers.self,
     for:
       MemberDeclBlockSyntax.self
@@ -264,6 +258,12 @@ func populate(_ pipeline: Pipeline) {
       CodeBlockSyntax.self,
       MemberDeclBlockSyntax.self,
       SourceFileSyntax.self
+  )
+
+  pipeline.addLinter(
+    AvoidInitializersForLiterals.self,
+    for:
+      FunctionCallExprSyntax.self
   )
 
   pipeline.addLinter(
