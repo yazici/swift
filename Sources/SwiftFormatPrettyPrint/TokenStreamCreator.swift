@@ -364,6 +364,231 @@ private final class TokenStreamCreator: SyntaxVisitor {
     return false
   }
 
+  // MARK: - Control flow statement nodes
+
+  override func visit(_ node: IfStmtSyntax) {
+    before(node.ifKeyword, tokens: .open(.inconsistent, 3))
+    after(node.ifKeyword, tokens: .space)
+    before(node.body.leftBrace, tokens: .break(offset: -3), .close)
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0))
+    }
+
+    before(node.elseKeyword, tokens: .break)
+    after(node.elseKeyword, tokens: .break)
+
+    if let elseBody = node.elseBody as? CodeBlockSyntax {
+      if !areBracesCompletelyEmpty(elseBody, contentsKeyPath: \.statements) {
+        after(elseBody.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+        before(elseBody.rightBrace, tokens: .break(offset: -2), .close)
+      } else {
+        before(elseBody.rightBrace, tokens: .break(size: 0))
+      }
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: GuardStmtSyntax) {
+    before(node.guardKeyword, tokens: .open(.inconsistent, 6))
+    after(node.guardKeyword, tokens: .break)
+    before(node.elseKeyword, tokens: .close, .break)
+    after(node.elseKeyword, tokens: .break)
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0))
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: ForInStmtSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 4))
+    after(node.labelColon, tokens: .break)
+    after(node.forKeyword, tokens: .space)
+    before(node.inKeyword, tokens: .break)
+    after(node.inKeyword, tokens: .space)
+
+    if let whereClause = node.whereClause {
+      before(
+        whereClause.firstToken,
+        tokens: .close, .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
+      )
+      before(node.body.leftBrace, tokens: .break, .close, .close)
+    } else {
+      before(node.body.leftBrace, tokens: .close, .break)
+    }
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0))
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: WhileStmtSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 6))
+    after(node.labelColon, tokens: .space)
+    after(node.whileKeyword, tokens: .space)
+    before(node.body.leftBrace, tokens: .break(offset: -6), .close)
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0))
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: RepeatWhileStmtSyntax) {
+    after(node.repeatKeyword, tokens: .break)
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(offset: -2), .close, .open(.inconsistent, 8))
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0), .open(.inconsistent, 0))
+    }
+
+    before(node.whileKeyword, tokens: .space)
+    after(node.whileKeyword, tokens: .space)
+    after(node.condition.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: DoStmtSyntax) {
+    after(node.doKeyword, tokens: .space)
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      // Use a maxlinelength break to force the body of a "do" to wrap even if it would fit on one
+      // line, unlike the other braced constructs.
+      after(
+        node.body.leftBrace, tokens: .break(size: maxlinelength, offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(size: maxlinelength, offset: -2), .close)
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0))
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: CatchClauseSyntax) {
+    before(node.catchKeyword, tokens: .space)
+    before(node.pattern?.firstToken, tokens: .break)
+
+    if let whereClause = node.whereClause {
+      // Use a maxlinelength break to force the body of a "catch" to wrap even if it would fit on
+      // one line, unlike the other braced constructs.
+      before(whereClause.firstToken, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.leftBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.body.leftBrace, tokens: .break)
+    }
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      after(
+        node.body.leftBrace, tokens: .break(size: maxlinelength, offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(size: maxlinelength, offset: -2), .close)
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0))
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: DeferStmtSyntax) {
+    after(node.deferKeyword, tokens: .break)
+
+    if !areBracesCompletelyEmpty(node.body, contentsKeyPath: \.statements) {
+      after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
+      before(node.body.rightBrace, tokens: .break(offset: -2), .close)
+    } else {
+      before(node.body.rightBrace, tokens: .break(size: 0))
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: BreakStmtSyntax) {
+    before(node.label, tokens: .break(offset: 2))
+    super.visit(node)
+  }
+
+  override func visit(_ node: ReturnStmtSyntax) {
+    before(node.firstToken, tokens: .open)
+    before(node.expression?.firstToken, tokens: .break(offset: 2))
+    after(node.lastToken, tokens: .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: ThrowStmtSyntax) {
+    before(node.expression.firstToken, tokens: .break)
+    super.visit(node)
+  }
+
+  override func visit(_ node: ContinueStmtSyntax) {
+    before(node.label, tokens: .break)
+    super.visit(node)
+  }
+
+  override func visit(_ node: SwitchStmtSyntax) {
+    before(node.switchKeyword, tokens: .open(.inconsistent, 7))
+    after(node.switchKeyword, tokens: .space)
+    after(node.expression.lastToken, tokens: .close, .break)
+
+    if !areBracesCompletelyEmpty(node, contentsKeyPath: \.cases) {
+      after(node.leftBrace, tokens: .break, .open(.consistent, 0))
+      before(node.rightBrace, tokens: .break, .close)
+    } else {
+      before(node.rightBrace, tokens: .break(size: 0))
+    }
+
+    super.visit(node)
+  }
+
+  override func visit(_ node: SwitchCaseSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.label.lastToken, tokens: .newline(offset: 2), .open(.consistent, 0))
+    insertToken(.newline, betweenChildrenOf: node.statements)
+    after(node.lastToken, tokens: .break(offset: -2), .close, .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: SwitchCaseLabelSyntax) {
+    before(node.caseKeyword, tokens: .open(.inconsistent, 5))
+    after(node.caseKeyword, tokens: .space)
+    after(node.colon, tokens: .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: CaseItemSyntax) {
+    before(node.firstToken, tokens: .open)
+    before(node.whereClause?.firstToken, tokens: .break)
+    if let trailingComma = node.trailingComma {
+      after(trailingComma, tokens: .close, .break)
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
+    super.visit(node)
+  }
+
+  override func visit(_ node: SwitchDefaultLabelSyntax) {
+    // Implementation not needed.
+    super.visit(node)
+  }
+
   // TODO: - Other nodes (yet to be organized)
 
   override func visit(_ node: DeclNameArgumentsSyntax) {
@@ -694,46 +919,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: SwitchStmtSyntax) {
-    before(node.switchKeyword, tokens: .open(.inconsistent, 7))
-    after(node.switchKeyword, tokens: .space)
-    after(node.expression.lastToken, tokens: .close, .break)
-    after(node.leftBrace, tokens: .newline, .open(.consistent, 0))
-    before(node.rightBrace, tokens: .break, .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: SwitchCaseSyntax) {
-    before(node.firstToken, tokens: .open)
-    after(node.label.lastToken, tokens: .newline(offset: 2), .open(.consistent, 0))
-    insertToken(.newline, betweenChildrenOf: node.statements)
-    after(node.lastToken, tokens: .break(offset: -2), .close, .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: SwitchCaseLabelSyntax) {
-    before(node.caseKeyword, tokens: .open(.inconsistent, 5))
-    after(node.caseKeyword, tokens: .space)
-    after(node.colon, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: CaseItemSyntax) {
-    before(node.firstToken, tokens: .open)
-    before(node.whereClause?.firstToken, tokens: .break)
-    if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
-    super.visit(node)
-  }
-
-  override func visit(_ node: SwitchDefaultLabelSyntax) {
-    // Implementation not needed.
-    super.visit(node)
-  }
-
   override func visit(_ node: GenericParameterClauseSyntax) {
     after(node.leftAngleBracket, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
     before(node.rightAngleBracket, tokens: .break(size: 0, offset: -2), .close)
@@ -774,47 +959,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: AsExprSyntax) {
     before(node.asTok, tokens: .space)
     before(node.typeName.firstToken, tokens: .break)
-    super.visit(node)
-  }
-
-  override func visit(_ node: DoStmtSyntax) {
-    after(node.doKeyword, tokens: .space)
-    after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: CatchClauseSyntax) {
-    before(node.catchKeyword, tokens: .space)
-    before(node.pattern?.firstToken, tokens: .break)
-
-    if let whereClause = node.whereClause {
-      before(whereClause.firstToken, tokens: .break(offset: 2), .open(.consistent, 0))
-      before(node.body.leftBrace, tokens: .break(offset: -2), .close)
-    } else {
-      before(node.body.leftBrace, tokens: .break)
-    }
-
-    after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: IfStmtSyntax) {
-    before(node.ifKeyword, tokens: .open(.inconsistent, 3))
-    after(node.ifKeyword, tokens: .space)
-    before(node.body.leftBrace, tokens: .break(offset: -3), .close)
-
-    after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .newline(offset: -2), .close)
-
-    before(node.elseKeyword, tokens: .break)
-    after(node.elseKeyword, tokens: .break)
-
-    if let elseBody = node.elseBody as? CodeBlockSyntax {
-      after(elseBody.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
-      before(elseBody.rightBrace, tokens: .newline(offset: -2), .close)
-    }
     super.visit(node)
   }
 
@@ -864,53 +1008,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: BreakStmtSyntax) {
-    before(node.label, tokens: .break(offset: 2))
-    super.visit(node)
-  }
-
-  override func visit(_ node: DeferStmtSyntax) {
-    after(node.deferKeyword, tokens: .break)
-    after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
-    super.visit(node)
-  }
-
   override func visit(_ node: ElseBlockSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: ForInStmtSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 4))
-    after(node.labelColon, tokens: .break)
-    after(node.forKeyword, tokens: .space)
-    before(node.inKeyword, tokens: .break)
-    after(node.inKeyword, tokens: .space)
-
-    if let whereClause = node.whereClause {
-      before(
-        whereClause.firstToken,
-        tokens: .close, .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-      )
-      before(node.body.leftBrace, tokens: .break, .close, .close)
-    } else {
-      before(node.body.leftBrace, tokens: .close, .break)
-    }
-
-    after(node.body.leftBrace, tokens: .newline(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .newline(offset: -2), .close)
-
-    super.visit(node)
-  }
-
-  override func visit(_ node: GuardStmtSyntax) {
-    before(node.guardKeyword, tokens: .open(.inconsistent, 6))
-    after(node.guardKeyword, tokens: .break)
-    before(node.elseKeyword, tokens: .close, .break)
-    after(node.elseKeyword, tokens: .break)
-
-    after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
     super.visit(node)
   }
 
@@ -923,31 +1021,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: ThrowStmtSyntax) {
-    before(node.expression.firstToken, tokens: .break)
-    super.visit(node)
-  }
-
-  override func visit(_ node: WhileStmtSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 6))
-    after(node.labelColon, tokens: .space)
-    after(node.whileKeyword, tokens: .space)
-    before(node.body.leftBrace, tokens: .break(offset: -6), .close)
-    after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .break(offset: -2), .close)
-    super.visit(node)
-  }
-
   override func visit(_ node: ImportDeclSyntax) {
     after(node.importTok, tokens: .space)
     after(node.importKind, tokens: .space)
-    super.visit(node)
-  }
-
-  override func visit(_ node: ReturnStmtSyntax) {
-    before(node.firstToken, tokens: .open)
-    before(node.expression?.firstToken, tokens: .break(offset: 2))
-    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -973,11 +1049,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
     before(node.whereKeyword, tokens: .open(.inconsistent, 2))
     after(node.whereKeyword, tokens: .space)
     after(node.lastToken, tokens: .close)
-    super.visit(node)
-  }
-
-  override func visit(_ node: ContinueStmtSyntax) {
-    before(node.label, tokens: .break)
     super.visit(node)
   }
 
@@ -1149,16 +1220,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: PoundColumnExprSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: RepeatWhileStmtSyntax) {
-    after(node.repeatKeyword, tokens: .break)
-    after(node.body.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-    before(node.body.rightBrace, tokens: .break(offset: -2), .close, .open(.inconsistent, 8))
-    before(node.whileKeyword, tokens: .space)
-    after(node.whileKeyword, tokens: .space)
-    after(node.condition.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -1393,6 +1454,60 @@ private final class TokenStreamCreator: SyntaxVisitor {
         tokens += after
       }
     }
+  }
+
+  // MARK: - Various other helper methods
+
+  /// Returns a value indicating whether or not the given braced syntax node is completely empty;
+  /// that is, it contains neither child syntax nodes (aside from the braces) *nor* any comments.
+  ///
+  /// Checking for comments separately is vitally important, because a code block that appears to be
+  /// "empty" because it doesn't contain any statements might still contain comments, and if those
+  /// are line comments, we need to make sure to insert the same breaks that we would if there were
+  /// other statements there to get the same layout.
+  ///
+  /// - Parameters:
+  ///   - node: A node that conforms to `BracedSyntax`.
+  ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
+  ///     (a `Collection` whose elements conform to `Syntax`; this will most likely be an instance
+  ///     of one of the `*ListSyntax` types).
+  /// - Returns: True if the collection at the node's keypath is empty and there are no comments
+  private func areBracesCompletelyEmpty<Node: BracedSyntax, BodyContents: Collection>(
+    _ node: Node,
+    contentsKeyPath: KeyPath<Node, BodyContents>
+  ) -> Bool where BodyContents.Element: Syntax {
+    // If the collection is empty, then any comments that might be present in the block must be
+    // leading trivia of the right brace.
+    let commentPrecedesRightBrace = node.rightBrace.leadingTrivia.numberOfComments > 0
+    return node[keyPath: contentsKeyPath].isEmpty && !commentPrecedesRightBrace
+  }
+
+  /// Returns a value indicating whether or not the given braced syntax node is completely empty;
+  /// that is, it contains neither child syntax nodes (aside from the braces) *nor* any comments.
+  ///
+  /// Checking for comments separately is vitally important, because a code block that appears to be
+  /// "empty" because it doesn't contain any statements might still contain comments, and if those
+  /// are line comments, we need to make sure to insert the same breaks that we would if there were
+  /// other statements there to get the same layout.
+  ///
+  /// Note the slightly different generic constraint on this overload. Both are required because
+  /// protocols in Swift do not conform to themselves, so if the element type of the collection is
+  /// *precisely* `Syntax`, the constraint `BodyContents.Element: Syntax` is not satisfied.
+  ///
+  /// - Parameters:
+  ///   - node: A node that conforms to `BracedSyntax`.
+  ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
+  ///     (a `Collection` whose elements are exactly of type `Syntax`; this will most likely be an
+  ///     instance of one of the `*ListSyntax` types).
+  /// - Returns: True if the collection at the node's keypath is empty and there are no comments
+  private func areBracesCompletelyEmpty<Node: BracedSyntax, BodyContents: Collection>(
+    _ node: Node,
+    contentsKeyPath: KeyPath<Node, BodyContents>
+  ) -> Bool where BodyContents.Element == Syntax {
+    // If the collection is empty, then any comments that might be present in the block must be
+    // leading trivia of the right brace.
+    let commentPrecedesRightBrace = node.rightBrace.leadingTrivia.numberOfComments > 0
+    return node[keyPath: contentsKeyPath].isEmpty && !commentPrecedesRightBrace
   }
 
   private func extractTrailingComment(_ token: TokenSyntax) {

@@ -96,9 +96,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       """
       func myFun(var1: Int) throws -> Double {
         print("Hello World")
-        if badCondition {
-          throw Error
-        }
+        if badCondition { throw Error }
         return 1.0
       }
       func reallyLongName(
@@ -107,9 +105,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
         var3: Bool
       ) throws -> Double {
         print("Hello World")
-        if badCondition {
-          throw Error
-        }
+        if badCondition { throw Error }
         return 1.0
       }
 
