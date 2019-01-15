@@ -25,12 +25,9 @@ fileprivate let knownIntTypes = Set(intSizes.map { "Int\($0)" } + intSizes.map {
 /// Lint: If an initializer-style cast is used on a built-in type known to be expressible by
 ///       that kind of literal type, a lint error is raised.
 ///
-/// Format: Initializer-style casts between known built-in types will be converted to standard
-///         casts.
-///
 /// - SeeAlso: https://google.github.io/swift#numeric-and-string-literals
-public final class AvoidInitializersForLiterals: SyntaxFormatRule {
-  public override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
+public final class AvoidInitializersForLiterals: SyntaxLintRule {
+  public override func visit(_ node: FunctionCallExprSyntax) {
     // Ensure we're calling a known Integer initializer.
     guard let callee = node.calledExpression as? IdentifierExprSyntax else {
       // Ensure we properly visit the children of this node, in case we have other function calls
@@ -38,7 +35,7 @@ public final class AvoidInitializersForLiterals: SyntaxFormatRule {
       return super.visit(node)
     }
 
-    guard node.argumentList.count <= 1 else {
+    guard node.argumentList.count == 1 else {
       return super.visit(node)
     }
 
@@ -50,44 +47,13 @@ public final class AvoidInitializersForLiterals: SyntaxFormatRule {
 
     let typeName = callee.identifier.text
 
-    guard let literal = extractLiteral(node, typeName) else {
+    guard let _ = extractLiteral(node, typeName) else {
       return super.visit(node)
     }
 
-    diagnose(.avoidInitializerStyleCast, on: callee) {
+    diagnose(.avoidInitializerStyleCast(node.description), on: callee) {
       $0.highlight(callee.sourceRange(in: self.context.fileURL))
     }
-
-    // Construct an 'as' cast, converting `X(y)` to `y as X`.
-    let asExpr = AsExprSyntax {
-      $0.useAsTok(SyntaxFactory.makeAsKeyword(
-        trailingTrivia: .spaces(1)
-      ))
-      $0.useTypeName(
-        SyntaxFactory.makeSimpleTypeIdentifier(
-          name: callee.identifier,
-          genericArgumentClause: nil
-        )
-      )
-    }
-
-    let newAs = replaceTrivia(
-      on: asExpr,
-      token: asExpr.lastToken,
-      trailingTrivia: node.trailingTrivia
-    ) as! AsExprSyntax
-
-    let newLiteral = replaceTrivia(
-      on: literal,
-      token: literal.firstToken,
-      trailingTrivia: .spaces(1)
-    ) as! ExprSyntax
-
-    return SyntaxFactory.makeSequenceExpr(
-      elements: SyntaxFactory.makeExprList([
-        newLiteral,
-        newAs
-      ]))
   }
 }
 
@@ -105,6 +71,7 @@ fileprivate func extractLiteral(_ node: FunctionCallExprSyntax, _ typeName: Stri
 }
 
 extension Diagnostic.Message {
-  static let avoidInitializerStyleCast =
-    Diagnostic.Message(.warning, "change initializer call with literal argument to an 'as' cast")
+  static func avoidInitializerStyleCast(_ name: String) -> Diagnostic.Message {
+    return .init(.warning, "change initializer call '\(name)' with literal argument to an 'as' cast")
+  }
 }
