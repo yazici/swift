@@ -2,10 +2,17 @@ public class RepeatStmtTests: PrettyPrintTestCase {
   public func testBasicRepeatTests() {
     let input =
       """
+      repeat {} while x
+
+      repeat { f() } while x
+
+      repeat { foo() } while longcondition
+
       repeat {
         let a = 123
         var b = "abc"
       } while condition
+
       repeat {
         let a = 123
         var b = "abc"
@@ -14,18 +21,28 @@ public class RepeatStmtTests: PrettyPrintTestCase {
 
     let expected =
       """
+      repeat {} while x
+
+      repeat { f() } while x
+
+      repeat { foo() }
+      while longcondition
+
       repeat {
         let a = 123
         var b = "abc"
-      } while condition
+      }
+      while condition
+
       repeat {
         let a = 123
         var b = "abc"
-      } while condition &&
-              condition2
+      }
+      while condition &&
+        condition2
 
       """
 
-    assertPrettyPrintEqual(input: input, expected: expected, linelength: 20)
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 25)
   }
 }
