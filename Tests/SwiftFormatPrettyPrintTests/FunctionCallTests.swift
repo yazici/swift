@@ -144,19 +144,13 @@ public class FunctionCallTests: PrettyPrintTestCase {
     let expected =
     """
       let a = afunc() {
-        if condition1 {
-          return true
-        }
+        if condition1 { return true }
         return false
       }
 
       let a = afunc() {
-        if condition1 {
-          return true
-        }
-        if condition2 {
-          return true
-        }
+        if condition1 { return true }
+        if condition2 { return true }
         return false
       }
 
