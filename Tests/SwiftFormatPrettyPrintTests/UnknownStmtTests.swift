@@ -44,6 +44,15 @@ public class UnknownStmtTests: PrettyPrintTestCase {
         }
       #endif
 
+      func myfun() {
+
+        if #available(OSX 10.12, *) {
+
+          let a = 123
+        } else {
+          // do stuff
+        }
+      }
       """
 
     let expected =
@@ -86,6 +95,16 @@ public class UnknownStmtTests: PrettyPrintTestCase {
           let b = "abc"
         }
       #endif
+
+      func myfun() {
+
+        if #available(OSX 10.12, *) {
+
+          let a = 123
+        } else {
+          // do stuff
+        }
+      }
 
       """
 
