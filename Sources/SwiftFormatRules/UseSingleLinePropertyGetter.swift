@@ -29,7 +29,9 @@ public final class UseSingleLinePropertyGetter: SyntaxFormatRule {
       let acc = accessorList.first,
       let body = acc.body,
       accessorList.count == 1,
-      acc.accessorKind.tokenKind == .contextualKeyword("get")
+      acc.accessorKind.tokenKind == .contextualKeyword("get"),
+      acc.attributes == nil,
+      acc.modifier == nil
     else { return node }
 
     diagnose(.removeExtraneousGetBlock, on: acc)
