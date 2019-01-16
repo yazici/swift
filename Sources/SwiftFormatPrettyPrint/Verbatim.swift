@@ -28,12 +28,12 @@ struct Verbatim {
       lines.remove(at: 0)
     }
 
-    guard lines.count > 0 else { return }
+    guard lines.count > 0, let index = lines.firstIndex(where: { $0 != "" }) else { return }
 
     // Get the number of leading whitespaces of the first line, and subract this from the number of
     // leading whitespaces for subsequent lines (if possible). Record the new leading whitespaces
     // counts, and trim off whitespace from the ends of the strings.
-    let count = countLeadingWhitespaces(text: lines[0])
+    let count = countLeadingWhitespaces(text: lines[index])
     leadingWhitespaceCounts = lines.map { max(countLeadingWhitespaces(text: $0) - count, 0) }
     lines = lines.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " ")) }
   }
@@ -41,8 +41,10 @@ struct Verbatim {
   func print(indent: Int) -> String {
     var output = ""
     for i in 0..<lines.count {
-      output += String(repeating: " ", count: indent + leadingWhitespaceCounts[i])
-      output += lines[i]
+      if lines[i] != "" {
+        output += String(repeating: " ", count: indent + leadingWhitespaceCounts[i])
+        output += lines[i]
+      }
       if i < lines.count - 1 {
         output += "\n"
       }
