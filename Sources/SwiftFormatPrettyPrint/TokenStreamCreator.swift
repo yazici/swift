@@ -189,6 +189,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   // MARK: - Function and function-like declaration nodes (initializers, deinitializers, subscripts)
 
   override func visit(_ node: FunctionDeclSyntax) {
+    if case .spacedBinaryOperator = node.identifier.tokenKind {
+      after(node.identifier.lastToken, tokens: .space)
+    }
     arrangeFunctionLikeDecl(
       node,
       attributes: node.attributes,

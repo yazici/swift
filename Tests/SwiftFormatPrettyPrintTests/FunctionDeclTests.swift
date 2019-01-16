@@ -373,4 +373,22 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       """
     assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 12)
   }
+
+  public func testOperatorOverloads() {
+    let input =
+      """
+      func < (lhs: Position, rhs: Position) -> Bool {
+        // do stuff
+      }
+
+      func + (left: [Int], right: [Int]) -> [Int] {
+        // add two arrays
+      }
+
+      func ⊕ (left: Tensor, right: Tensor) -> Tensor {
+        // tensor addition
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+  }
 }
