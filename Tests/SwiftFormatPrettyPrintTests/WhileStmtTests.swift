@@ -36,8 +36,9 @@ public class WhileStmtTests: PrettyPrintTestCase {
         var b = "abc"
       }
       while condition1 &&
-            condition2 ||
-            condition3 {
+        condition2 ||
+        condition3
+      {
         let a = 123
         var b = "abc"
       }
@@ -58,7 +59,7 @@ public class WhileStmtTests: PrettyPrintTestCase {
         let a = 123
         var b = "abc"
       }
-      myLabel: while condition1 && condition2 || condition3 {
+      myLabel: while condition1 && condition2 || condition3 || condition4 {
         let a = 123
         var b = "abc"
       }
@@ -76,8 +77,9 @@ public class WhileStmtTests: PrettyPrintTestCase {
         var b = "abc"
       }
       myLabel: while condition1 &&
-            condition2 ||
-            condition3 {
+        condition2 || condition3 ||
+        condition4
+      {
         let a = 123
         var b = "abc"
       }

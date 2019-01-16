@@ -48,7 +48,8 @@ public class IfStmtTests: PrettyPrintTestCase {
       }
 
       if a123456789 >
-         b123456 {
+        b123456
+      {
         let a = 23
         var b = "abc"
       }
@@ -71,8 +72,10 @@ public class IfStmtTests: PrettyPrintTestCase {
 
       if var1 < var2 {
         let a = 23
+        var c = 45
       } else if var3 < var4 {
         var b = 123
+        var c = 456
       }
       """
 
@@ -80,17 +83,20 @@ public class IfStmtTests: PrettyPrintTestCase {
       """
       if var1 < var2 {
         let a = 23
-      } else if d < e {
-        var b = 123
-      } else {
-        var c = 456
       }
+      else if d < e {
+        var b = 123
+      }
+      else { var c = 456 }
 
       if var1 < var2 {
         let a = 23
-      } else
-      if var3 < var4 {
+        var c = 45
+      }
+      else if var3 < var4
+      {
         var b = 123
+        var c = 456
       }
 
       """
@@ -118,7 +124,8 @@ public class IfStmtTests: PrettyPrintTestCase {
         var b = "abc"
       }
       if case .reallyLongCaseName =
-             reallyLongVariableName {
+            reallyLongVariableName
+      {
         let a = 123
         var b = "abc"
       }

@@ -21,7 +21,8 @@ public class ForInStmtTests: PrettyPrintTestCase {
       }
 
       for item
-          in mylargecontainer {
+        in mylargecontainer
+      {
         let a = 123
         let b = item
       }
@@ -55,7 +56,8 @@ public class ForInStmtTests: PrettyPrintTestCase {
         let b = 456
       }
       for i in longerarray
-      where longerarray.isContainer() {
+      where longerarray.isContainer()
+      {
         let a = 123
         let b = 456
       }
@@ -84,7 +86,7 @@ public class ForInStmtTests: PrettyPrintTestCase {
     let expected =
       """
       for item
-          in aVeryLargeContainterObject
+        in aVeryLargeContainterObject
       where largeObject.hasProperty()
         && condition
       {

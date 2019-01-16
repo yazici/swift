@@ -21,11 +21,14 @@ public class TryCatchTests: PrettyPrintTestCase {
   public func testDoTryCatch() {
     let input =
       """
+      do { foo() } catch { bar() }
+
       do {
         try thisFuncMightFail()
       } catch error1 {
         print("Nope")
       }
+
       do {
         try thisFuncMightFail()
       } catch error1 {
@@ -34,6 +37,7 @@ public class TryCatchTests: PrettyPrintTestCase {
         print(someVar)
         print("Don't do it!")
       }
+
       do {
         try thisFuncMightFail()
       } catch is ABadError{
@@ -43,24 +47,20 @@ public class TryCatchTests: PrettyPrintTestCase {
 
     let expected =
       """
-      do {
-        try thisFuncMightFail()
-      } catch error1 {
-        print("Nope")
-      }
-      do {
-        try thisFuncMightFail()
-      } catch error1 {
-        print("Nope")
-      } catch error2(let someVar) {
+      do { foo() } catch { bar() }
+
+      do { try thisFuncMightFail() }
+      catch error1 { print("Nope") }
+
+      do { try thisFuncMightFail() }
+      catch error1 { print("Nope") }
+      catch error2(let someVar) {
         print(someVar)
         print("Don't do it!")
       }
-      do {
-        try thisFuncMightFail()
-      } catch is ABadError {
-        print("Nope")
-      }
+
+      do { try thisFuncMightFail() }
+      catch is ABadError { print("Nope") }
 
       """
 
@@ -75,6 +75,7 @@ public class TryCatchTests: PrettyPrintTestCase {
       } catch error1 where error1 is ErrorType {
         print("Nope")
       }
+
       do {
         try thisFuncMightFail()
       } catch error1 where error1 is LongerErrorType {
@@ -84,18 +85,15 @@ public class TryCatchTests: PrettyPrintTestCase {
 
     let expected =
       """
-      do {
-        try thisFuncMightFail()
-      } catch error1 where error1 is ErrorType {
+      do { try thisFuncMightFail() }
+      catch error1 where error1 is ErrorType {
         print("Nope")
       }
-      do {
-        try thisFuncMightFail()
-      } catch error1
-        where error1 is LongerErrorType
-      {
-        print("Nope")
-      }
+
+      do { try thisFuncMightFail() }
+      catch error1
+      where error1 is LongerErrorType
+      { print("Nope") }
 
       """
 
