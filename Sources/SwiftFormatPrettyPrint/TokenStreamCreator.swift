@@ -1053,7 +1053,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: DeclModifierSyntax) {
-    after(node.name, tokens: .break)
+    after(node.lastToken, tokens: .break)
     super.visit(node)
   }
 

@@ -144,4 +144,17 @@ public class AccessorTests: PrettyPrintTestCase {
       """
     assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
   }
+
+  public func testSetModifier() {
+    let input =
+      """
+      fileprivate(set) var somevar = 0
+      struct MyStruct {
+        private(set) var myvar = 0
+        internal(set) var anothervar = 0
+      }
+      """
+
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+  }
 }
