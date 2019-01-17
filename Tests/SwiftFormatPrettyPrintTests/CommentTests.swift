@@ -199,6 +199,10 @@ public class CommentTests: PrettyPrintTestCase {
       let b = ["abc": 456, // small comment
         "def": 789]
 
+      // Trailing comment
+      let c = [123, 456  // small comment
+      ]
+
       /* Array comment */
       let a = [456, /* small comment */
         789]
@@ -220,6 +224,12 @@ public class CommentTests: PrettyPrintTestCase {
       let b = [
         "abc": 456,  // small comment
         "def": 789
+      ]
+
+      // Trailing comment
+      let c = [
+        123,
+        456  // small comment
       ]
 
       /* Array comment */

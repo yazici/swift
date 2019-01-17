@@ -189,6 +189,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   // MARK: - Function and function-like declaration nodes (initializers, deinitializers, subscripts)
 
   override func visit(_ node: FunctionDeclSyntax) {
+    if case .spacedBinaryOperator = node.identifier.tokenKind {
+      after(node.identifier.lastToken, tokens: .space)
+    }
     arrangeFunctionLikeDecl(
       node,
       attributes: node.attributes,
@@ -1024,7 +1027,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: DeclModifierSyntax) {
-    after(node.name, tokens: .break)
+    after(node.lastToken, tokens: .break)
     super.visit(node)
   }
 
@@ -1558,7 +1561,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     appendToken(.break(size: 2, offset: 0))
     appendToken(.comment(commentToken, wasEndOfLine: true))
 
-    if nextToken != nil, ["}", ")"].contains(nextToken?.withoutTrivia().text), trivia.numberOfComments == 1 {
+    if nextToken != nil, ["}", ")", "]"].contains(nextToken?.withoutTrivia().text), trivia.numberOfComments == 1 {
       appendToken(.break(size: maxlinelength, offset: -2))
     } else {
       appendToken(.break(size: maxlinelength))
