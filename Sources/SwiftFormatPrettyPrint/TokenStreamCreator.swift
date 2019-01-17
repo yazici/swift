@@ -709,7 +709,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
       after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
       before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
     }
-    before(node.trailingClosure?.leftBrace, tokens: .space)
+    before(node.trailingClosure?.leftBrace, tokens: .space, .reset)
     super.visit(node)
   }
 
@@ -725,7 +725,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ClosureExprSyntax) {
-    before(node.firstToken, tokens: .reset)
     if let signature = node.signature {
       before(signature.firstToken, tokens: .break(offset: 2))
       if node.statements.count > 0 {
@@ -734,7 +733,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
         after(signature.inTok, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
       }
       before(node.rightBrace, tokens: .break(offset: -2), .close)
-    } else {
+    } else if node.statements.count > 0 {
       after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
       before(node.rightBrace, tokens: .break(offset: -2), .close)
     }
