@@ -45,4 +45,19 @@ public class RepeatStmtTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 25)
   }
+
+  public func testNestedRepeat() {
+    // Avoid regressions in the case where a nested `repeat` block was getting shifted all the way
+    // left.
+    let input = """
+      func foo() {
+        repeat {
+          bar()
+          baz()
+        }
+        while condition
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 45)
+  }
 }
