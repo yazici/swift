@@ -40,8 +40,12 @@ public final class NoAccessLevelOnExtensionDeclaration: SyntaxFormatRule {
         leftBrace: node.members.leftBrace,
         members: addMemberAccessKeywords(memDeclBlock: node.members, keyword: accessKeyword),
         rightBrace: node.members.rightBrace)
+      let newKeyword = replaceTrivia(on: node.extensionKeyword,
+                                     token: node.extensionKeyword,
+                                     leadingTrivia: accessKeyword.leadingTrivia) as! TokenSyntax
       return node.withMembers(newMembers)
-              .withModifiers(modifiers.remove(name: accessKeyword.name.text))
+        .withModifiers(modifiers.remove(name: accessKeyword.name.text))
+        .withExtensionKeyword(newKeyword)
     // Internal keyword redundant, delete
     case .internalKeyword:
       diagnose(.removeRedundantAccessKeyword(name: node.extendedType.description),

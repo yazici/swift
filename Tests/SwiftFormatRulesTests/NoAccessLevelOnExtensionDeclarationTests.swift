@@ -49,6 +49,42 @@ public class NoAccessLevelOnExtensionDeclarationTests: DiagnosingTestCase {
     )
   }
 
+  public func testPreservesCommentOnRemovedModifier() {
+    XCTAssertFormatting(
+      NoAccessLevelOnExtensionDeclaration.self,
+      input: """
+        /// This doc comment should stick around.
+        public extension Foo {
+          func f() {}
+          // This should not change.
+          func g() {}
+        }
+
+        /// So should this one.
+        internal extension Foo {
+          func f() {}
+          // This should not change.
+          func g() {}
+        }
+        """,
+      expected: """
+        /// This doc comment should stick around.
+        extension Foo {
+          public func f() {}
+          // This should not change.
+          public func g() {}
+        }
+
+        /// So should this one.
+        extension Foo {
+          func f() {}
+          // This should not change.
+          func g() {}
+        }
+        """
+    )
+  }
+
 #if !os(macOS)
 static let allTests = [
   NoAccessLevelOnExtensionDeclarationTests.testExtensionDeclarationAccessLevel,
