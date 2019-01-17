@@ -33,7 +33,9 @@ public class InitializerDeclTests: PrettyPrintTestCase {
           print("Hello World")
           let a = 23
         }
-        init() { let a = 23 }
+        init() {
+          let a = 23
+        }
         init() {
           let a = "AAAA BBBB CCCC DDDD EEEE FFFF"
         }
@@ -78,7 +80,9 @@ public class InitializerDeclTests: PrettyPrintTestCase {
           print("Hello World")
           let a = 23
         }
-        init?() { let a = 23 }
+        init?() {
+          let a = 23
+        }
         init!() {
           let a = "AAAA BBBB CCCC DDDD EEEE FFFF"
         }
@@ -112,7 +116,9 @@ public class InitializerDeclTests: PrettyPrintTestCase {
           reallyLongLabelVar1: Int,
           var2: Double,
           var3: Bool
-        ) throws { print("Hello World") }
+        ) throws {
+          print("Hello World")
+        }
       }
 
       """

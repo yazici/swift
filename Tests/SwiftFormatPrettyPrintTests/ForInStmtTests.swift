@@ -120,7 +120,9 @@ public class ForInStmtTests: PrettyPrintTestCase {
       loopLabel: for element in container {
         let a = 123
         let b = "abc"
-        if element == "" { continue }
+        if element == "" {
+          continue
+        }
         for c in anotherContainer {
           let d = "456"
           continue elementLoop

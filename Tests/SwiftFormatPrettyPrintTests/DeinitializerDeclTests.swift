@@ -21,7 +21,9 @@ public class DeinitializerDeclTests: PrettyPrintTestCase {
           print("Hello World")
           let a = 23
         }
-        deinit { let a = 23 }
+        deinit {
+          let a = 23
+        }
         deinit {
           let a = "AAAA BBBB CCCC DDDD EEEE FFFF"
         }

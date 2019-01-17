@@ -59,7 +59,9 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
     let expected =
       """
       struct MyStruct {
-        subscript<T>(index: T) -> Double { return 1.23 }
+        subscript<T>(index: T) -> Double {
+          return 1.23
+        }
         subscript<S, T>(row: S, col: T) -> Double {
           return self.values[row][col]
         }

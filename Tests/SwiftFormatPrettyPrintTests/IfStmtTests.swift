@@ -87,7 +87,9 @@ public class IfStmtTests: PrettyPrintTestCase {
       else if d < e {
         var b = 123
       }
-      else { var c = 456 }
+      else {
+        var c = 456
+      }
 
       if var1 < var2 {
         let a = 23

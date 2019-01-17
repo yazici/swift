@@ -75,7 +75,9 @@ public class AccessorTests: PrettyPrintTestCase {
       }
       struct MyStruct {
         var memberValue: Int
-        var SomeValue: Int { return 123 }
+        var SomeValue: Int {
+          return 123
+        }
         var AnotherValue: Double {
           let out = 1.23
           return out

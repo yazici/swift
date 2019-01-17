@@ -16,7 +16,10 @@ public class TernaryExprTests: PrettyPrintTestCase {
       """
       let x = a ? b : c
       let y = a ? b : c
-      let z = a ? b : c
+      let z =
+        a
+          ? b
+          : c
       let reallyLongName =
         a ? longTruePart : longFalsePart
       let reallyLongName =

@@ -662,6 +662,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: MemberAccessExprSyntax) {
+    before(node.firstToken, tokens: .open(.inconsistent, 0))
+    before(node.dot, tokens: .break(size: 0, offset: 2))
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -925,8 +928,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AsExprSyntax) {
-    before(node.asTok, tokens: .space)
-    before(node.typeName.firstToken, tokens: .break)
+    before(node.asTok, tokens: .break)
+    before(node.typeName.firstToken, tokens: .space)
     super.visit(node)
   }
 
@@ -1412,10 +1415,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ token: TokenSyntax) {
     extractLeadingTrivia(token)
+    let keepExistingNewline = config.respectsExistingLineBreaks && newlinePrecedes(token)
     if let before = beforeMap[token] {
-      tokens += before
+      appendTokens(before, keepExistingNewline: keepExistingNewline)
     }
+
     appendToken(.syntax(token))
+
     extractTrailingComment(token)
     if let afterGroups = afterMap[token] {
       for after in afterGroups.reversed() {
@@ -1497,6 +1503,40 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
   }
 
+  /// Returns `true` iff the content of the given token is immediately preceded by a newline
+  /// (ignoring whitespace and backticks).
+  private func newlinePrecedes(_ token: TokenSyntax?) -> Bool {
+    guard let token = token else { return false }
+
+    for piece in token.leadingTrivia.reversed() {
+      switch piece {
+      case .carriageReturns, .carriageReturnLineFeeds, .newlines:
+        return true
+      case .spaces, .tabs, .backticks:
+        continue
+      default:
+        return false
+      }
+    }
+    return false
+  }
+
+  /// Appends the given tokens to the stream, optionally keeping an existing newline that may be
+  /// present at the first break.
+  private func appendTokens(_ newTokens: [Token], keepExistingNewline: Bool) {
+    var convertBreakToNewline = keepExistingNewline
+    for token in newTokens {
+      if convertBreakToNewline, case .break(_, let offset) = token {
+        // To keep the existing newline, we need to change the `break` token's length to be the
+        // maximum length of the line, to force it to wrap when laid out.
+        tokens.append(.break(size: maxlinelength, offset: offset))
+        convertBreakToNewline = false
+      } else {
+        tokens.append(token)
+      }
+    }
+  }
+
   private func extractTrailingComment(_ token: TokenSyntax) {
     let nextToken = token.nextToken
     guard let trivia = nextToken?.leadingTrivia,
@@ -1525,6 +1565,19 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
   }
 
+  /// Returns the offset of the first break that was registered for the given syntax token, or zero
+  /// if no break was found.
+  private func breakOffsetBefore(token: TokenSyntax) -> Int {
+    if let befores = beforeMap[token] {
+      for before in befores.reversed() {
+        if case .break(_, let offset) = before {
+          return offset
+        }
+      }
+    }
+    return 0
+  }
+
   private func extractLeadingTrivia(_ token: TokenSyntax) {
     let isStartOfFile = token.previousToken == nil
     let trivia = token.leadingTrivia
@@ -1542,13 +1595,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
             }
           }
 
-          appendToken(.comment(Comment(kind: .line, text: text), wasEndOfLine: false))
-
-          if token.withoutTrivia().text == "}" {
-            appendToken(.break(size: maxlinelength, offset: -2))
-          } else {
-            appendToken(.break(size: maxlinelength))
+          let commentOffset = breakOffsetBefore(token: token)
+          if !isStartOfFile {
+            appendToken(.break(size: maxlinelength, offset: commentOffset))
           }
+          appendToken(.comment(Comment(kind: .line, text: text), wasEndOfLine: false))
+          appendToken(.break(size: maxlinelength, offset: commentOffset))
         }
 
       case .blockComment(let text):
@@ -1562,13 +1614,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
             }
           }
 
-          appendToken(.comment(Comment(kind: .block, text: text), wasEndOfLine: false))
-
-          if token.withoutTrivia().text == "}" {
-            appendToken(.break(size: maxlinelength, offset: -2))
-          } else {
-            appendToken(.break(size: maxlinelength))
+          let commentOffset = breakOffsetBefore(token: token)
+          if !isStartOfFile {
+            appendToken(.break(size: maxlinelength, offset: commentOffset))
           }
+          appendToken(.comment(Comment(kind: .block, text: text), wasEndOfLine: false))
+          appendToken(.break(size: maxlinelength, offset: commentOffset))
         }
 
       case .docLineComment(let text):
