@@ -683,7 +683,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
     if node.argumentList.count > 0 {
       after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
-      before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
+      before(node.rightParen, tokens: .close)
     }
     before(node.trailingClosure?.leftBrace, tokens: .space, .reset)
     super.visit(node)
@@ -1424,7 +1424,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     extractLeadingTrivia(token)
     let keepExistingNewline = config.respectsExistingLineBreaks && newlinePrecedes(token)
     if let before = beforeMap[token] {
-      appendTokens(before, keepExistingNewline: keepExistingNewline)
+      appendTokens(before, keepExistingNewline: keepExistingNewline, originatingFrom: token)
     }
 
     appendToken(.syntax(token))
@@ -1530,7 +1530,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   /// Appends the given tokens to the stream, optionally keeping an existing newline that may be
   /// present at the first break.
-  private func appendTokens(_ newTokens: [Token], keepExistingNewline: Bool) {
+  private func appendTokens(
+    _ newTokens: [Token],
+    keepExistingNewline: Bool,
+    originatingFrom syntaxToken: TokenSyntax
+  ) {
     var convertBreakToNewline = keepExistingNewline
     for token in newTokens {
       if convertBreakToNewline, case .break(_, let offset) = token {
@@ -1538,6 +1542,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
         // maximum length of the line, to force it to wrap when laid out.
         tokens.append(.break(size: maxlinelength, offset: offset))
         convertBreakToNewline = false
+      } else if case .close = token {
+        if keepExistingNewline && convertBreakToNewline && syntaxToken.text == ")" {
+          // If we haven't seen a break yet and we're about to close a parenthesis-delimited group,
+          // we need to insert our own break with a -2 offset to generate the newline and put the
+          // parenthesis in the correct place.
+          tokens.append(.break(size: maxlinelength, offset: -2))
+        }
+        tokens.append(token)
       } else {
         tokens.append(token)
       }
