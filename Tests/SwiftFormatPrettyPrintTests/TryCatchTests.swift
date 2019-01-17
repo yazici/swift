@@ -93,4 +93,17 @@ public class TryCatchTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
   }
+
+  public func testNestedDo() {
+    // Avoid regressions in the case where a nested `do` block was getting shifted all the way left.
+    let input = """
+      func foo() {
+        do {
+          bar()
+          baz()
+        }
+      }
+      """
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 45)
+  }
 }

@@ -433,7 +433,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: RepeatWhileStmtSyntax) {
-    before(node.repeatKeyword, tokens: .reset, .open(.consistent, 0), .open(.inconsistent, 0))
+    // The zero-width space prevents the consistent group here from immediately following a break,
+    // which would cause all of the breaks immediately inside the group to fire.
+    before(
+      node.repeatKeyword, tokens: .space(size: 0), .open(.consistent, 0), .open(.inconsistent, 0))
     after(node.repeatKeyword, tokens: .space)
 
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
@@ -448,7 +451,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: DoStmtSyntax) {
-    before(node.doKeyword, tokens: .reset, .open(.consistent, 0), .open(.inconsistent, 0))
+    // The zero-width space prevents the consistent group here from immediately following a break,
+    // which would cause all of the breaks immediately inside the group to fire.
+    before(node.doKeyword, tokens: .space(size: 0), .open(.consistent, 0), .open(.inconsistent, 0))
     after(node.doKeyword, tokens: .space)
 
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
