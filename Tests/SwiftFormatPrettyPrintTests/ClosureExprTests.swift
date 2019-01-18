@@ -37,8 +37,7 @@ public class ClosureExprTests: PrettyPrintTestCase {
         param1: 123,
         closure: { s1, s2, s3 in
           return s1
-        }
-      )
+        })
       funcCall(closure: {
         (s1: String, s2: String) -> Bool in
         return s1 > s2

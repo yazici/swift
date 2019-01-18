@@ -6,7 +6,6 @@ public class TupleDeclTests: PrettyPrintTestCase {
       let a: (Int, Int, Int) = (1, 2, 3)
       let a = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
       let a = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
-      let a = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,)
       """
 
     let expected =
@@ -17,32 +16,8 @@ public class TupleDeclTests: PrettyPrintTestCase {
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10
       )
       let a = (
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
         12
-      )
-      let a = (
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
       )
 
       """
