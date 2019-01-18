@@ -1191,6 +1191,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: CompositionTypeElementSyntax) {
+    if let ampersand = node.ampersand {
+      before(ampersand, tokens: .break)
+      after(ampersand, tokens: .space)
+    }
+    super.visit(node)
+  }
+
   override func visit(_ node: DeclarationStmtSyntax) {
     super.visit(node)
   }
@@ -1394,10 +1402,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: UnresolvedPatternExprSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: CompositionTypeElementSyntax) {
     super.visit(node)
   }
 
