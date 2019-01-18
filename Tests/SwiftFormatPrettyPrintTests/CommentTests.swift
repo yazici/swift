@@ -384,4 +384,39 @@ public class CommentTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
   }
+
+  public func testDoesNotInsertExtraNewlinesAfterTrailingComments() {
+    let input =
+      """
+      struct Foo {
+        var foo: Int  // foo
+        var bar: Int  // bar
+      }
+
+      enum Foo {
+        case foo
+        case bar  // bar
+        case baz  // baz
+        case quux
+      }
+      """
+    
+    let expected =
+      """
+      struct Foo {
+        var foo: Int  // foo
+        var bar: Int  // bar
+      }
+
+      enum Foo {
+        case foo
+        case bar  // bar
+        case baz  // baz
+        case quux
+      }
+
+      """
+    
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 100)
+  }
 }

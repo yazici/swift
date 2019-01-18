@@ -811,7 +811,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     // reason.
     if node.members.count > 1 {
       for i in 0..<(node.members.count - 1) {
-        after(node.members[i].lastToken, tokens: .newline)
+        after(node.members[i].lastToken, tokens: .break(size: maxlinelength))
       }
     }
     super.visit(node)
