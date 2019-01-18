@@ -168,12 +168,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    OpenBraceWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
     OperatorWhitespace.self,
     for:
       CompositionTypeElementListSyntax.self,
