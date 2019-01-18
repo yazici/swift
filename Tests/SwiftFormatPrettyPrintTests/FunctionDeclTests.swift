@@ -128,6 +128,10 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       print("Hello World")
     }
 
+    func myFun<S: T & U>(var1: S) {
+      // do stuff
+    }
+
     func longerNameFun<ReallyLongTypeName: Conform, TypeName>(var1: ReallyLongTypeNAme, var2: TypeName) {
       let a = 123
       let b = 456
@@ -139,6 +143,10 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     func myFun<S, T>(var1: S, var2: T) {
       let a = 123
       print("Hello World")
+    }
+
+    func myFun<S: T & U>(var1: S) {
+      // do stuff
     }
 
     func longerNameFun<
