@@ -586,7 +586,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     after(
       node.leftParen,
       tokens: .break(size: 0, offset: 2), .open(.consistent, 0), .break(size: 0),
-        .open(.consistent, 0)
+        .open(.inconsistent, 0)
     )
     before(node.rightParen, tokens: .close, .break(size: 0, offset: -2), .close)
     super.visit(node)
