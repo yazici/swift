@@ -38,6 +38,10 @@ public final class OrderedImports: SyntaxFormatRule {
     var fileComment = Trivia()
     var impComment = Trivia()
     var (allImports, allCode) = getAllImports(node.statements)
+
+    if allImports.count == 0 {
+      return Array(node.statements)
+    }
     
     if let firstImport = allImports.first,
       let firstStatement = node.statements.first,
