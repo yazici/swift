@@ -1039,7 +1039,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: TypeInitializerClauseSyntax) {
     before(node.equal, tokens: .break)
-    after(node.equal, tokens: .break)
+    after(node.equal, tokens: .space)
     super.visit(node)
   }
 
@@ -1164,8 +1164,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: InitializerClauseSyntax) {
-    before(node.equal, tokens: .space)
-    after(node.equal, tokens: .break)
+    before(node.equal, tokens: .break)
+    after(node.equal, tokens: .space)
     super.visit(node)
   }
 
