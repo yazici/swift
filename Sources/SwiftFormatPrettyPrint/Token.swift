@@ -24,14 +24,24 @@ enum GroupBreakStyle {
   case inconsistent
 }
 
-enum BreakKind {
+enum BreakKind: Equatable {
   /// If line wrapping occurs at an `open` break, then the base indentation level increases by one
   /// indentation unit until the corresponding `close` break is encountered.
   case open
 
   /// If line wrapping occurs at a `close` break, then the base indentation level returns to the
   /// value it had before the corresponding `open` break.
-  case close
+  ///
+  /// If `mustBreak` is true, then this break will always produce a line break when it occurs on a
+  /// different line than its corresponding `open` break. This is the behavior one typically wants
+  /// when laying out curly-brace delimited blocks or array/dictionary literals. If `mustBreak` is
+  /// false, then this break will only produce a line break when absolutely necessary (i.e., if the
+  /// rest of the line's length required it). This behavior is desirable for the parentheses around
+  /// function calls, where there is not typically a need for a line break before the closing
+  /// parenthesis.
+  ///
+  /// In either case above, the base indentation level of subsequent tokens is still adjusted.
+  case close(mustBreak: Bool)
 
   /// If line wrapping occurs at a `continue` break, then the following line will be treated as a
   /// continuation line (indented one unit further than the base level) without changing the base
@@ -89,6 +99,9 @@ enum BreakKind {
   /// }
   /// ```
   case reset
+
+  /// A `close` break that defaults to forced breaking behavior.
+  static let close = BreakKind.close(mustBreak: true)
 }
 
 enum Token {

@@ -195,12 +195,41 @@ public class PrettyPrinter {
         currentLineIsContinuation = false
         openDelimiterBreakStack.append(lineNumber)
         indentationStack.append(configuration.indentation)
-      case .close:
+      case .close(let closeMustBreak):
         guard let matchingOpenLineNumber = openDelimiterBreakStack.popLast() else {
           fatalError("Unmatched closing break")
         }
-        mustBreak = lineNumber != matchingOpenLineNumber
         indentationStack.removeLast()
+
+        let isDifferentLine = lineNumber != matchingOpenLineNumber
+        if closeMustBreak {
+          // If it's a mandatory breaking close, then we must break (regardless of line length) if
+          // the break is on a different line than its corresponding open break.
+          mustBreak = isDifferentLine
+        } else if spaceRemaining == 0 {
+          // If there is no room left on the line, then we must force this break to fire so that the
+          // next token that comes along (typically a closing bracket of some kind) ends up on the
+          // next line.
+          mustBreak = true
+        } else {
+          // Otherwise, if we're not force-breaking and we're on a different line than the
+          // corresponding open, then the current line must effectively become a continuation line.
+          // This ensures that any reset breaks that might follow on the same line are honored. For
+          // example, the reset break before the open curly brace below must be made to fire so that
+          // the brace can distinguish the argument lines from the block body.
+          //
+          //    if let someLongVariableName = someLongFunctionName(
+          //      firstArgument: argumentValue)
+          //    {
+          //      ...
+          //    }
+          //
+          // In this case, the preferred style would be to break before the parenthesis and place it
+          // on the same line as the curly brace, but that requires quite a bit more contextual
+          // information than is easily available. The user can, however, do so with discretionary
+          // breaks (if they are enabled).
+          currentLineIsContinuation = isDifferentLine
+        }
       case .continue:
         isContinuation = true
       case .same:

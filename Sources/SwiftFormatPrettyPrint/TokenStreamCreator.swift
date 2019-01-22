@@ -591,8 +591,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
     }
 
     if node.argumentList.count > 0 {
+      // If there is a trailing closure, force the right parenthesis down to the next line so it
+      // stays with the open curly brace.
+      let breakBeforeRightParen = node.trailingClosure != nil
+
       after(node.leftParen, tokens: .break(.open, size: 0), .open)
-      before(node.rightParen, tokens: .break(.close, size: 0), .close)
+      before(
+        node.rightParen,
+        tokens: .break(.close(mustBreak: breakBeforeRightParen), size: 0), .close)
     }
     before(node.trailingClosure?.leftBrace, tokens: .break(.reset))
     super.visit(node)
@@ -669,8 +675,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: SubscriptExprSyntax) {
     if node.argumentList.count > 0 {
+      // If there is a trailing closure, force the right bracket down to the next line so it stays
+      // with the open curly brace.
+      let breakBeforeRightBracket = node.trailingClosure != nil
+
       after(node.leftBracket, tokens: .break(.open, size: 0), .open)
-      before(node.rightBracket, tokens: .break(.close, size: 0), .close)
+      before(
+        node.rightBracket,
+        tokens: .break(.close(mustBreak: breakBeforeRightBracket), size: 0), .close)
     }
     before(node.trailingClosure?.leftBrace, tokens: .space)
     super.visit(node)
@@ -689,8 +701,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AssignmentExprSyntax) {
-    before(node.assignToken, tokens: .space)
-    after(node.assignToken, tokens: .break)
+    before(node.assignToken, tokens: .break)
+    after(node.assignToken, tokens: .space)
     super.visit(node)
   }
 

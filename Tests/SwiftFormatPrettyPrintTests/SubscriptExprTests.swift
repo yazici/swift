@@ -12,8 +12,7 @@ public class SubscriptExprTests: PrettyPrintTestCase {
       let a = myCollection[index]
       let a = myCollection[label: index]
       let a = myCollection[
-        index, default: someDefaultValue
-      ]
+        index, default: someDefaultValue]
 
       """
 
@@ -33,8 +32,8 @@ public class SubscriptExprTests: PrettyPrintTestCase {
       myCollection[index] = someValue
       myCollection[label: index] = someValue
       myCollection[
-        index, default: someDefaultValue
-      ] = someValue
+        index, default: someDefaultValue]
+        = someValue
 
       """
 
