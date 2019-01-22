@@ -4,9 +4,6 @@ public class AsExprTests: PrettyPrintTestCase {
       """
       func foo() {
         let a = b as Int
-        let c = d
-          as
-          Int
         let reallyLongVariableName = x as ReallyLongTypeName
       }
       """
@@ -15,9 +12,8 @@ public class AsExprTests: PrettyPrintTestCase {
       """
       func foo() {
         let a = b as Int
-        let c = d as Int
-        let reallyLongVariableName =
-          x as ReallyLongTypeName
+        let reallyLongVariableName = x
+          as ReallyLongTypeName
       }
 
       """
@@ -30,9 +26,7 @@ public class AsExprTests: PrettyPrintTestCase {
       """
       func foo() {
         let a = b as? Int
-        let c = d
-          as!
-          Int
+        let c = d as! Int
         let reallyLongVariableName = x as? ReallyLongTypeName
       }
       """
@@ -42,8 +36,8 @@ public class AsExprTests: PrettyPrintTestCase {
       func foo() {
         let a = b as? Int
         let c = d as! Int
-        let reallyLongVariableName =
-          x as? ReallyLongTypeName
+        let reallyLongVariableName = x
+          as? ReallyLongTypeName
       }
 
       """

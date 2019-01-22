@@ -23,14 +23,14 @@ public class FunctionDeclTests: PrettyPrintTestCase {
         let a = 23
       }
       func reallyLongName(
-        var1: Int,
-        var2: Double,
-        var3: Bool
+        var1: Int, var2: Double, var3: Bool
       ) {
         print("Hello World")
         let a = 23
       }
-      func myFun() { let a = 23 }
+      func myFun() {
+        let a = 23
+      }
       func myFun() {
         let a = "AAAA BBBB CCCC DDDD EEEE FFFF"
       }
@@ -60,9 +60,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
         return 1.0
       }
       func reallyLongName(
-        var1: Int,
-        var2: Double,
-        var3: Bool
+        var1: Int, var2: Double, var3: Bool
       ) -> Double {
         print("Hello World")
         return 1.0
@@ -96,16 +94,18 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       """
       func myFun(var1: Int) throws -> Double {
         print("Hello World")
-        if badCondition { throw Error }
+        if badCondition {
+          throw Error
+        }
         return 1.0
       }
       func reallyLongName(
-        var1: Int,
-        var2: Double,
-        var3: Bool
+        var1: Int, var2: Double, var3: Bool
       ) throws -> Double {
         print("Hello World")
-        if badCondition { throw Error }
+        if badCondition {
+          throw Error
+        }
         return 1.0
       }
 
@@ -136,8 +136,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     }
 
     func longerNameFun<
-      ReallyLongTypeName: Conform,
-      TypeName
+      ReallyLongTypeName: Conform, TypeName
     >(
       var1: ReallyLongTypeNAme,
       var2: TypeName
@@ -155,8 +154,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     let input =
     """
     public func index<Elements: Collection, Element>(
-      of element: Element,
-      in collection: Elements
+      of element: Element, in collection: Elements
     ) -> Elements.Index? where Elements.Element == Element {
       let a = 123
       let b = "abc"
@@ -174,8 +172,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     let expected =
     """
     public func index<Elements: Collection, Element>(
-      of element: Element,
-      in collection: Elements
+      of element: Element, in collection: Elements
     ) -> Elements.Index?
     where Elements.Element == Element {
       let a = 123
@@ -186,8 +183,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       of element: Element,
       in collection: Elements
     ) -> Elements.Index?
-    where
-      Elements.Element == Element,
+    where Elements.Element == Element,
       Element: Equatable
     {
       let a = 123
@@ -278,9 +274,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
         let a = 123
         let b = "abc"
       }
-      @discardableResult
-      @objc
-      @inlinable
+      @discardableResult @objc @inlinable
       public func MyFun() {
         let a = 123
         let b = "abc"
@@ -340,8 +334,7 @@ public class FunctionDeclTests: PrettyPrintTestCase {
 
     let expected =
     """
-    @discardableResult
-    @objc
+    @discardableResult @objc
     public func index<
       Elements: Collection,
       Element
@@ -378,17 +371,150 @@ public class FunctionDeclTests: PrettyPrintTestCase {
     let input =
       """
       func < (lhs: Position, rhs: Position) -> Bool {
-        // do stuff
+        foo()
       }
 
       func + (left: [Int], right: [Int]) -> [Int] {
-        // add two arrays
+        foo()
       }
 
       func ⊕ (left: Tensor, right: Tensor) -> Tensor {
-        // tensor addition
+        foo()
       }
       """
     assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
+  }
+
+  public func testBreaksBeforeOrInsideOutput() {
+    let input =
+      """
+      func name<R>(_ x: Int) throws -> R
+
+      func name<R>(_ x: Int) throws -> R {
+        statement
+        statement
+      }
+      """
+
+    var expected =
+      """
+      func name<R>(_ x: Int)
+        throws -> R
+
+      func name<R>(_ x: Int)
+        throws -> R
+      {
+        statement
+        statement
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 23)
+
+    expected =
+    """
+      func name<R>(_ x: Int) throws
+        -> R
+
+      func name<R>(_ x: Int) throws
+        -> R
+      {
+        statement
+        statement
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 33)
+  }
+
+  public func testBreaksBeforeOrInsideOutputWithAttributes() {
+    let input =
+      """
+      @objc @discardableResult
+      func name<R>(_ x: Int) throws -> R
+
+      @objc @discardableResult
+      func name<R>(_ x: Int) throws -> R {
+        statement
+        statement
+      }
+      """
+
+    let expected =
+      """
+      @objc
+      @discardableResult
+      func name<R>(_ x: Int)
+        throws -> R
+
+      @objc
+      @discardableResult
+      func name<R>(_ x: Int)
+        throws -> R
+      {
+        statement
+        statement
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 23)
+  }
+
+  public func testBreaksBeforeOrInsideOutputWithWhereClause() {
+    var input =
+      """
+      func name<R>(_ x: Int) throws -> R where Foo == Bar
+
+      func name<R>(_ x: Int) throws -> R where Foo == Bar {
+        statement
+        statement
+      }
+      """
+
+    var expected =
+      """
+      func name<R>(_ x: Int)
+        throws -> R
+      where Foo == Bar
+
+      func name<R>(_ x: Int)
+        throws -> R
+      where Foo == Bar {
+        statement
+        statement
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 23)
+
+    input =
+      """
+      func name<R>(_ x: Int) throws -> R where Fooooooo == Barrrrr
+
+      func name<R>(_ x: Int) throws -> R where Fooooooo == Barrrrr {
+        statement
+        statement
+      }
+      """
+
+    expected =
+      """
+      func name<R>(_ x: Int)
+        throws -> R
+      where
+        Fooooooo == Barrrrr
+
+      func name<R>(_ x: Int)
+        throws -> R
+      where
+        Fooooooo == Barrrrr
+      {
+        statement
+        statement
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 23)
   }
 }

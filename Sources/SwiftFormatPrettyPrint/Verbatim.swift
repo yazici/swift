@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import SwiftFormatConfiguration
 
 struct Verbatim {
   var lines: [String] = []
@@ -38,11 +39,12 @@ struct Verbatim {
     lines = lines.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " ")) }
   }
 
-  func print(indent: Int) -> String {
+  func print(indent: [Indent]) -> String {
     var output = ""
     for i in 0..<lines.count {
       if lines[i] != "" {
-        output += String(repeating: " ", count: indent + leadingWhitespaceCounts[i])
+        output += indent.indentation()
+        output += String(repeating: " ", count: leadingWhitespaceCounts[i])
         output += lines[i]
       }
       if i < lines.count - 1 {

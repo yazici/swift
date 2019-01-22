@@ -31,12 +31,13 @@ public class GuardStmtTests: PrettyPrintTestCase {
         var b = "abc"
       }
       guard let var1 = someFunction(),
-            let var2 = myFun() else {
+        let var2 = myFun()
+      else {
         let a = 23
         var b = "abc"
       }
       guard let var1 = someFunction(),
-            let var2 = myLongFunction()
+        let var2 = myLongFunction()
       else {
         let a = 23
         var b = "abc"

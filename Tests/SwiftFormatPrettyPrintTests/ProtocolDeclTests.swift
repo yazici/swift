@@ -28,8 +28,7 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
       }
       protocol MyProtocol {
         var VeryLongVariable: Int {
-          get
-          set
+          get set
         }
         var B: Bool { get }
       }
@@ -38,7 +37,8 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
         var B: Bool { get }
       }
       public protocol
-      MyLongerProtocol {
+        MyLongerProtocol
+      {
         var A: Int { get set }
         var B: Bool { get }
       }
@@ -75,9 +75,7 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
         var A: Int { get set }
         var B: Bool { get }
       }
-      protocol MyProtocol:
-        ProtoOne,
-        ProtoTwo,
+      protocol MyProtocol: ProtoOne, ProtoTwo,
         ProtoThree
       {
         var A: Int { get set }
@@ -123,9 +121,7 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
         var A: Int { get set }
         var B: Double { get }
       }
-      @dynamicMemberLookup
-      @objc
-      @objcMembers
+      @dynamicMemberLookup @objc @objcMembers
       public protocol MyProtocol {
         var A: Int { get set }
         var B: Double { get }
@@ -195,13 +191,9 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
       """
       protocol MyProtocol {
         var A: Int
-
         associatedtype TypeOne
-
         associatedtype TypeTwo: AnotherType
-
         associatedtype TypeThree: SomeType where TypeThree.Item == Item
-
         @available(swift 4.0)
         associatedtype TypeFour
       }
@@ -211,13 +203,9 @@ public class ProtocolDeclTests: PrettyPrintTestCase {
       """
       protocol MyProtocol {
         var A: Int
-
         associatedtype TypeOne
-
         associatedtype TypeTwo: AnotherType
-
         associatedtype TypeThree: SomeType where TypeThree.Item == Item
-
         @available(swift 4.0)
         associatedtype TypeFour
       }

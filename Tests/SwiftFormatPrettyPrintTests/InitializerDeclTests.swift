@@ -11,9 +11,7 @@ public class InitializerDeclTests: PrettyPrintTestCase {
             print("Hello World")
             let a = 23
         }
-        init() {
-            let a = 23
-        }
+        init() { let a = 23 }
         init() { let a = "AAAA BBBB CCCC DDDD EEEE FFFF" }
       }
       """
@@ -26,8 +24,7 @@ public class InitializerDeclTests: PrettyPrintTestCase {
           let a = 23
         }
         init(
-          reallyLongLabelVar1: Int,
-          var2: Double,
+          reallyLongLabelVar1: Int, var2: Double,
           var3: Bool
         ) {
           print("Hello World")
@@ -56,9 +53,7 @@ public class InitializerDeclTests: PrettyPrintTestCase {
             print("Hello World")
             let a = 23
         }
-        init?() {
-            let a = 23
-        }
+        init?() { let a = 23 }
         init!() { let a = "AAAA BBBB CCCC DDDD EEEE FFFF" }
       }
       """
@@ -71,8 +66,7 @@ public class InitializerDeclTests: PrettyPrintTestCase {
           let a = 23
         }
         init!(
-          reallyLongLabelVar1: Int,
-          var2: Double,
+          reallyLongLabelVar1: Int, var2: Double,
           var3: Bool
         ) {
           print("Hello World")
@@ -109,10 +103,11 @@ public class InitializerDeclTests: PrettyPrintTestCase {
           print("Hello World")
         }
         init(
-          reallyLongLabelVar1: Int,
-          var2: Double,
+          reallyLongLabelVar1: Int, var2: Double,
           var3: Bool
-        ) throws { print("Hello World") }
+        ) throws {
+          print("Hello World")
+        }
       }
 
       """
@@ -128,7 +123,6 @@ public class InitializerDeclTests: PrettyPrintTestCase {
         let a = 123
         print("Hello World")
       }
-
       init<ReallyLongTypeName: Conform, TypeName>(var1: ReallyLongTypeName, var2: TypeName) {
         let a = 123
         let b = 456
@@ -143,7 +137,6 @@ public class InitializerDeclTests: PrettyPrintTestCase {
         let a = 123
         print("Hello World")
       }
-
       init<
         ReallyLongTypeName: Conform,
         TypeName
@@ -165,18 +158,11 @@ public class InitializerDeclTests: PrettyPrintTestCase {
     let input =
     """
     struct Struct {
-      public init<Elements: Collection, Element>(
-        element: Element,
-        in collection: Elements
-      ) where Elements.Element == Element {
+      public init<Elements: Collection, Element>(element: Element, in collection: Elements) where Elements.Element == Element {
         let a = 123
         let b = "abc"
       }
-
-      public init<Elements: Collection, Element>(
-        element: Element,
-        in collection: Elements
-      ) where Elements.Element == Element, Element: Equatable {
+      public init<Elements: Collection, Element>(element: Element, in collection: Elements) where Elements.Element == Element, Element: Equatable {
         let a = 123
         let b = "abc"
       }
@@ -187,19 +173,15 @@ public class InitializerDeclTests: PrettyPrintTestCase {
     """
     struct Struct {
       public init<Elements: Collection, Element>(
-        element: Element,
-        in collection: Elements
+        element: Element, in collection: Elements
       ) where Elements.Element == Element {
         let a = 123
         let b = "abc"
       }
-
       public init<Elements: Collection, Element>(
-        element: Element,
-        in collection: Elements
+        element: Element, in collection: Elements
       )
-      where
-        Elements.Element == Element,
+      where Elements.Element == Element,
         Element: Equatable
       {
         let a = 123
@@ -238,14 +220,11 @@ public class InitializerDeclTests: PrettyPrintTestCase {
           let a = 123
           let b = "abc"
         }
-        @objc
-        @inlinable
-        public init() {
+        @objc @inlinable public init() {
           let a = 123
           let b = "abc"
         }
-        @objc
-        @available(swift 4.0)
+        @objc @available(swift 4.0)
         public init() {
           let a = 123
           let b = "abc"
@@ -254,16 +233,14 @@ public class InitializerDeclTests: PrettyPrintTestCase {
 
       """
 
-    assertPrettyPrintEqual(input: input, expected: expected, linelength: 30)
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 35)
   }
-
 
   public func testInitializerFullWrap() {
     let input =
     """
     struct Struct {
-      @objc @inlinable
-      public init<Elements: Collection, Element>(element: Element, in collection: Elements) where Elements.Element == Element, Element: Equatable {
+      @objc @inlinable public init<Elements: Collection, Element>(element: Element, in collection: Elements) where Elements.Element == Element, Element: Equatable {
         let a = 123
         let b = "abc"
       }
@@ -273,17 +250,13 @@ public class InitializerDeclTests: PrettyPrintTestCase {
     let expected =
     """
     struct Struct {
-      @objc
-      @inlinable
-      public init<
-        Elements: Collection,
-        Element
+      @objc @inlinable public init<
+        Elements: Collection, Element
       >(
         element: Element,
         in collection: Elements
       )
-      where
-        Elements.Element == Element,
+      where Elements.Element == Element,
         Element: Equatable
       {
         let a = 123

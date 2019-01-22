@@ -5,11 +5,13 @@ public class RepeatStmtTests: PrettyPrintTestCase {
       repeat {
         let a = 123
         var b = "abc"
-      } while condition
+      }
+      while condition
       repeat {
         let a = 123
         var b = "abc"
-      } while condition && condition2
+      }
+      while condition && condition2
       """
 
     let expected =
@@ -17,12 +19,14 @@ public class RepeatStmtTests: PrettyPrintTestCase {
       repeat {
         let a = 123
         var b = "abc"
-      } while condition
+      }
+      while condition
       repeat {
         let a = 123
         var b = "abc"
-      } while condition &&
-              condition2
+      }
+      while condition
+        && condition2
 
       """
 

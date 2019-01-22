@@ -7,9 +7,7 @@ public class DeinitializerDeclTests: PrettyPrintTestCase {
             print("Hello World")
             let a = 23
         }
-        deinit {
-            let a = 23
-        }
+        deinit { let a = 23 }
         deinit { let a = "AAAA BBBB CCCC DDDD EEEE FFFF" }
       }
       """
@@ -58,9 +56,8 @@ public class DeinitializerDeclTests: PrettyPrintTestCase {
           let a = 123
           let b = "abc"
         }
-        @objc
-        @inlinable
-        deinit {
+        @objc @inlinable deinit
+        {
           let a = 123
           let b = "abc"
         }
@@ -74,7 +71,7 @@ public class DeinitializerDeclTests: PrettyPrintTestCase {
 
       """
 
-    assertPrettyPrintEqual(input: input, expected: expected, linelength: 25)
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 26)
   }
 
   public func testEmptyDeinitializer() {

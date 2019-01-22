@@ -18,10 +18,7 @@ public class TypeAliasTests: PrettyPrintTestCase {
       typealias MyAlias = (SomeType?) -> Bool
       typealias MyAlias = (_ a: Int, _ b: Double) -> Bool
       typealias MyAlias = (
-        _ a: Int,
-        _ b: Double,
-        _ c: Bool,
-        _ d: String
+        _ a: Int, _ b: Double, _ c: Bool, _ d: String
       ) -> Bool
 
       """
@@ -39,9 +36,7 @@ public class TypeAliasTests: PrettyPrintTestCase {
     let expected =
       """
       @objc typealias MyAlias = Int
-      @objc
-      @available(swift 4.0)
-      typealias MyAlias = Int
+      @objc @available(swift 4.0) typealias MyAlias = Int
 
       """
 
@@ -51,13 +46,13 @@ public class TypeAliasTests: PrettyPrintTestCase {
   public func testTypealiasGenericTests() {
     let input =
       """
-      typealias MyDict<Key: Hashable> = Dictinoary<Key, Int>
+      typealias MyDict<Key: Hashable> = Dictionary<Key, Int>
       typealias MyType<T> = AnotherType<String, Int>
       """
 
     let expected =
       """
-      typealias MyDict<Key: Hashable> = Dictinoary<Key, Int>
+      typealias MyDict<Key: Hashable> = Dictionary<Key, Int>
       typealias MyType<T> = AnotherType<String, Int>
 
       """

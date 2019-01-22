@@ -17,22 +17,12 @@ public class ArrayDeclTests: PrettyPrintTestCase {
         "One", "Two", "Three", "Four"
       ]
       let a: [String] = [
-        "One",
-        "Two",
-        "Three",
-        "Four",
-        "Five",
-        "Six",
-        "Seven"
+        "One", "Two", "Three", "Four", "Five",
+        "Six", "Seven"
       ]
       let a: [String] = [
-        "One",
-        "Two",
-        "Three",
-        "Four",
-        "Five",
-        "Six",
-        "Seven",
+        "One", "Two", "Three", "Four", "Five",
+        "Six", "Seven",
       ]
 
       """
