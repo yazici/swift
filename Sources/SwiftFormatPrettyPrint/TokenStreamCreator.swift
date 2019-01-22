@@ -1541,6 +1541,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
       appendToken(.space(size: 1))
       appendToken(
         .comment(Comment(kind: .block, text: text, position: position), wasEndOfLine: false))
+      // We place a size-0 break after the comment to allow a discretionary newline after the
+      // comment if the user places one here but the comment is otherwise adjacent to a text token.
+      appendToken(.break(.same, size: 0))
     default:
       return
     }
@@ -1555,26 +1558,81 @@ private final class TokenStreamCreator: SyntaxVisitor {
       case .lineComment(let text):
         if index > 0 || isStartOfFile {
           appendToken(.comment(Comment(kind: .line, text: text), wasEndOfLine: false))
+          appendToken(.newline)
         }
 
       case .blockComment(let text):
         if index > 0 || isStartOfFile {
           appendToken(.comment(Comment(kind: .block, text: text), wasEndOfLine: false))
+          // We place a size-0 break after the comment to allow a discretionary newline after the
+          // comment if the user places one here but the comment is otherwise adjacent to a text
+          // token.
+          appendToken(.break(.same, size: 0))
         }
 
       case .docLineComment(let text):
         appendToken(.comment(Comment(kind: .docLine, text: text), wasEndOfLine: false))
+        appendToken(.newline)
 
       case .docBlockComment(let text):
         appendToken(.comment(Comment(kind: .docBlock, text: text), wasEndOfLine: false))
+        appendToken(.newline)
 
       case .newlines(let count), .carriageReturns(let count), .carriageReturnLineFeeds(let count):
-        appendToken(.newlines(count, discretionary: true))
+        if config.respectsExistingLineBreaks && isDiscretionaryNewlineAllowed(before: token) {
+          appendToken(.newlines(count, discretionary: true))
+        }
+        else {
+          // Even if discretionary line breaks are not being respected, we still respect multiple
+          // line breaks in order to keep blank separator lines that the user might want.
+          // TODO: It would be nice to restrict this to only allow multiple lines between statements
+          // and declarations; as currently implemented, multiple newlines will locally override the
+          // configuration setting.
+          if count > 1 {
+            appendToken(.newlines(count, discretionary: true))
+          }
+        }
 
       default:
         break
       }
     }
+  }
+
+  /// Returns a value indicating whether or not discretionary newlines are permitted before the
+  /// given syntax token.
+  ///
+  /// Discretionary newlines are allowed before any token that is preceded by a break or an existing
+  /// newline (ignoring open/close group tokens, which do not contribute to this). In other words,
+  /// this means that users may insert their own breaks in places where the pretty printer allows
+  /// them, even if those breaks wouldn't cause wrapping based on the column limit, but they may not
+  /// place them in places where the pretty printer would not break (for example, at a space token
+  /// that is intended to keep two tokens glued together).
+  private func isDiscretionaryNewlineAllowed(before token: TokenSyntax) -> Bool {
+    func isBreakMoreRecentThanNonbreakingContent(_ tokens: [Token]) -> Bool? {
+      for token in tokens.reversed() as ReversedCollection {
+        switch token {
+        case .break, .newlines: return true
+        case .comment, .space, .syntax, .verbatim: return false
+        default: break
+        }
+      }
+      return nil
+    }
+
+    // First, check the pretty printer tokens that will be added before the text token. If we find
+    // a break or newline before we find some other text, we allow a discretionary newline. If we
+    // find some other content, we don't allow it.
+    //
+    // If there were no before tokens, then we do the same check the token stream created thus far,
+    // returning true if there were no tokens at all in the stream (which would mean there was a
+    // discretionary newline at the beginning of the file).
+    if let beforeTokens = beforeMap[token],
+      let foundBreakFirst = isBreakMoreRecentThanNonbreakingContent(beforeTokens)
+    {
+      return foundBreakFirst
+    }
+    return isBreakMoreRecentThanNonbreakingContent(tokens) ?? true
   }
 
   func appendToken(_ token: Token) {

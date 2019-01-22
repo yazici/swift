@@ -204,7 +204,7 @@ public class PrettyPrinter {
       case .continue:
         isContinuation = true
       case .same:
-        currentLineIsContinuation = false
+        break
       case .reset:
         mustBreak = currentLineIsContinuation
       }
@@ -219,6 +219,14 @@ public class PrettyPrinter {
           lastBreakConsecutive = true
         }
       } else {
+        if isAtStartOfLine {
+          // Make sure that the continuation status is correct even at the beginning of a line
+          // (for example, after a newline token). This is necessary because a discretionary newline
+          // might be inserted into the token stream before a continuation break, and the length of
+          // that break might not be enough to satisfy the conditions above but we still need to
+          // treat the line as a continuation.
+          currentLineIsContinuation = isContinuation
+        }
         if !lastBreakConsecutive {
           enqueueSpaces(size)
         }
