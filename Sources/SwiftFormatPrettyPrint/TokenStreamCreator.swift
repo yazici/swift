@@ -663,6 +663,11 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SubscriptExprSyntax) {
+    if node.argumentList.count > 0 {
+      after(node.leftBracket, tokens: .break(.open, size: 0), .open)
+      before(node.rightBracket, tokens: .break(.close, size: 0), .close)
+    }
+    before(node.trailingClosure?.leftBrace, tokens: .space)
     super.visit(node)
   }
 
