@@ -2,22 +2,26 @@ public class AttributeTests: PrettyPrintTestCase {
   public func testAttributeParamSpacing() {
     let input =
       """
-      @available
       @available(iOS 9.0, *)
+      func f() {}
       @available(*, unavailable, renamed: "MyRenamedProtocol")
+      func f() {}
       @available(iOS 10.0, macOS 10.12, *)
+      func f() {}
       """
 
     let expected =
       """
-      @available
       @available(iOS 9.0, *)
+      func f() {}
       @available(*, unavailable, renamed: "MyRenamedProtocol")
+      func f() {}
       @available(iOS 10.0, macOS 10.12, *)
+      func f() {}
 
       """
 
-    // Do not wrap attributes
-    assertPrettyPrintEqual(input: input, expected: expected, linelength: 5)
+    // Attributes should not wrap.
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 15)
   }
 }

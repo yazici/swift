@@ -4,17 +4,11 @@ public class AccessorTests: PrettyPrintTestCase {
       """
       struct MyStruct {
         var memberValue: Int
-        var someValue: Int {
-          get { return memberValue + 2 }
-          set(newValue) { memberValue = newValue }
-        }
+        var someValue: Int { get { return memberValue + 2 } set(newValue) { memberValue = newValue } }
       }
       struct MyStruct {
         var memberValue: Int
-        var someValue: Int {
-          @objc get { return memberValue + 2 }
-          @objc(isEnabled) set(newValue) { memberValue = newValue }
-        }
+        var someValue: Int { @objc get { return memberValue + 2 } @objc(isEnabled) set(newValue) { memberValue = newValue } }
       }
       struct MyStruct {
         var memberValue: Int
@@ -32,9 +26,7 @@ public class AccessorTests: PrettyPrintTestCase {
       }
       struct MyStruct {
         var memberValue: Int
-        var SomeValue: Int {
-          return 123
-        }
+        var SomeValue: Int { return 123 }
         var AnotherValue: Double {
           let out = 1.23
           return out
@@ -55,8 +47,9 @@ public class AccessorTests: PrettyPrintTestCase {
         var memberValue: Int
         var someValue: Int {
           @objc get { return memberValue + 2 }
-          @objc(isEnabled)
-          set(newValue) { memberValue = newValue }
+          @objc(isEnabled) set(newValue) {
+            memberValue = newValue
+          }
         }
       }
       struct MyStruct {
@@ -75,9 +68,7 @@ public class AccessorTests: PrettyPrintTestCase {
       }
       struct MyStruct {
         var memberValue: Int
-        var SomeValue: Int {
-          return 123
-        }
+        var SomeValue: Int { return 123 }
         var AnotherValue: Double {
           let out = 1.23
           return out

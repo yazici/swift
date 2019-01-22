@@ -169,15 +169,13 @@ public class CommentTests: PrettyPrintTestCase {
 
       switch myvar {
       case .one,
-           .two,  // three
-           .four:
+        .two,  // three
+        .four:
         dostuff()
-      default:
-        ()
+      default: ()
       }
 
-      let a =
-        123 +  // comment
+      let a = 123 +  // comment
         b + c
 
       let d = 123
@@ -234,13 +232,13 @@ public class CommentTests: PrettyPrintTestCase {
 
       /* Array comment */
       let a = [
-        456,  /* small comment */
+        456, /* small comment */
         789
       ]
 
       /* Dictionary comment */
       let b = [
-        "abc": 456,  /* small comment */
+        "abc": 456, /* small comment */
         "def": 789
       ]
 
@@ -344,7 +342,7 @@ public class CommentTests: PrettyPrintTestCase {
       /* Comment 3
          Comment 4 */
 
-      let reallyLongVariableName = 123  /* This comment should not wrap */
+      let reallyLongVariableName = 123  /* This comment should wrap */
 
       let a = myfun(var1: 123 /* Cmt 5 */
       )
@@ -361,20 +359,21 @@ public class CommentTests: PrettyPrintTestCase {
       /* Line Comment1 */
       /* Line Comment2 */
       let a = 123
-      let b = "456"  /* End of line comment */
+      let b = "456" /* End of line comment */
       let c = "More content"
 
       /* Comment 3
          Comment 4 */
 
-      let reallyLongVariableName = 123  /* This comment should not wrap */
+      let reallyLongVariableName =
+        123 /* This comment should wrap */
 
       let a = myfun(
-        var1: 123  /* Cmt 5 */
+        var1: 123 /* Cmt 5 */
       )
 
       guard condition else {
-        return  /* Cmt 6 */
+        return /* Cmt 6 */
       }
 
       let d = 123

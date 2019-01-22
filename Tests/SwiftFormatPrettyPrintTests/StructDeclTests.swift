@@ -27,7 +27,8 @@ public class StructDeclTests: PrettyPrintTestCase {
         let B: Bool
       }
       public struct
-      MyLongerStruct {
+        MyLongerStruct
+      {
         let A: Int
         let B: Bool
       }
@@ -65,10 +66,7 @@ public class StructDeclTests: PrettyPrintTestCase {
         let B: Bool
       }
       struct MyStruct<
-        One,
-        Two,
-        Three,
-        Four
+        One, Two, Three, Four
       > {
         let A: Int
         let B: Bool
@@ -106,9 +104,7 @@ public class StructDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Bool
       }
-      struct MyStruct:
-        ProtoOne,
-        ProtoTwo,
+      struct MyStruct: ProtoOne, ProtoTwo,
         ProtoThree
       {
         let A: Int
@@ -149,9 +145,7 @@ public class StructDeclTests: PrettyPrintTestCase {
         let B: Double
       }
       struct MyStruct<S, T>
-      where
-        S: Collection,
-        T: ReallyLongStructName,
+      where S: Collection, T: ReallyLongStructName,
         U: AnotherLongStruct
       {
         let A: Int
@@ -208,8 +202,7 @@ public class StructDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Double
       }
-      @dynamicMemberLookup
-      @available(swift 4.0)
+      @dynamicMemberLookup @available(swift 4.0)
       public struct MyStruct {
         let A: Int
         let B: Double
@@ -226,15 +219,12 @@ public class StructDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Double
       }
-      @dynamicMemberLookup
-      @objc
-      @objcMembers
+      @dynamicMemberLookup @objc @objcMembers
       public struct MyStruct {
         let A: Int
         let B: Double
       }
-      @dynamicMemberLookup
-      @available(swift 4.0)
+      @dynamicMemberLookup @available(swift 4.0)
       public struct MyStruct {
         let A: Int
         let B: Double
@@ -258,15 +248,11 @@ public class StructDeclTests: PrettyPrintTestCase {
 
       """
       public struct MyContainer<
-        BaseCollection,
-        SecondCollection
-      >:
-        MyContainerProtocolOne,
-        MyContainerProtocolTwo,
+        BaseCollection, SecondCollection
+      >: MyContainerProtocolOne, MyContainerProtocolTwo,
         SomeoneElsesContainerProtocol,
         SomeFrameworkContainerProtocol
-      where
-        BaseCollection: Collection,
+      where BaseCollection: Collection,
         BaseCollection.Element: Equatable,
         BaseCollection.Element: SomeOtherProtocol
       {

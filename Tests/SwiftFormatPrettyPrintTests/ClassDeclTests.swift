@@ -27,7 +27,8 @@ public class ClassDeclTests: PrettyPrintTestCase {
         let B: Bool
       }
       public class
-      MyLongerClass {
+        MyLongerClass
+      {
         let A: Int
         let B: Bool
       }
@@ -65,10 +66,7 @@ public class ClassDeclTests: PrettyPrintTestCase {
         let B: Bool
       }
       class MyClass<
-        One,
-        Two,
-        Three,
-        Four
+        One, Two, Three, Four
       > {
         let A: Int
         let B: Bool
@@ -106,9 +104,7 @@ public class ClassDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Bool
       }
-      class MyClass:
-        SuperOne,
-        SuperTwo,
+      class MyClass: SuperOne, SuperTwo,
         SuperThree
       {
         let A: Int
@@ -149,9 +145,7 @@ public class ClassDeclTests: PrettyPrintTestCase {
         let B: Double
       }
       class MyClass<S, T>
-      where
-        S: Collection,
-        T: ReallyLongClassName,
+      where S: Collection, T: ReallyLongClassName,
         U: LongerClassName
       {
         let A: Int
@@ -208,8 +202,7 @@ public class ClassDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Double
       }
-      @dynamicMemberLookup
-      @available(swift 4.0)
+      @dynamicMemberLookup @available(swift 4.0)
       public class MyClass {
         let A: Int
         let B: Double
@@ -226,15 +219,12 @@ public class ClassDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Double
       }
-      @dynamicMemberLookup
-      @objc
-      @objcMembers
+      @dynamicMemberLookup @objc @objcMembers
       public class MyClass {
         let A: Int
         let B: Double
       }
-      @dynamicMemberLookup
-      @available(swift 4.0)
+      @dynamicMemberLookup @available(swift 4.0)
       public class MyClass {
         let A: Int
         let B: Double
@@ -242,7 +232,7 @@ public class ClassDeclTests: PrettyPrintTestCase {
 
       """
 
-    assertPrettyPrintEqual(input: input, expected: expected, linelength: 60)
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 55)
   }
 
   public func testClassFullWrap() {
@@ -258,15 +248,11 @@ public class ClassDeclTests: PrettyPrintTestCase {
 
       """
       public class MyContainer<
-        BaseCollection,
-        SecondCollection
-      >:
-        MyContainerSuperclass,
-        MyContainerProtocol,
+        BaseCollection, SecondCollection
+      >: MyContainerSuperclass, MyContainerProtocol,
         SomeoneElsesContainerProtocol,
         SomeFrameworkContainerProtocol
-      where
-        BaseCollection: Collection,
+      where BaseCollection: Collection,
         BaseCollection.Element: Equatable,
         BaseCollection.Element: SomeOtherProtocol
       {

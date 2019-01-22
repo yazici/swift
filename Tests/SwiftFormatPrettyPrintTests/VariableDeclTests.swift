@@ -9,13 +9,12 @@ public class VariableDeclarationTests: PrettyPrintTestCase {
 
     let expected =
       """
-      let x =
-        firstVariable +
-        secondVariable /
-        thirdVariable +
-        fourthVariable
-      let y: Int =
-        anotherVar + moreVar
+      let x = firstVariable
+        + secondVariable
+        / thirdVariable
+        + fourthVariable
+      let y: Int = anotherVar
+        + moreVar
       let (w, z, s):
         (Int, Double, Bool) =
         firstTuple + secondTuple
@@ -38,10 +37,9 @@ public class VariableDeclarationTests: PrettyPrintTestCase {
       """
       @NSCopying let a: Int = 123
       @NSCopying @NSManaged let a: Int = 123
-      @NSCopying
-      let areallylongvarname: Int = 123
-      @NSCopying
-      @NSManaged
+      @NSCopying let areallylongvarname: Int =
+        123
+      @NSCopying @NSManaged
       let areallylongvarname: Int = 123
 
       """

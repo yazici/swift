@@ -27,7 +27,8 @@ public class EnumDeclTests: PrettyPrintTestCase {
         case secondCase
       }
       public enum
-      MyLongerEnum {
+        MyLongerEnum
+      {
         case firstCase
         case secondCase
       }
@@ -68,9 +69,7 @@ public class EnumDeclTests: PrettyPrintTestCase {
           fifth
         case sixth(Int)
         case seventh(
-          a: Int,
-          b: Bool,
-          c: Double
+          a: Int, b: Bool, c: Double
         )
       }
 
@@ -144,10 +143,7 @@ public class EnumDeclTests: PrettyPrintTestCase {
         case secondCase
       }
       enum MyEnum<
-        One,
-        Two,
-        Three,
-        Four
+        One, Two, Three, Four
       > {
         case firstCase
         case secondCase
@@ -185,9 +181,7 @@ public class EnumDeclTests: PrettyPrintTestCase {
         case firstCase
         case secondCase
       }
-      enum MyEnum:
-        ProtoOne,
-        ProtoTwo,
+      enum MyEnum: ProtoOne, ProtoTwo,
         ProtoThree
       {
         case firstCase
@@ -228,9 +222,7 @@ public class EnumDeclTests: PrettyPrintTestCase {
         let B: Double
       }
       enum MyEnum<S, T>
-      where
-        S: Collection,
-        T: ReallyLongEnumName,
+      where S: Collection, T: ReallyLongEnumName,
         U: AnotherLongEnum
       {
         case firstCase
@@ -287,8 +279,7 @@ public class EnumDeclTests: PrettyPrintTestCase {
         case firstCase
         let B: Double
       }
-      @dynamicMemberLookup
-      @available(swift 4.0)
+      @dynamicMemberLookup @available(swift 4.0)
       public enum MyEnum {
         case firstCase
         let B: Double
@@ -305,15 +296,12 @@ public class EnumDeclTests: PrettyPrintTestCase {
         case firstCase
         let B: Double
       }
-      @dynamicMemberLookup
-      @objc
-      @objcMembers
+      @dynamicMemberLookup @objc @objcMembers
       public enum MyEnum {
         case firstCase
         let B: Double
       }
-      @dynamicMemberLookup
-      @available(swift 4.0)
+      @dynamicMemberLookup @available(swift 4.0)
       public enum MyEnum {
         case firstCase
         let B: Double
@@ -337,15 +325,11 @@ public class EnumDeclTests: PrettyPrintTestCase {
 
       """
       public enum MyEnum<
-        BaseCollection,
-        SecondCollection
-      >:
-        MyContainerProtocolOne,
-        MyContainerProtocolTwo,
+        BaseCollection, SecondCollection
+      >: MyContainerProtocolOne, MyContainerProtocolTwo,
         SomeoneElsesContainerProtocol,
         SomeFrameworkContainerProtocol
-      where
-        BaseCollection: Collection,
+      where BaseCollection: Collection,
         BaseCollection.Element: Equatable,
         BaseCollection.Element: SomeOtherProtocol
       {

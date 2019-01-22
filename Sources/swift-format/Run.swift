@@ -51,7 +51,7 @@ public func lintMain(path: String) -> Int {
 ///
 /// - Parameter path: The absolute path to the source file to be linted.
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
-public func formatMain(path: String, isDebugMode: Bool, prettyPrint: Bool, printTokenStream: Bool) -> Int {
+public func formatMain(path: String, prettyPrint: Bool, printTokenStream: Bool) -> Int {
   let url = URL(fileURLWithPath: path)
   let configuration = Configuration()
   let context = Context(configuration: configuration, diagnosticEngine: nil, fileURL: url)
@@ -76,7 +76,6 @@ public func formatMain(path: String, isDebugMode: Bool, prettyPrint: Bool, print
       let printer = PrettyPrinter(
         context: prettyPrintContext,
         node: formatted,
-        isDebugMode: isDebugMode,
         printTokenStream: printTokenStream
       )
       print(printer.prettyPrint(), terminator: "")

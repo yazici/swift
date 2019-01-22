@@ -21,32 +21,35 @@ public class TryCatchTests: PrettyPrintTestCase {
   public func testDoTryCatch() {
     let input =
       """
-      do { foo() } catch { bar() }
-
       do { try thisFuncMightFail() } catch error1 { print("Nope") }
-
-      do { try thisFuncMightFail() } catch error1 { print("Nope") } catch error2(let someVar) {
+      do { try thisFuncMightFail() } catch error1 { print("Nope") } catch error2 { print("Nope") }
+      do { try thisFuncMightFail() } catch error1 { print("Nope") } catch error2(let someVar) { print("Nope") }
+      do { try thisFuncMightFail() } catch error1 { print("Nope") }
+      catch error2(let someVar) {
         print(someVar)
         print("Don't do it!")
       }
-
       do { try thisFuncMightFail() } catch is ABadError{ print("Nope") }
       """
 
     let expected =
       """
-      do { foo() } catch { bar() }
-
       do { try thisFuncMightFail() }
       catch error1 { print("Nope") }
-
+      do { try thisFuncMightFail() }
+      catch error1 { print("Nope") }
+      catch error2 { print("Nope") }
+      do { try thisFuncMightFail() }
+      catch error1 { print("Nope") }
+      catch error2(let someVar) {
+        print("Nope")
+      }
       do { try thisFuncMightFail() }
       catch error1 { print("Nope") }
       catch error2(let someVar) {
         print(someVar)
         print("Don't do it!")
       }
-
       do { try thisFuncMightFail() }
       catch is ABadError { print("Nope") }
 
@@ -58,40 +61,25 @@ public class TryCatchTests: PrettyPrintTestCase {
   public func testCatchWhere() {
     let input =
       """
-      do {
-        try thisFuncMightFail()
-      } catch error1 where error1 is ErrorType {
-        print("Nope")
-      }
-
-      do {
-        try thisFuncMightFail()
-      } catch error1 where error1 is LongerErrorType {
-        print("Nope")
-      }
+      do { try thisFuncMightFail() } catch error1 where error1 is ErrorType { print("Nope") }
+      do { try thisFuncMightFail() } catch error1 where error1 is LongerErrorType { print("Nope") }
       """
 
     let expected =
       """
-      do {
-        try thisFuncMightFail()
-      }
+      do { try thisFuncMightFail() }
       catch error1 where error1 is ErrorType {
         print("Nope")
       }
-
-      do {
-        try thisFuncMightFail()
-      }
+      do { try thisFuncMightFail() }
       catch error1
-      where error1 is LongerErrorType
-      {
+      where error1 is LongerErrorType {
         print("Nope")
       }
 
       """
 
-    assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 42)
   }
 
   public func testNestedDo() {

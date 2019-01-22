@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import SwiftFormatConfiguration
 import SwiftSyntax
 
 struct Comment {
@@ -61,13 +62,13 @@ struct Comment {
     }
   }
 
-  func print(indent: Int) -> String {
+  func print(indent: [Indent]) -> String {
     switch self.kind {
     case .line, .docLine:
-      let separator = "\n" + String(repeating: " ", count: indent) + kind.prefix
+      let separator = "\n" + kind.prefix
       return kind.prefix + self.text.joined(separator: separator)
     case .block, .docBlock:
-      let separator = "\n" + String(repeating: " ", count: indent)
+      let separator = "\n"
       return kind.prefix + self.text.joined(separator: separator) + "*/"
     }
   }

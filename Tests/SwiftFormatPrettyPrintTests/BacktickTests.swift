@@ -3,7 +3,6 @@ public class BacktickTests: PrettyPrintTestCase {
     let input =
       """
       let `case` = 123
-
       enum MyEnum {
         case `break`
         case `continue`
@@ -15,7 +14,6 @@ public class BacktickTests: PrettyPrintTestCase {
     let expected =
       """
       let `case` = 123
-
       enum MyEnum {
         case `break`
         case `continue`

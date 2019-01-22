@@ -17,21 +17,11 @@ public class DictionaryDeclTests: PrettyPrintTestCase {
         1: "a", 2: "b", 3: "c", 4: "d"
       ]
       let a: [Int: String] = [
-        1: "a",
-        2: "b",
-        3: "c",
-        4: "d",
-        5: "e",
-        6: "f",
+        1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f",
         7: "g"
       ]
       let a: [Int: String] = [
-        1: "a",
-        2: "b",
-        3: "c",
-        4: "d",
-        5: "e",
-        6: "f",
+        1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f",
         7: "g",
       ]
 

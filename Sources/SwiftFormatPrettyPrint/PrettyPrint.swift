@@ -14,18 +14,6 @@ import SwiftFormatConfiguration
 import SwiftFormatCore
 import SwiftSyntax
 
-#if os(Linux)
-import Glibc
-#else
-import Darwin
-#endif
-
-/// Characters used in debug mode to mark breaks, groups, and other points of interest.
-fileprivate let spaceMarker = "\u{00B7}"
-fileprivate let breakMarker = "\u{23CE}"
-fileprivate let openGroupMarker = "\u{27EC}"
-fileprivate let closeGroupMarker = "\u{27ED}"
-
 /// PrettyPrinter takes a Syntax node and outputs a well-formatted, re-indented reproduction of the
 /// code as a String.
 public class PrettyPrinter {
@@ -43,44 +31,53 @@ public class PrettyPrinter {
 
   /// This is set to true when a break creates a new line. Since consecutive break tokens may not
   /// all create new lines, only syntax tokens set this to false.
-  private var lastBreakConsecutive = false
+  private var lastBreakConsecutive = true
 
   /// Did the previous token create a new line? This is used to determine if a group needs to
   /// consistently break.
   private var lastBreak = false
 
-  /// The offset value of the last break token.
-  private var lastBreakOffset = 0
-
-  /// The total number of spaces we need to indent from the last break.
-  private var lastBreakValue = 0
-
-  /// Keep track of the indentation level of the current group as the number of blank spaces.
-  private var indentStack = [0]
-
-  /// Keep track of the offset value passed to a group. This is used to adjust the offset value of
-  /// any trailing break statements in the group.
-  private var relativeIndentStack = [0]
+  /// Keep track of the indentation level of the current group as a sequence of space or tab values.
+  private var indentationStack: [Indent] = []
 
   /// Keep track of whether we are forcing breaks within a group (for consistent breaking).
   private var forceBreakStack = [false]
 
-  /// If true, the pretty printer will output control characters that indicate where groups and
-  /// breaks occur in the formatted output.
-  private var isDebugMode: Bool
-
   /// If true, the token stream is printed to the console for debugging purposes.
   private var printTokenStream: Bool
 
-  /// The current index (0..<6) of the color to be used for the next color group.
-  private var currentDebugGroupMarkerColor = 0
+  /// Keeps track of the line numbers of the open (and unclosed) breaks seen so far.
+  private var openDelimiterBreakStack: [Int] = []
 
-  /// We cycle through ANSI colors 31...36 for group brackets.
-  private let groupMarkerColorCount = 6
+  /// Keeps track of the current line number being printed.
+  private var lineNumber: Int = 0
 
-  /// The ANSI color code string for the current group color (used in debug mode).
-  private var currentGroupColorString: String {
-    return Ansi.color(currentDebugGroupMarkerColor + 1)
+  /// Indicates whether or not the current line being printed is a continuation line.
+  private var currentLineIsContinuation = false
+
+  /// Keeps track of the most recent number of consecutive newlines that have been printed.
+  ///
+  /// This value is reset to zero whenever non-newline content is printed.
+  private var consecutiveNewlineCount = 0
+
+  /// Keeps track of the most recent number of spaces that should be printed before the next text
+  /// token.
+  private var pendingSpaces = 0
+
+  /// Indicates whether or not the printer is currently at the beginning of a line.
+  private var isAtStartOfLine = true
+
+  /// The kind of the last break token that was printed.
+  private var lastBreakKind: BreakKind = .reset
+
+  /// The computed indentation level, as a number of spaces, based on the state of any unclosed
+  /// delimiters and whether or not the current line is a continuation line.
+  private var currentIndentation: [Indent] {
+    var totalIndentation = indentationStack
+    if currentLineIsContinuation {
+      totalIndentation.append(configuration.indentation)
+    }
+    return totalIndentation
   }
 
   /// Creates a new PrettyPrinter with the provided formatting configuration.
@@ -88,19 +85,73 @@ public class PrettyPrinter {
   /// - Parameters:
   ///   - context: The formatter context.
   ///   - node: The node to be pretty printed.
-  public init(context: Context, node: Syntax, isDebugMode: Bool, printTokenStream: Bool) {
+  public init(context: Context, node: Syntax, printTokenStream: Bool) {
     self.context = context
     let configuration = context.configuration
     self.tokens = node.makeTokenStream(configuration: configuration)
     self.maxLineLength = configuration.lineLength
-    self.isDebugMode = isDebugMode
     self.spaceRemaining = self.maxLineLength
     self.printTokenStream = printTokenStream
   }
 
-  /// Append the input string to the output buffer
-  func write<S: StringProtocol>(_ str: S) {
+  /// Append the given string to the output buffer.
+  ///
+  /// No further processing is performed on the string.
+  private func writeRaw<S: StringProtocol>(_ str: S) {
     outputBuffer.append(String(str))
+  }
+
+  /// Writes the given number of newlines to the output stream.
+  ///
+  /// - Parameters:
+  ///   - count: The number of newlines to write.
+  ///   - discretionary: Indicates whether the newlines are user-entered discretionary newlines.
+  ///     Discretionary newlines are always printed (up through the maximum allowed number provided
+  ///     to the printer at initialization time). Non-discretionary newlines are only printed if
+  ///     discretionary newlines have already not been printed yet.
+  private func writeNewlines(_ count: Int, discretionary: Bool) {
+    // We add 1 because it takes 2 newlines to create a blank line.
+    let maximumNewlines = configuration.maximumBlankLines + 1
+    let numberToPrint: Int
+    if consecutiveNewlineCount + count <= maximumNewlines {
+      numberToPrint = count - consecutiveNewlineCount
+    } else {
+      numberToPrint = maximumNewlines - consecutiveNewlineCount
+    }
+
+    guard (discretionary && numberToPrint > 0) || consecutiveNewlineCount == 0 else { return }
+
+    writeRaw(String(repeating: "\n", count: numberToPrint))
+    lineNumber += numberToPrint
+    isAtStartOfLine = true
+    consecutiveNewlineCount += numberToPrint
+    pendingSpaces = 0
+  }
+
+  /// Request that the given number of spaces be printed out before the next text token.
+  ///
+  /// Spaces are printed only when the next text token is printed in order to prevent us from
+  /// printing lines that are only whitespace or have trailing whitespace.
+  private func enqueueSpaces(_ count: Int) {
+    pendingSpaces += count
+    spaceRemaining -= count
+  }
+
+  /// Writes the given text to the output stream.
+  ///
+  /// Before printing the text, this function will print any line-leading indentation or interior
+  /// leading spaces that are required before the text itself.
+  private func write(_ text: String) {
+    if isAtStartOfLine {
+      writeRaw(currentIndentation.indentation())
+      spaceRemaining = maxLineLength - currentIndentation.length(in: configuration)
+      isAtStartOfLine = false
+    } else if pendingSpaces > 0 {
+      writeRaw(String(repeating: " ", count: pendingSpaces))
+    }
+    writeRaw(text)
+    consecutiveNewlineCount = 0
+    pendingSpaces = 0
   }
 
   /// Print out the provided token, and apply line-wrapping and indentation as needed.
@@ -121,11 +172,7 @@ public class PrettyPrinter {
 
     // Check if we need to force breaks in this group, and calculate the indentation to be used in
     // the group.
-    case .open(let breaktype, let offset):
-      if isDebugMode {
-        writeOpenGroupDebugMarker()
-      }
-
+    case .open(let breaktype):
       // Determine if the break tokens in this group need to be forced.
       if (length > spaceRemaining || lastBreak), case .consistent = breaktype {
         forceBreakStack.append(true)
@@ -133,120 +180,92 @@ public class PrettyPrinter {
         forceBreakStack.append(false)
       }
 
-      // The preceding break's offset is added to the indentation of the group. The indent is
-      // incremented from the outer group's indent.
-      let indentValue = indentStack.last ?? 0
-      indentStack.append(indentValue + offset + lastBreakOffset)
-      relativeIndentStack.append(offset + lastBreakOffset)
-      lastBreakOffset = 0
-
     case .close:
-      if isDebugMode {
-        writeCloseGroupDebugMarker()
-      }
       forceBreakStack.removeLast()
-      indentStack.removeLast()
-      let indentValue = relativeIndentStack.popLast() ?? 0
-      // The offset of the last break needs to be adjusted according to its parent group. This is so
-      // the next open token's indent is initialized with the correct value.
-      lastBreakOffset += indentValue
 
     // Create a line break if needed. Calculate the indentation required and adjust spaceRemaining
     // accordingly.
-    case .break(let size, let offset):
-      if isDebugMode {
-        if let forcebreak = forceBreakStack.last, forcebreak {
-          writeBreakDebugMarker(style: .consistent)
-        } else {
-          writeBreakDebugMarker(style: .inconsistent)
+    case .break(let kind, let size):
+      lastBreakKind = kind
+      var mustBreak = forceBreakStack.last ?? false
+      var isContinuation = false
+
+      switch kind {
+      case .open:
+        currentLineIsContinuation = false
+        openDelimiterBreakStack.append(lineNumber)
+        indentationStack.append(configuration.indentation)
+      case .close:
+        guard let matchingOpenLineNumber = openDelimiterBreakStack.popLast() else {
+          fatalError("Unmatched closing break")
         }
+        mustBreak = lineNumber != matchingOpenLineNumber
+        indentationStack.removeLast()
+      case .continue:
+        isContinuation = true
+      case .same:
+        break
+      case .reset:
+        mustBreak = currentLineIsContinuation
       }
 
-      // Check if we are forcing breaks within our current group.
-      let forcebreak = forceBreakStack.last ?? false
+      if length > spaceRemaining || mustBreak {
+        currentLineIsContinuation = isContinuation
 
-      if (length > spaceRemaining || forcebreak) && !lastBreakConsecutive {
-        // Check the indentation of the enclosing group.
-        let indentValue = indentStack.last ?? 0
-
-        spaceRemaining = maxLineLength - indentValue - offset
-        write("\n")
-
-        lastBreak = true
-        lastBreakConsecutive = true
-        lastBreakOffset = offset
-        lastBreakValue = indentValue + offset
-      } else {
         if !lastBreakConsecutive {
-          writeSpaces(size)
-          spaceRemaining -= size
-          lastBreakValue = 0
+          writeNewlines(1, discretionary: false)
+
+          lastBreak = true
+          lastBreakConsecutive = true
+        }
+      } else {
+        if isAtStartOfLine {
+          // Make sure that the continuation status is correct even at the beginning of a line
+          // (for example, after a newline token). This is necessary because a discretionary newline
+          // might be inserted into the token stream before a continuation break, and the length of
+          // that break might not be enough to satisfy the conditions above but we still need to
+          // treat the line as a continuation.
+          currentLineIsContinuation = isContinuation
+        }
+        if !lastBreakConsecutive {
+          enqueueSpaces(size)
         }
 
         lastBreak = false
-        lastBreakOffset = 0
       }
-
-    case .reset:
-      lastBreak = false
-      lastBreakOffset = 0
-      lastBreakValue = 0
-      lastBreakConsecutive = false
 
     // Print out the number of spaces according to the size, and adjust spaceRemaining.
     case .space(let size):
-      if lastBreakConsecutive {
-        writeSpaces(lastBreakValue)
+      enqueueSpaces(size)
 
-        lastBreak = false
-        lastBreakConsecutive = false
-        lastBreakOffset = 0
-        lastBreakValue = 0
+    // Apply `count` line breaks, calculate the indentation required, and adjust spaceRemaining.
+    case .newlines(let count, let discretionary):
+      currentLineIsContinuation = (lastBreakKind == .continue)
+
+      if !lastBreakConsecutive || discretionary {
+        writeNewlines(count, discretionary: discretionary)
       }
-      spaceRemaining -= size
-      writeSpaces(size)
-
-    // Apply N line breaks, calculate the indentation required, and adjust spaceRemaining.
-    case .newlines(let N, let offset):
-      let indentValue = indentStack.last ?? 0
-
-      spaceRemaining = maxLineLength - indentValue - offset
-      write(String(repeating: "\n", count: N))
 
       lastBreak = true
       lastBreakConsecutive = true
-      lastBreakOffset = offset
-      lastBreakValue = indentValue + offset
 
     // Print any indentation required, followed by the text content of the syntax token.
-    case .syntax(let syntaxToken):
-      if lastBreakConsecutive {
-        // If the last token created a new line, we need to apply indentation.
-        writeSpaces(lastBreakValue)
+    case .syntax(let text):
+      guard !text.isEmpty else { break }
 
-        lastBreak = false
-        lastBreakConsecutive = false
-        lastBreakOffset = 0
-        lastBreakValue = 0
-      }
-      if syntaxToken.leadingTrivia.hasBackticks {
-        write("`" + syntaxToken.text + "`")
-      } else {
-        write(syntaxToken.text)
-      }
-      spaceRemaining -= syntaxToken.text.count
+      lastBreak = false
+      lastBreakConsecutive = false
+
+      write(text)
+      spaceRemaining -= text.count
 
     case .comment(let comment, let wasEndOfLine):
       if lastBreakConsecutive {
-        // If the last token created a new line, we need to apply indentation.
-        writeSpaces(lastBreakValue)
-
+        currentLineIsContinuation = false
         lastBreak = false
         lastBreakConsecutive = false
-        lastBreakOffset = 0
-        lastBreakValue = 0
       }
-      write(comment.print(indent: lastBreakValue))
+      write(comment.print(indent: currentIndentation))
       if wasEndOfLine {
         if comment.length > spaceRemaining {
           diagnose(.moveEndOfLineComment, at: comment.position)
@@ -256,12 +275,12 @@ public class PrettyPrinter {
       }
 
     case .verbatim(let verbatim):
-      write(verbatim.print(indent: lastBreakValue))
+      writeRaw(verbatim.print(indent: currentIndentation))
+      consecutiveNewlineCount = 0
+      pendingSpaces = 0
       if lastBreakConsecutive {
         lastBreak = false
         lastBreakConsecutive = false
-        lastBreakOffset = 0
-        lastBreakValue = 0
       }
       spaceRemaining -= length
     }
@@ -311,7 +330,7 @@ public class PrettyPrinter {
 
       // Break lengths are equal to its size plus the token or group following it. Calculate the
       // length of any prior break tokens.
-      case .break(let size, _):
+      case .break(_, let size):
         if let index = delimIndexStack.last, case .break = tokens[index] {
           lengths[index] += total
           delimIndexStack.removeLast()
@@ -325,14 +344,6 @@ public class PrettyPrinter {
       case .space(let size):
         lengths.append(size)
         total += size
-
-      case .reset:
-        if let index = delimIndexStack.last, case .break = tokens[index] {
-          lengths[index] += total
-          delimIndexStack.removeLast()
-        }
-
-        lengths.append(0)
 
       // The length of newlines are equal to the maximum allowed line length. Calculate the length
       // of any prior break tokens.
@@ -350,14 +361,9 @@ public class PrettyPrinter {
         total += maxLineLength
 
       // Syntax tokens have a length equal to the number of columns needed to print its contents.
-      case .syntax(let syntaxToken):
-        if syntaxToken.leadingTrivia.hasBackticks {
-          lengths.append(syntaxToken.text.count + 2)
-          total += syntaxToken.text.count + 2
-        } else {
-          lengths.append(syntaxToken.text.count)
-          total += syntaxToken.text.count
-        }
+      case .syntax(let text):
+        lengths.append(text.count)
+        total += text.count
 
       case .comment(let comment, let wasEndOfLine):
         lengths.append(comment.length)
@@ -390,99 +396,56 @@ public class PrettyPrinter {
     for i in 0..<tokens.count {
       printToken(token: tokens[i], length: lengths[i])
     }
+
+    guard openDelimiterBreakStack.isEmpty else {
+      fatalError("At least one .break(.open) was not matched by a .break(.close)")
+    }
+
     return outputBuffer
   }
 
-  /// Writes a consistent or inconsistent break marker in debug mode.
-  ///
-  /// Breaks are indicated with the Unicode "RETURN SYMBOL" (⏎). Consistent breaks will be displayed
-  /// in green and inconsistent breaks in yellow.
-  ///
-  /// - Parameter style: The break style to display.
-  private func writeBreakDebugMarker(style: BreakStyle) {
-    let breakColor: String
-    switch style {
-    case .consistent: breakColor = Ansi.green
-    case .inconsistent: breakColor = Ansi.yellow
-    }
-    write(Ansi.bold)
-    write(breakColor)
-    write(breakMarker)
-    write(Ansi.reset)
-  }
-
-  /// Writes a tortoise shell bracket indicating the beginning of a token group.
-  ///
-  /// Group markers are cycled through six different colors to make it easier to identify adjacent
-  /// and nested groups.
-  private func writeOpenGroupDebugMarker() {
-    write(Ansi.bold)
-    write(currentGroupColorString)
-    write(openGroupMarker)
-    write(Ansi.reset)
-    currentDebugGroupMarkerColor = (currentDebugGroupMarkerColor + 1) % groupMarkerColorCount
-  }
-
-  /// Writes a tortoise shell bracket indicating the end of a token group.
-  ///
-  /// Group markers are cycled through six different colors to make it easier to identify adjacent
-  /// and nested groups.
-  private func writeCloseGroupDebugMarker() {
-    currentDebugGroupMarkerColor = currentDebugGroupMarkerColor - 1
-    if currentDebugGroupMarkerColor < 0 {
-      currentDebugGroupMarkerColor = groupMarkerColorCount - 1
-    }
-    write(Ansi.bold)
-    write(currentGroupColorString)
-    write(closeGroupMarker)
-    write(Ansi.reset)
-  }
-
-  /// Used to track the indentation level for the debug token stream output
-  var debugIndent: Int = 0
+  /// Used to track the indentation level for the debug token stream output.
+  var debugIndent: [Indent] = []
 
   /// Print out the token stream to the console for debugging.
   ///
   /// Indentation is applied to make identification of groups easier.
   private func printDebugToken(token: Token, length: Int) {
     func printDebugIndent() {
-      print(String(repeating: " ", count: debugIndent), terminator:"")
+      print(debugIndent.indentation(), terminator: "")
     }
+
     switch token {
     case .syntax(let syntax):
       printDebugIndent()
-      print("[SYNTAX \"\(syntax.text)\" Length: \(length)]")
+      print("[SYNTAX \"\(syntax)\" Length: \(length)]")
 
-    case .break(let size, let offset):
+    case .break(let kind, let size):
       printDebugIndent()
-      print("[BREAK Size: \(size) Offset: \(offset) Length: \(length)]")
+      print("[BREAK Kind: \(kind) Size: \(size) Length: \(length)]")
 
-    case .open(let breakstyle, let offset):
+    case .open(let breakstyle):
       printDebugIndent()
       switch breakstyle {
       case .consistent:
-        print("[OPEN Consistent Offset: \(offset) Length: \(length)]")
+        print("[OPEN Consistent Length: \(length)]")
       case .inconsistent:
-        print("[OPEN Inconsistent Offset: \(offset) Length: \(length)]")
+        print("[OPEN Inconsistent Length: \(length)]")
       }
-      debugIndent += 2
+      debugIndent.append(.spaces(2))
 
     case .close:
-      debugIndent -= 2
+      debugIndent.removeLast()
       printDebugIndent()
       print("[CLOSE]")
 
-    case .newlines(let N, let offset):
+    case .newlines(let N, let required):
       printDebugIndent()
-      print("[NEWLINES N: \(N) Offset: \(offset) Length: \(length)]")
+      print("[NEWLINES N: \(N) Required: \(required) Length: \(length)]")
 
     case .space(let size):
       printDebugIndent()
       print("[SPACE Size: \(size) Length: \(length)]")
-
-    case .reset:
-      printDebugIndent()
-      print("[RESET]")
 
     case .comment(let comment, let wasEndOfLine):
       printDebugIndent()
@@ -506,23 +469,6 @@ public class PrettyPrinter {
     }
   }
 
-  /// Writes the given number of spaces to the output.
-  ///
-  /// If debug mode is enabled, spaces are rendered as gray Unicode MIDDLE DOT characters.
-  private func writeSpaces(_ count: Int) {
-    if isDebugMode {
-      write(Ansi.brightBlack)
-      write(String(repeating: spaceMarker, count: count))
-      write(Ansi.reset)
-    } else {
-      if count == 1 {
-        write(" ")
-      } else {
-        write(String(repeating: " ", count: count))
-      }
-    }
-  }
-
   private func diagnose(_ message: Diagnostic.Message, at position: AbsolutePosition?) {
     let location: SourceLocation?
     if let position = position {
@@ -532,34 +478,6 @@ public class PrettyPrinter {
     }
     context.diagnosticEngine?.diagnose(message, location: location)
   }
-}
-
-/// Convenience properties/functions to access ANSI color code strings, respecting whether or not
-/// output is being written to a terminal.
-enum Ansi {
-
-  /// True if stdout is a terminal (as opposed to a pipe or a redirection).
-  static private var isTerminal: Bool { return isatty(1) != 0 }
-
-  /// The ANSI color code string that makes subsequent text bold.
-  static var bold: String { return isTerminal ? "\u{001b}[1m" : "" }
-
-  /// The ANSI color code string that makes subsequent text reset to normal appearance.
-  static var reset: String { return isTerminal ? "\u{001b}[0m" : "" }
-
-  /// The ANSI color code string that makes subsequent text bright black.
-  static var brightBlack: String { return "\u{001b}[30;1m" }
-
-  /// The ANSI color code string that makes subsequent text green.
-  static var green: String { return color(2) }
-
-  /// The ANSI color code string that makes subsequent text yellow.
-  static var yellow: String { return color(3) }
-
-  /// The ANSI color code string that makes subsequent text render in the given color.
-  ///
-  /// The number 30 is added to the given index to determine the actual color code.
-  static func color(_ index: Int) -> String { return isTerminal ? "\u{001b}[\(30 + index)m" : "" }
 }
 
 extension Diagnostic.Message {
