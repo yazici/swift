@@ -40,16 +40,14 @@ public class FunctionTypeTests: PrettyPrintTestCase {
       }
       func f(
         g: (variable1: Int, variable2: Double, variable3: Bool) ->
-        Double
+          Double
       ) {
         let a = 123
         let b = "abc"
       }
       func f(
         g: (
-          variable1: Int,
-          variable2: Double,
-          variable3: Bool,
+          variable1: Int, variable2: Double, variable3: Bool,
           variable4: String
         ) -> Double
       ) {
@@ -103,16 +101,14 @@ public class FunctionTypeTests: PrettyPrintTestCase {
       }
       func f(
         g: (variable1: Int, variable2: Double, variable3: Bool) throws ->
-        Double
+          Double
       ) {
         let a = 123
         let b = "abc"
       }
       func f(
         g: (
-          variable1: Int,
-          variable2: Double,
-          variable3: Bool,
+          variable1: Int, variable2: Double, variable3: Bool,
           variable4: String
         ) throws -> Double
       ) {

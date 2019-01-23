@@ -12,7 +12,9 @@
 
 import Basic
 import Foundation
+import SwiftFormatConfiguration
 import SwiftFormatCore
+import SwiftFormatPrettyPrint
 import Utility
 
 enum Mode: String, Codable, ArgumentKind {
@@ -40,7 +42,6 @@ struct CommandLineOptions: Codable {
   var paths: [String] = []
   var verboseLevel = 0
   var mode: Mode = .format
-  var isDebugMode: Bool = false
   var prettyPrint: Bool = false
   var printTokenStream: Bool = false
 }
@@ -77,15 +78,6 @@ func processArguments(commandName: String, _ arguments: [String]) -> CommandLine
       completion: .filename
   )) {
     $0.paths = $1
-  }
-  binder.bind(
-    option: parser.add(
-      option: "--debug",
-      shortName: "-d",
-      kind: Bool.self,
-      usage: "Annotates the formatted output to assist with debugging the formatter."
-  )) {
-    $0.isDebugMode = $1
   }
   binder.bind(
     option: parser.add(
@@ -126,7 +118,6 @@ func main(_ arguments: [String]) -> Int32 {
     for path in options.paths {
       ret |= formatMain(
         path: path,
-        isDebugMode: options.isDebugMode,
         prettyPrint: options.prettyPrint,
         printTokenStream: options.printTokenStream
       )

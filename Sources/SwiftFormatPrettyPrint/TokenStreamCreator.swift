@@ -37,6 +37,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   var openings = 0
 
   func before(_ token: TokenSyntax?, tokens: Token...) {
+    before(token, tokens: tokens)
+  }
+
+  func before(_ token: TokenSyntax?, tokens: [Token]) {
     guard let tok = token else { return }
     for preToken in tokens {
       if case .open = preToken {
@@ -50,6 +54,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   func after(_ token: TokenSyntax?, tokens: Token...) {
+    after(token, tokens: tokens)
+  }
+
+  func after(_ token: TokenSyntax?, tokens: [Token]) {
     guard let tok = token else { return }
     for postToken in tokens {
       if case .open = postToken {
@@ -62,14 +70,21 @@ private final class TokenStreamCreator: SyntaxVisitor {
     afterMap[tok, default: []].append(tokens)
   }
 
-  private func insertToken<Node: Collection>(
-    _ token: Token,
-    betweenChildrenOf collectionNode: Node
-  ) where Node.Element: Syntax, Node.Index == Int {
-    if collectionNode.count > 0 {
-      for i in 0..<(collectionNode.count - 1) {
-        after(collectionNode[i].lastToken, tokens: token)
-      }
+  private func insertTokens<Node: Collection>(
+    _ tokens: Token...,
+    betweenElementsOf collectionNode: Node
+  ) where Node.Element: Syntax {
+    for element in collectionNode.dropLast() {
+      after(element.lastToken, tokens: tokens)
+    }
+  }
+
+  private func insertTokens<Node: Collection>(
+    _ tokens: Token...,
+    betweenElementsOf collectionNode: Node
+  ) where Node.Element == DeclSyntax {
+    for element in collectionNode.dropLast() {
+      after(element.lastToken, tokens: tokens)
     }
   }
 
@@ -93,9 +108,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
     arrangeTypeDeclBlock(
       node,
       attributes: node.attributes,
+      modifiers: node.modifiers,
       typeKeyword: node.classKeyword,
-      members: node.members,
-      genericWhereClause: node.genericWhereClause)
+      identifier: node.identifier,
+      genericParameterClause: node.genericParameterClause,
+      inheritanceClause: node.inheritanceClause,
+      genericWhereClause: node.genericWhereClause,
+      members: node.members)
     super.visit(node)
   }
 
@@ -103,9 +122,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
     arrangeTypeDeclBlock(
       node,
       attributes: node.attributes,
+      modifiers: node.modifiers,
       typeKeyword: node.structKeyword,
-      members: node.members,
-      genericWhereClause: node.genericWhereClause)
+      identifier: node.identifier,
+      genericParameterClause: node.genericParameterClause,
+      inheritanceClause: node.inheritanceClause,
+      genericWhereClause: node.genericWhereClause,
+      members: node.members)
     super.visit(node)
   }
 
@@ -113,9 +136,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
     arrangeTypeDeclBlock(
       node,
       attributes: node.attributes,
+      modifiers: node.modifiers,
       typeKeyword: node.enumKeyword,
-      members: node.members,
-      genericWhereClause: node.genericWhereClause)
+      identifier: node.identifier,
+      genericParameterClause: node.genericParameters,
+      inheritanceClause: node.inheritanceClause,
+      genericWhereClause: node.genericWhereClause,
+      members: node.members)
     super.visit(node)
   }
 
@@ -123,19 +150,30 @@ private final class TokenStreamCreator: SyntaxVisitor {
     arrangeTypeDeclBlock(
       node,
       attributes: node.attributes,
+      modifiers: node.modifiers,
       typeKeyword: node.protocolKeyword,
-      members: node.members,
-      genericWhereClause: node.genericWhereClause)
+      identifier: node.identifier,
+      genericParameterClause: nil,
+      inheritanceClause: node.inheritanceClause,
+      genericWhereClause: node.genericWhereClause,
+      members: node.members)
     super.visit(node)
   }
 
   override func visit(_ node: ExtensionDeclSyntax) {
+    guard let lastTokenOfExtendedType = node.extendedType.lastToken else {
+      fatalError("ExtensionDeclSyntax.extendedType must have at least one token")
+    }
     arrangeTypeDeclBlock(
       node,
       attributes: node.attributes,
+      modifiers: node.modifiers,
       typeKeyword: node.extensionKeyword,
-      members: node.members,
-      genericWhereClause: node.genericWhereClause)
+      identifier: lastTokenOfExtendedType,
+      genericParameterClause: nil,
+      inheritanceClause: node.inheritanceClause,
+      genericWhereClause: node.genericWhereClause,
+      members: node.members)
     super.visit(node)
   }
 
@@ -144,74 +182,79 @@ private final class TokenStreamCreator: SyntaxVisitor {
   private func arrangeTypeDeclBlock(
     _ node: Syntax,
     attributes: AttributeListSyntax?,
+    modifiers: ModifierListSyntax?,
     typeKeyword: TokenSyntax,
-    members: MemberDeclBlockSyntax,
-    genericWhereClause: GenericWhereClauseSyntax?
+    identifier: TokenSyntax,
+    genericParameterClause: GenericParameterClauseSyntax?,
+    inheritanceClause: TypeInheritanceClauseSyntax?,
+    genericWhereClause: GenericWhereClauseSyntax?,
+    members: MemberDeclBlockSyntax
   ) {
-    // TODO(allevato): If `EnumDeclSyntax` is updated to extend `DeclGroupSyntax` (I can't see a
-    // reason that it shouldn't), then we can simplify this function's signature by constraining
-    // `node` to that protocol and removing the explicit `attributes` and `members` arguments.
+    before(node.firstToken, tokens: .open)
 
-    if let attributes = attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
+    arrangeAttributeList(attributes)
 
+    // Prioritize keeping "<modifiers> <keyword> <name>:" together (corresponding group close is
+    // below at `lastTokenBeforeBrace`).
+    let firstTokenAfterAttributes = modifiers?.firstToken ?? typeKeyword
+    before(firstTokenAfterAttributes, tokens: .open)
     after(typeKeyword, tokens: .break)
 
+    arrangeBracesAndContents(of: members, contentsKeyPath: \.members)
+
     if let genericWhereClause = genericWhereClause {
-      before(
-        genericWhereClause.firstToken,
-        tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-      )
-      after(genericWhereClause.lastToken, tokens: .break, .close, .close)
-    } else {
-      before(members.leftBrace, tokens: .break)
+      before(genericWhereClause.firstToken, tokens: .break(.same), .open)
+      after(members.leftBrace, tokens: .close)
     }
 
-    // The body may be free of other syntax nodes, but we still need to insert the breaks if it
-    // contains a comment (which will be in the leading trivia of the right brace).
-    let commentPrecedesRightBrace = members.rightBrace.leadingTrivia.numberOfComments > 0
-    let isBodyCompletelyEmpty = members.members.isEmpty && !commentPrecedesRightBrace
+    let lastTokenBeforeBrace =
+      inheritanceClause?.colon ?? genericParameterClause?.rightAngleBracket ?? identifier
+    after(lastTokenBeforeBrace, tokens: .close)
 
-    if !isBodyCompletelyEmpty {
-      after(members.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
-      before(members.rightBrace, tokens: .break(offset: -2), .close)
-    } else {
-      // The size-0 break in the empty case allows for a break between the braces in the rare event
-      // that the declaration would be exactly the column limit + 1.
-      after(members.leftBrace, tokens: .close, .close, .break(size: 0))
-    }
+    after(node.lastToken, tokens: .close)
   }
 
   // MARK: - Function and function-like declaration nodes (initializers, deinitializers, subscripts)
 
   override func visit(_ node: FunctionDeclSyntax) {
+    // Prioritize keeping "<modifiers> func <name>" together.
+    let firstTokenAfterAttributes = node.modifiers?.firstToken ?? node.funcKeyword
+    before(firstTokenAfterAttributes, tokens: .open)
+    after(node.funcKeyword, tokens: .break)
+    after(node.identifier, tokens: .close)
+
     if case .spacedBinaryOperator = node.identifier.tokenKind {
       after(node.identifier.lastToken, tokens: .space)
     }
+
     arrangeFunctionLikeDecl(
       node,
       attributes: node.attributes,
       genericWhereClause: node.genericWhereClause,
       body: node.body,
-      bodyContentsAreEmpty: node.body?.statements.isEmpty ?? true)
+      bodyContentsKeyPath: \.statements)
 
-    after(node.funcKeyword, tokens: .break)
     super.visit(node)
   }
 
   override func visit(_ node: InitializerDeclSyntax) {
+    // Prioritize keeping "<modifiers> init<punctuation>" together.
+    let firstTokenAfterAttributes = node.modifiers?.firstToken ?? node.initKeyword
+    let lastTokenOfName = node.optionalMark ?? node.initKeyword
+    if firstTokenAfterAttributes != lastTokenOfName {
+      before(firstTokenAfterAttributes, tokens: .open)
+      after(lastTokenOfName, tokens: .close)
+    }
+
+    before(node.throwsOrRethrowsKeyword, tokens: .break)
+
     arrangeFunctionLikeDecl(
       node,
       attributes: node.attributes,
       genericWhereClause: node.genericWhereClause,
       body: node.body,
-      bodyContentsAreEmpty: node.body?.statements.isEmpty ?? true)
+      bodyContentsKeyPath: \.statements)
 
-    before(node.throwsOrRethrowsKeyword, tokens: .break)
     super.visit(node)
   }
 
@@ -221,128 +264,78 @@ private final class TokenStreamCreator: SyntaxVisitor {
       attributes: node.attributes,
       genericWhereClause: nil,
       body: node.body,
-      bodyContentsAreEmpty: node.body.statements.isEmpty)
+      bodyContentsKeyPath: \.statements)
     super.visit(node)
   }
 
   override func visit(_ node: SubscriptDeclSyntax) {
-    arrangeFunctionLikeDecl(
-      node,
-      attributes: node.attributes,
-      genericWhereClause: node.genericWhereClause,
-      body: node.accessor,
-      bodyContentsAreEmpty: isBodyEmpty(node.accessor))
+    before(node.firstToken, tokens: .open)
+
+    // Prioritize keeping "<modifiers> subscript" together.
+    if let firstModifierToken = node.modifiers?.firstToken {
+      before(firstModifierToken, tokens: .open)
+      after(node.subscriptKeyword, tokens: .close)
+    }
+
+    arrangeAttributeList(node.attributes)
+
+    if let genericWhereClause = node.genericWhereClause {
+      before(genericWhereClause.firstToken, tokens: .break(.same), .open)
+      after(genericWhereClause.lastToken, tokens: .close)
+    }
 
     before(node.result.firstToken, tokens: .break)
+
+    // The body of a subscript is an `AccessorBlockSyntax`; since we do the arrangement of the
+    // braces and contents in the override for that node, we don't need to do them here.
+
+    after(node.lastToken, tokens: .close)
+
     super.visit(node)
   }
 
   /// Applies formatting tokens to the tokens in the given function or function-like declaration
   /// node (e.g., initializers, deinitiailizers, and subscripts).
-  private func arrangeFunctionLikeDecl(
+  private func arrangeFunctionLikeDecl<Node: BracedSyntax, BodyContents: Collection>(
     _ node: Syntax,
     attributes: AttributeListSyntax?,
     genericWhereClause: GenericWhereClauseSyntax?,
-    body: BracedSyntax?,
-    bodyContentsAreEmpty: Bool
-  ) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-    
-    if let attributes = attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
+    body: Node?,
+    bodyContentsKeyPath: KeyPath<Node, BodyContents>?
+  ) where BodyContents.Element: Syntax {
+    before(node.firstToken, tokens: .open)
+
+    arrangeAttributeList(attributes)
+    arrangeBracesAndContents(of: body, contentsKeyPath: bodyContentsKeyPath)
 
     if let genericWhereClause = genericWhereClause {
-      before(
-        genericWhereClause.firstToken,
-        tokens: .break, .open(.inconsistent, 0), .break(size: 0), .open(.consistent, 0)
-      )
-      if body?.leftBrace != nil {
-        after(genericWhereClause.lastToken, tokens: .break, .close, .close)
-      } else {
-        after(genericWhereClause.lastToken, tokens: .close, .close)
-      }
-    } else {
-      before(body?.leftBrace, tokens: .break)
+      before(genericWhereClause.firstToken, tokens: .break(.same), .open)
+      after(body?.leftBrace ?? genericWhereClause.lastToken, tokens: .close)
     }
 
-    if let body = body {
-      // The body may be free of other syntax nodes, but we still need to insert the breaks if it
-      // contains a comment (which will be in the leading trivia of the right brace).
-      let commentPrecedesRightBrace = body.rightBrace.leadingTrivia.numberOfComments > 0
-      let isBodyCompletelyEmpty = bodyContentsAreEmpty && !commentPrecedesRightBrace
-
-      if !isBodyCompletelyEmpty {
-        after(body.leftBrace, tokens: .close, .close, .break(offset: 2), .open(.consistent, 0))
-        before(body.rightBrace, tokens: .break(offset: -2), .close)
-      } else {
-        // The size-0 break in the empty case allows for a break between the braces in the rare
-        // event that the declaration would be exactly the column limit + 1.
-        after(body.leftBrace, tokens: .close, .close, .break(size: 0))
-      }
-    } else {
-      // Function-like declarations in protocols won't have bodies, so make sure we close the
-      // correct number of groups in that case as well.
-      after(node.lastToken, tokens: .close, .close)
-    }
-    
     after(node.lastToken, tokens: .close)
   }
 
   // MARK: - Property and subscript accessor block nodes
 
   override func visit(_ node: AccessorBlockSyntax) {
-    if !(node.parent is SubscriptDeclSyntax) {
-      // The body may be free of other syntax nodes, but we still need to insert the breaks if it
-      // contains a comment (which will be in the leading trivia of the right brace).
-      let commentPrecedesRightBrace = node.rightBrace.leadingTrivia.numberOfComments > 0
-      let isBodyCompletelyEmpty = isBodyEmpty(node) && !commentPrecedesRightBrace
-
-      if !isBodyCompletelyEmpty {
-        after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-        before(node.rightBrace, tokens: .break(offset: -2), .close)
-      } else {
-        // The size-0 break in the empty case allows for a break between the braces in the rare
-        // event that the declaration would be exactly the column limit + 1.
-        after(node.leftBrace, tokens: .break(size: 0))
-      }
-    }
+    arrangeBracesAndContents(of: node)
     super.visit(node)
   }
 
   override func visit(_ node: AccessorListSyntax) {
-    if node.count > 1 {
-      after(node.first?.lastToken, tokens: .break)
+    for child in node.dropLast() {
+      // If the child doesn't have a body (it's just the `get`/`set` keyword), then we're in a
+      // protocol and we want to let them be placed on the same line if possible. Otherwise, we
+      // place a newline between each accessor.
+      after(child.lastToken, tokens: child.body == nil ? .break(.same) : .newline)
     }
     super.visit(node)
   }
 
   override func visit(_ node: AccessorDeclSyntax) {
-    before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-
-    if let body = node.body {
-      before(node.accessorKind, tokens: .open, .open)
-      before(body.leftBrace, tokens: .break)
-
-      // The body may be free of other syntax nodes, but we still need to insert the breaks if it
-      // contains a comment (which will be in the leading trivia of the right brace).
-      let commentPrecedesRightBrace = body.rightBrace.leadingTrivia.numberOfComments > 0
-      let isBodyCompletelyEmpty = body.statements.isEmpty && !commentPrecedesRightBrace
-
-      if !isBodyCompletelyEmpty {
-        after(body.leftBrace, tokens: .close, .break(offset: 2), .open(.consistent, 0))
-        before(body.rightBrace, tokens: .break(offset: -2), .close, .close)
-      } else {
-        // The size-0 break in the empty case allows for a break between the braces in the rare
-        // event that the declaration would be exactly the column limit + 1.
-        after(body.leftBrace, tokens: .close, .close, .break(size: 0))
-      }
-    }
-
-    after(node.lastToken, tokens: .close)
+    arrangeAttributeList(node.attributes)
+    arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
     super.visit(node)
   }
 
@@ -352,7 +345,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   /// Returns a value indicating whether the body of the accessor block (regardless of whether it
   /// contains accessors or statements) is empty.
-  private func isBodyEmpty(_ node: AccessorBlockSyntax?) -> Bool {
+  private func isAccessorBlockEmpty(_ node: AccessorBlockSyntax?) -> Bool {
     guard let node = node else { return true }
 
     if let accessorList = node.accessorListOrStmtList as? AccessorListSyntax {
@@ -372,31 +365,26 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: IfStmtSyntax) {
     after(node.ifKeyword, tokens: .space)
 
-    before(node.conditions.firstToken, tokens: .open(.consistent, 0), .open(.inconsistent, 2))
-    after(node.conditions.lastToken, tokens: .close)
-    before(node.body.leftBrace, tokens: .break(size: 0), .close, .break)
-
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
 
-    before(node.elseKeyword, tokens: .break(size: maxlinelength))
-    after(node.elseKeyword, tokens: .space)
-
-    if let elseBody = node.elseBody as? CodeBlockSyntax {
-      arrangeBracesAndContents(of: elseBody, contentsKeyPath: \.statements)
+    before(node.elseKeyword, tokens: .newline)
+    if node.elseBody is IfStmtSyntax {
+      after(node.elseKeyword, tokens: .space)
     }
+
+    arrangeBracesAndContents(of: node.elseBody as? CodeBlockSyntax, contentsKeyPath: \.statements)
 
     super.visit(node)
   }
 
   override func visit(_ node: GuardStmtSyntax) {
-    after(node.guardKeyword, tokens: .space)
-    after(node.elseKeyword, tokens: .space)
+    after(node.guardKeyword, tokens: .break)
+    before(node.elseKeyword, tokens: .break(.reset), .open)
+    after(node.elseKeyword, tokens: .break)
+    before(node.body.leftBrace, tokens: .close)
 
-    before(node.conditions.firstToken, tokens: .open(.consistent, 0), .open(.inconsistent, 2))
-    after(node.conditions.lastToken, tokens: .close)
-    before(node.elseKeyword, tokens: .break(size: 0), .close, .break)
-
-    arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
+    arrangeBracesAndContents(
+      of: node.body, contentsKeyPath: \.statements, shouldResetBeforeLeftBrace: false)
 
     super.visit(node)
   }
@@ -404,15 +392,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: ForInStmtSyntax) {
     after(node.labelColon, tokens: .space)
     after(node.forKeyword, tokens: .space)
-
-    before(node.pattern.firstToken, tokens: .open(.consistent, 0), .open(.inconsistent, 0))
-
-    before(node.inKeyword, tokens: .break(offset: 2), .open(.inconsistent, 2))
+    before(node.inKeyword, tokens: .break)
     after(node.inKeyword, tokens: .space)
-    after(node.sequenceExpr.lastToken, tokens: .close)
-
-    before(node.whereClause?.whereKeyword, tokens: .break)
-    before(node.body.leftBrace, tokens: .close, .break(size: 0), .close, .break)
 
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
 
@@ -423,68 +404,28 @@ private final class TokenStreamCreator: SyntaxVisitor {
     after(node.labelColon, tokens: .space)
     after(node.whileKeyword, tokens: .space)
 
-    before(node.conditions.firstToken, tokens: .open(.consistent, 0), .open(.inconsistent, 2))
-    after(node.conditions.lastToken, tokens: .close)
-    before(node.body.leftBrace, tokens: .break(size: 0), .close, .break)
-
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
 
     super.visit(node)
   }
 
   override func visit(_ node: RepeatWhileStmtSyntax) {
-    // The zero-width space prevents the consistent group here from immediately following a break,
-    // which would cause all of the breaks immediately inside the group to fire.
-    before(
-      node.repeatKeyword, tokens: .space(size: 0), .open(.consistent, 0), .open(.inconsistent, 0))
-    after(node.repeatKeyword, tokens: .space)
-
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
 
-    before(node.whileKeyword, tokens: .close, .break, .open(.inconsistent, 0))
+    before(node.whileKeyword, tokens: .break(.same))
     after(node.whileKeyword, tokens: .space)
-
-    before(node.condition.firstToken, tokens: .open(.inconsistent, 2))
-    after(node.condition.lastToken, tokens: .close, .close, .close)
 
     super.visit(node)
   }
 
   override func visit(_ node: DoStmtSyntax) {
-    // The zero-width space prevents the consistent group here from immediately following a break,
-    // which would cause all of the breaks immediately inside the group to fire.
-    before(node.doKeyword, tokens: .space(size: 0), .open(.consistent, 0), .open(.inconsistent, 0))
-    after(node.doKeyword, tokens: .space)
-
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
-
-    if let catchClauses = node.catchClauses {
-      // If there is only a single `catch` clause, we precede it with a default break so that it
-      // only moves to the next line if necessary. If there are multiple `catch` clauses, we use a
-      // max-line-length break so that each case is forced onto its own line.
-      if catchClauses.count > 1 {
-        for catchClause in catchClauses {
-          before(catchClause.catchKeyword, tokens: .break(size: maxlinelength))
-        }
-      } else {
-        before(catchClauses[0].catchKeyword, tokens: .close, .break, .open(.inconsistent, 0))
-      }
-    }
-
-    after(node.lastToken, tokens: .close, .close)
-
     super.visit(node)
   }
 
   override func visit(_ node: CatchClauseSyntax) {
+    before(node.catchKeyword, tokens: .newline)
     before(node.pattern?.firstToken, tokens: .break)
-
-    if let whereClause = node.whereClause {
-      before(whereClause.whereKeyword, tokens: .break, .open(.consistent, 0))
-      before(node.body.leftBrace, tokens: .break, .close)
-    } else {
-      before(node.body.leftBrace, tokens: .break)
-    }
 
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
 
@@ -492,20 +433,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: DeferStmtSyntax) {
-    after(node.deferKeyword, tokens: .space)
     arrangeBracesAndContents(of: node.body, contentsKeyPath: \.statements)
     super.visit(node)
   }
 
   override func visit(_ node: BreakStmtSyntax) {
-    before(node.label, tokens: .break(offset: 2))
+    before(node.label, tokens: .break)
     super.visit(node)
   }
 
   override func visit(_ node: ReturnStmtSyntax) {
-    before(node.firstToken, tokens: .open)
-    before(node.expression?.firstToken, tokens: .break(offset: 2))
-    after(node.lastToken, tokens: .close)
+    before(node.expression?.firstToken, tokens: .break)
     super.visit(node)
   }
 
@@ -520,30 +458,29 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SwitchStmtSyntax) {
-    before(node.switchKeyword, tokens: .open(.inconsistent, 7))
+    before(node.switchKeyword, tokens: .open)
     after(node.switchKeyword, tokens: .space)
-    after(node.expression.lastToken, tokens: .close, .break)
+    before(node.leftBrace, tokens: .break(.reset))
+    after(node.leftBrace, tokens: .close)
 
     if !areBracesCompletelyEmpty(node, contentsKeyPath: \.cases) {
-      after(node.leftBrace, tokens: .break, .open(.consistent, 0))
-      before(node.rightBrace, tokens: .break, .close)
+      before(node.rightBrace, tokens: .newline)
     } else {
-      before(node.rightBrace, tokens: .break(size: 0))
+      before(node.rightBrace, tokens: .break(.same, size: 0))
     }
 
     super.visit(node)
   }
 
   override func visit(_ node: SwitchCaseSyntax) {
-    before(node.firstToken, tokens: .open)
-    after(node.label.lastToken, tokens: .newline(offset: 2), .open(.consistent, 0))
-    insertToken(.newline, betweenChildrenOf: node.statements)
-    after(node.lastToken, tokens: .break(offset: -2), .close, .close)
+    before(node.firstToken, tokens: .newline)
+    after(node.label.lastToken, tokens: .break(.reset, size: 0), .break(.open), .open)
+    after(node.lastToken, tokens: .break(.close, size: 0), .close)
     super.visit(node)
   }
 
   override func visit(_ node: SwitchCaseLabelSyntax) {
-    before(node.caseKeyword, tokens: .open(.inconsistent, 5))
+    before(node.caseKeyword, tokens: .open)
     after(node.caseKeyword, tokens: .space)
     after(node.colon, tokens: .close)
     super.visit(node)
@@ -551,7 +488,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: CaseItemSyntax) {
     before(node.firstToken, tokens: .open)
-    before(node.whereClause?.firstToken, tokens: .break)
     if let trailingComma = node.trailingComma {
       after(trailingComma, tokens: .close, .break)
     } else {
@@ -577,23 +513,19 @@ private final class TokenStreamCreator: SyntaxVisitor {
       break
     default:
       before(node.operatorToken, tokens: .break)
-      after(node.operatorToken, tokens: .break)
+      after(node.operatorToken, tokens: .space)
     }
     super.visit(node)
   }
 
   override func visit(_ node: TupleExprSyntax) {
-    after(
-      node.leftParen,
-      tokens: .break(size: 0, offset: 2), .open(.consistent, 0), .break(size: 0),
-        .open(.inconsistent, 0)
-    )
-    before(node.rightParen, tokens: .close, .break(size: 0, offset: -2), .close)
+    after(node.leftParen, tokens: .break(.open, size: 0), .open)
+    before(node.rightParen, tokens: .close, .break(.close, size: 0))
     super.visit(node)
   }
 
   override func visit(_ node: TupleElementListSyntax) {
-    insertToken(.break, betweenChildrenOf: node)
+    insertTokens(.break(.same), betweenElementsOf: node)
     super.visit(node)
   }
 
@@ -605,17 +537,13 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ArrayExprSyntax) {
-    after(
-      node.leftSquare,
-      tokens: .break(size: 0, offset: 2), .open(.consistent, 0), .break(size: 0),
-        .open(.consistent, 0)
-    )
-    before(node.rightSquare, tokens: .close, .break(size: 0, offset: -2), .close)
+    after(node.leftSquare, tokens: .break(.open, size: 0), .open)
+    before(node.rightSquare, tokens: .close, .break(.close, size: 0))
     super.visit(node)
   }
 
   override func visit(_ node: ArrayElementListSyntax) {
-    insertToken(.break, betweenChildrenOf: node)
+    insertTokens(.break(.same), betweenElementsOf: node)
     super.visit(node)
   }
 
@@ -626,28 +554,24 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: DictionaryExprSyntax) {
-    after(
-      node.leftSquare,
-      tokens: .break(size: 0, offset: 2), .open(.consistent, 0), .break(size: 0),
-      .open(.consistent, 0)
-    )
-    before(node.rightSquare, tokens: .close, .break(size: 0, offset: -2), .close)
+    after(node.leftSquare, tokens: .break(.open, size: 0), .open)
+    before(node.rightSquare, tokens: .close, .break(.close, size: 0))
     super.visit(node)
   }
 
   override func visit(_ node: DictionaryElementListSyntax) {
-    insertToken(.break, betweenChildrenOf: node)
+    insertTokens(.break(.same), betweenElementsOf: node)
     super.visit(node)
   }
 
   override func visit(_ node: DictionaryTypeSyntax) {
-    after(node.colon, tokens: .space)
+    after(node.colon, tokens: .break)
     super.visit(node)
   }
 
   override func visit(_ node: DictionaryElementSyntax) {
     before(node.firstToken, tokens: .open)
-    after(node.colon, tokens: .break(offset: 2))
+    after(node.colon, tokens: .break)
     after(node.lastToken, tokens: .close)
     super.visit(node)
   }
@@ -656,23 +580,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
-  override func visit(_ node: FunctionParameterSyntax) {
-    before(node.firstToken, tokens: .open)
-    after(node.colon, tokens: .break)
-    before(node.secondName, tokens: .break)
-
-    if let trailingComma = node.trailingCommaWorkaround {
-      after(trailingComma, tokens: .close, .break)
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
-    super.visit(node)
-  }
-
   override func visit(_ node: MemberAccessExprSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-    before(node.dot, tokens: .break(size: 0, offset: 2))
-    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -681,19 +589,26 @@ private final class TokenStreamCreator: SyntaxVisitor {
       super.visit(node)
       return
     }
+
     if node.argumentList.count > 0 {
-      after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
-      before(node.rightParen, tokens: .close)
+      // If there is a trailing closure, force the right parenthesis down to the next line so it
+      // stays with the open curly brace.
+      let breakBeforeRightParen = node.trailingClosure != nil
+
+      after(node.leftParen, tokens: .break(.open, size: 0), .open)
+      before(
+        node.rightParen,
+        tokens: .break(.close(mustBreak: breakBeforeRightParen), size: 0), .close)
     }
-    before(node.trailingClosure?.leftBrace, tokens: .space, .reset)
+    before(node.trailingClosure?.leftBrace, tokens: .break(.reset))
     super.visit(node)
   }
 
   override func visit(_ node: FunctionCallArgumentSyntax) {
-    after(node.colon, tokens: .break)
     before(node.firstToken, tokens: .open)
+    after(node.colon, tokens: .break)
     if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
+      after(trailingComma, tokens: .close, .break(.same))
     } else {
       after(node.lastToken, tokens: .close)
     }
@@ -702,39 +617,45 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: ClosureExprSyntax) {
     if let signature = node.signature {
-      before(signature.firstToken, tokens: .break(offset: 2))
+      before(signature.firstToken, tokens: .break(.open))
       if node.statements.count > 0 {
-        after(signature.inTok, tokens: .newline(offset: 2), .open(.consistent, 0))
+        after(signature.inTok, tokens: .newline)
       } else {
-        after(signature.inTok, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
+        after(signature.inTok, tokens: .break(.same, size: 0))
       }
-      before(node.rightBrace, tokens: .break(offset: -2), .close)
-    } else if node.statements.count > 0 {
-      after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-      before(node.rightBrace, tokens: .break(offset: -2), .close)
+      before(node.rightBrace, tokens: .break(.close))
+    } else {
+      // Closures without signatures can have their contents laid out identically to any other
+      // braced structure. The leading reset is skipped because the layout depends on whether it is
+      // a trailing closure of a function call (in which case that function call supplies the reset)
+      // or part of some other expression (where we want that expression's same/continue behavior to
+      // apply).
+      arrangeBracesAndContents(
+        of: node, contentsKeyPath: \.statements, shouldResetBeforeLeftBrace: false)
     }
     super.visit(node)
   }
 
   override func visit(_ node: ClosureParamSyntax) {
-    after(node.trailingComma, tokens: .break)
+    after(node.trailingComma, tokens: .break(.same))
     super.visit(node)
   }
 
   override func visit(_ node: ClosureSignatureSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-    after(node.capture?.lastToken, tokens: .break)
+    before(node.firstToken, tokens: .open)
+    after(node.capture?.rightSquare, tokens: .break(.same))
     before(node.input?.firstToken, tokens: .open)
-    after(node.input?.lastToken, tokens: .close, .break)
-    after(node.output?.lastToken, tokens: .break)
-    after(node.throwsTok, tokens: .break)
+    after(node.input?.lastToken, tokens: .close)
+    before(node.throwsTok, tokens: .break)
+    before(node.output?.arrow, tokens: .break)
     after(node.lastToken, tokens: .close)
+    before(node.inTok, tokens: .break(.same))
     super.visit(node)
   }
 
   override func visit(_ node: ClosureCaptureSignatureSyntax) {
-    after(node.leftSquare, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
-    before(node.rightSquare, tokens: .break(size: 0, offset: -2), .close)
+    after(node.leftSquare, tokens: .break(.open, size: 0), .open)
+    before(node.rightSquare, tokens: .break(.close, size: 0), .close)
     super.visit(node)
   }
 
@@ -745,7 +666,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     after(node.assignToken, tokens: .break)
     if let trailingComma = node.trailingComma {
       before(trailingComma, tokens: .close)
-      after(trailingComma, tokens: .break)
+      after(trailingComma, tokens: .break(.same))
     } else {
       after(node.lastToken, tokens: .close)
     }
@@ -753,11 +674,25 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SubscriptExprSyntax) {
+    if node.argumentList.count > 0 {
+      // If there is a trailing closure, force the right bracket down to the next line so it stays
+      // with the open curly brace.
+      let breakBeforeRightBracket = node.trailingClosure != nil
+
+      after(node.leftBracket, tokens: .break(.open, size: 0), .open)
+      before(
+        node.rightBracket,
+        tokens: .break(.close(mustBreak: breakBeforeRightBracket), size: 0), .close)
+    }
+    before(node.trailingClosure?.leftBrace, tokens: .space)
     super.visit(node)
   }
 
   override func visit(_ node: ExpressionSegmentSyntax) {
-    verbatimToken(node)
+    // TODO: For now, just use the raw text of the node and don't try to format it deeper. In the
+    // future, we should find a way to format the expression but without wrapping so that at least
+    // internal whitespace is fixed.
+    appendToken(.syntax(node.description))
     // Call to super.visit is not needed here.
   }
 
@@ -767,7 +702,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: AssignmentExprSyntax) {
     before(node.assignToken, tokens: .break)
-    after(node.assignToken, tokens: .break)
+    after(node.assignToken, tokens: .space)
     super.visit(node)
   }
 
@@ -776,8 +711,21 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ParameterClauseSyntax) {
-    after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
-    before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
+    after(node.leftParen, tokens: .break(.open, size: 0), .open)
+    before(node.rightParen, tokens: .break(.close, size: 0), .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: FunctionParameterSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.colon, tokens: .break)
+    before(node.secondName, tokens: .break)
+
+    if let trailingComma = node.trailingCommaWorkaround {
+      after(trailingComma, tokens: .close, .break(.same))
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
@@ -795,29 +743,28 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: IfConfigClauseSyntax) {
     switch node.poundKeyword.tokenKind {
     case .poundIfKeyword, .poundElseifKeyword:
-      after(node.poundKeyword, tokens: .break)
+      after(node.poundKeyword, tokens: .space)
     case .poundElseKeyword:
       break
     default:
       preconditionFailure()
     }
-    before(node.elements.firstToken, tokens: .newline(offset: 2), .open(.consistent, 0))
-    after(node.elements.lastToken, tokens: .newline(offset: -2), .close)
+
+    // Unlike other code blocks, where we may want a single statement to be laid out on the same
+    // line as a parent construct, the content of an `#if` block must always be on its own line;
+    // the newline token inserted at the end enforces this.
+    before(node.elements.firstToken, tokens: .break(.open), .open)
+    after(node.elements.lastToken, tokens: .break(.close), .newline, .close)
     super.visit(node)
   }
 
   override func visit(_ node: MemberDeclBlockSyntax) {
-    // Ordinarily, we would use `insertToken` here, but it causes a build error for an unknown
-    // reason.
-    if node.members.count > 1 {
-      for i in 0..<(node.members.count - 1) {
-        after(node.members[i].lastToken, tokens: .break(size: maxlinelength))
-      }
-    }
+    insertTokens(.break(.reset, size: 0), .newline, betweenElementsOf: node.members)
     super.visit(node)
   }
 
   override func visit(_ node: SourceFileSyntax) {
+    before(node.eofToken, tokens: .newline)
     super.visit(node)
   }
 
@@ -833,7 +780,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: EnumCaseElementSyntax) {
-    after(node.trailingComma, tokens: .break(offset: 2))
+    after(node.trailingComma, tokens: .break)
     super.visit(node)
   }
 
@@ -870,36 +817,23 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockSyntax) {
-    insertToken(.break(size: maxlinelength), betweenChildrenOf: node.statements)
     super.visit(node)
   }
 
   override func visit(_ node: CodeBlockItemListSyntax) {
-    if node.parent is AccessorBlockSyntax || node.parent is ClosureExprSyntax ||
-       node.parent is IfConfigClauseSyntax, node.count > 0 {
-      insertToken(.break(size: maxlinelength), betweenChildrenOf: node)
-    }
+    insertTokens(.break(.reset, size: 0), .newline, betweenElementsOf: node)
     super.visit(node)
   }
 
   override func visit(_ node: CodeBlockItemSyntax) {
     before(node.firstToken, tokens: .open)
-    if !(node.parent?.parent is CodeBlockSyntax ||
-           node.parent?.parent is SwitchCaseSyntax ||
-           node.parent?.parent is ClosureExprSyntax ||
-           node.parent?.parent is AccessorBlockSyntax ||
-           node.parent?.parent is IfConfigClauseSyntax
-         ) {
-      after(node.lastToken, tokens: .close, .break(size: maxlinelength))
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
+    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
   override func visit(_ node: GenericParameterClauseSyntax) {
-    after(node.leftAngleBracket, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
-    before(node.rightAngleBracket, tokens: .break(size: 0, offset: -2), .close)
+    after(node.leftAngleBracket, tokens: .break(.open, size: 0), .open)
+    before(node.rightAngleBracket, tokens: .break(.close, size: 0), .close)
     super.visit(node)
   }
 
@@ -908,14 +842,29 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TupleTypeSyntax) {
-    after(node.leftParen, tokens: .open(.consistent, 2), .break(size: 0))
-    before(node.rightParen, tokens: .break(size: 0), .close)
+    before(node.leftParen, tokens: .open)
+    after(node.leftParen, tokens: .break(.open, size: 0), .open)
+    before(node.rightParen, tokens: .break(.close, size: 0), .close)
+    after(node.rightParen, tokens: .close)
+    super.visit(node)
+  }
+
+  override func visit(_ node: TupleTypeElementSyntax) {
+    before(node.firstToken, tokens: .open)
+    after(node.colon, tokens: .break)
+    before(node.secondNameWorkaround, tokens: .break)
+
+    if let trailingComma = node.trailingCommaWorkaround {
+      after(trailingComma, tokens: .close, .break(.same))
+    } else {
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
   override func visit(_ node: FunctionTypeSyntax) {
-    after(node.leftParen, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
-    before(node.rightParen, tokens: .break(size: 0, offset: -2), .close)
+    after(node.leftParen, tokens: .break(.open, size: 0), .open)
+    before(node.rightParen, tokens: .break(.close, size: 0), .close)
     before(node.throwsOrRethrowsKeyword, tokens: .break)
     before(node.arrow, tokens: .break)
     before(node.returnType.firstToken, tokens: .break)
@@ -923,14 +872,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericArgumentClauseSyntax) {
-    after(node.leftAngleBracket, tokens: .break(size: 0, offset: 2), .open(.consistent, 0))
-    before(node.rightAngleBracket, tokens: .break(size: 0, offset: -2), .close)
+    after(node.leftAngleBracket, tokens: .break(.open, size: 0), .open)
+    before(node.rightAngleBracket, tokens: .break(.close, size: 0), .close)
     super.visit(node)
   }
 
   override func visit(_ node: TuplePatternSyntax) {
-    after(node.leftParen, tokens: .open(.consistent, 2), .break(size: 0))
-    before(node.rightParen, tokens: .break(size: 0), .close)
+    after(node.leftParen, tokens: .break(.open, size: 0), .open)
+    before(node.rightParen, tokens: .break(.close, size: 0), .close)
     super.visit(node)
   }
 
@@ -941,8 +890,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: IsExprSyntax) {
-    before(node.isTok, tokens: .space)
-    after(node.isTok, tokens: .break)
+    before(node.isTok, tokens: .break)
+    before(node.typeName.firstToken, tokens: .space)
     super.visit(node)
   }
 
@@ -958,7 +907,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: ArrowExprSyntax) {
     before(node.throwsToken, tokens: .break)
     before(node.arrowToken, tokens: .break)
-    after(node.arrowToken, tokens: .break)
+    after(node.arrowToken, tokens: .space)
     super.visit(node)
   }
 
@@ -974,13 +923,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
         default:
           after(tokens[i], tokens: .space)
         }
-      }
-      after(node.balancedTokens.lastToken, tokens: .newline)
-    } else {
-      if node.parent?.parent is ImportDeclSyntax {
-        after(node.lastToken, tokens: .space)
-      } else {
-        after(node.lastToken, tokens: .break)
       }
     }
     super.visit(node)
@@ -1000,6 +942,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: ImportDeclSyntax) {
+    after(node.attributes?.lastToken, tokens: .space)
     after(node.importTok, tokens: .space)
     after(node.importKind, tokens: .space)
     super.visit(node)
@@ -1014,18 +957,17 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TernaryExprSyntax) {
-    before(node.conditionExpression.firstToken, tokens: .open(.inconsistent, 2))
-    before(node.questionMark, tokens: .break)
+    before(node.questionMark, tokens: .break(.open), .open)
     after(node.questionMark, tokens: .space)
-    before(node.colonMark, tokens: .break)
+    before(node.colonMark, tokens: .break(.same))
     after(node.colonMark, tokens: .space)
-    after(node.secondChoice.lastToken, tokens: .close)
+    after(node.secondChoice.lastToken, tokens: .break(.close, size: 0), .close)
     super.visit(node)
   }
 
   override func visit(_ node: WhereClauseSyntax) {
-    before(node.whereKeyword, tokens: .open(.inconsistent, 2))
-    after(node.whereKeyword, tokens: .space)
+    before(node.whereKeyword, tokens: .break(.same), .open)
+    after(node.whereKeyword, tokens: .break)
     after(node.lastToken, tokens: .close)
     super.visit(node)
   }
@@ -1050,8 +992,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: SequenceExprSyntax) {
-    before(node.firstToken, tokens: .open)
-    after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
@@ -1060,14 +1000,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: VariableDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-    after(node.lastToken, tokens: .close, .close)
-    after(node.letOrVarKeyword, tokens: .break)
+    arrangeAttributeList(node.attributes)
+    after(node.letOrVarKeyword, tokens: .space)
     super.visit(node)
   }
 
@@ -1076,17 +1010,12 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: InheritedTypeSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 0))
-    if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
+    after(node.trailingComma, tokens: .break(.same))
     super.visit(node)
   }
 
   override func visit(_ node: IsTypePatternSyntax) {
-    after(node.isKeyword, tokens: .break)
+    after(node.isKeyword, tokens: .space)
     super.visit(node)
   }
 
@@ -1107,20 +1036,20 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypealiasDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-    after(node.lastToken, tokens: .close, .close)
+    arrangeAttributeList(node.attributes)
+
     after(node.typealiasKeyword, tokens: .break)
+
+    if let genericWhereClause = node.genericWhereClause {
+      before(genericWhereClause.firstToken, tokens: .break(.same), .open)
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
   override func visit(_ node: TypeInitializerClauseSyntax) {
     before(node.equal, tokens: .break)
-    after(node.equal, tokens: .break)
+    after(node.equal, tokens: .space)
     super.visit(node)
   }
 
@@ -1142,7 +1071,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: PatternBindingSyntax) {
-    before(node.accessor?.firstToken, tokens: .break)
     super.visit(node)
   }
 
@@ -1155,7 +1083,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypeAnnotationSyntax) {
-    after(node.colon, tokens: .break(offset: 2))
+    after(node.colon, tokens: .break)
     super.visit(node)
   }
 
@@ -1164,14 +1092,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CompositionTypeSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: CompositionTypeElementSyntax) {
-    if let ampersand = node.ampersand {
-      before(ampersand, tokens: .break)
-      after(ampersand, tokens: .space)
-    }
     super.visit(node)
   }
 
@@ -1194,7 +1114,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: GenericArgumentSyntax) {
     before(node.firstToken, tokens: .open)
     if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
+      after(trailingComma, tokens: .close, .break(.same))
     } else {
       after(node.lastToken, tokens: .close)
     }
@@ -1225,7 +1145,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     before(node.firstToken, tokens: .open)
     after(node.colon, tokens: .break)
     if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
+      after(trailingComma, tokens: .close, .break(.same))
     } else {
       after(node.lastToken, tokens: .close)
     }
@@ -1237,19 +1157,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: PoundWarningDeclSyntax) {
-    super.visit(node)
-  }
-
-  override func visit(_ node: TupleTypeElementSyntax) {
-    before(node.firstToken, tokens: .open)
-    after(node.colon, tokens: .break)
-    before(node.secondNameWorkaround, tokens: .break)
-
-    if let trailingComma = node.trailingCommaWorkaround {
-      after(trailingComma, tokens: .close, .break)
-    } else {
-      after(node.lastToken, tokens: .close)
-    }
     super.visit(node)
   }
 
@@ -1268,8 +1175,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ node: InitializerClauseSyntax) {
     before(node.equal, tokens: .break)
-    after(node.equal, tokens: .break(offset: 2))
-
+    after(node.equal, tokens: .space)
     super.visit(node)
   }
 
@@ -1282,15 +1188,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AssociatedtypeDeclSyntax) {
-    if let attributes = node.attributes {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0))
-      after(attributes.lastToken, tokens: .open)
-    } else {
-      before(node.firstToken, tokens: .space(size: 0), .open(.consistent, 0), .open)
-    }
-    after(node.lastToken, tokens: .close, .close)
+    arrangeAttributeList(node.attributes)
+
     after(node.associatedtypeKeyword, tokens: .break)
-    before(node.genericWhereClause?.firstToken, tokens: .break)
+
+    if let genericWhereClause = node.genericWhereClause {
+      before(genericWhereClause.firstToken, tokens: .break(.same), .open)
+      after(node.lastToken, tokens: .close)
+    }
     super.visit(node)
   }
 
@@ -1303,9 +1208,8 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: GenericWhereClauseSyntax) {
-    before(node.whereKeyword, tokens: .open(.consistent, 2))
-    after(node.whereKeyword, tokens: .break)
-    after(node.lastToken, tokens: .close)
+    after(node.whereKeyword, tokens: .break(.open))
+    after(node.lastToken, tokens: .break(.close, size: 0))
     super.visit(node)
   }
 
@@ -1328,9 +1232,9 @@ private final class TokenStreamCreator: SyntaxVisitor {
   override func visit(_ node: SameTypeRequirementSyntax) {
     before(node.firstToken, tokens: .open)
     before(node.equalityToken, tokens: .break)
-    after(node.equalityToken, tokens: .break)
+    after(node.equalityToken, tokens: .space)
     if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
+      after(trailingComma, tokens: .close, .break(.same))
     } else {
       after(node.lastToken, tokens: .close)
     }
@@ -1338,7 +1242,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TuplePatternElementSyntax) {
-    after(node.trailingComma, tokens: .break)
+    after(node.trailingComma, tokens: .break(.same))
     super.visit(node)
   }
 
@@ -1371,9 +1275,10 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: TypeInheritanceClauseSyntax) {
-    after(node.colon, tokens: .break(offset: 2))
-    before(node.inheritedTypeCollection.firstToken, tokens: .open(.consistent, 0))
-    after(node.inheritedTypeCollection.lastToken, tokens: .break(size: 0, offset: -2), .close)
+    after(node.colon, tokens: .break(.open, size: 1))
+    before(node.inheritedTypeCollection.firstToken, tokens: .open)
+    after(node.inheritedTypeCollection.lastToken, tokens: .close)
+    after(node.lastToken, tokens: .break(.close, size: 0))
     super.visit(node)
   }
 
@@ -1381,14 +1286,22 @@ private final class TokenStreamCreator: SyntaxVisitor {
     super.visit(node)
   }
 
+  override func visit(_ node: CompositionTypeElementSyntax) {
+    before(node.ampersand, tokens: .break)
+    after(node.ampersand, tokens: .space)
+    super.visit(node)
+  }
+
   override func visit(_ node: ConformanceRequirementSyntax) {
     before(node.firstToken, tokens: .open)
     after(node.colon, tokens: .break)
+
     if let trailingComma = node.trailingComma {
-      after(trailingComma, tokens: .close, .break)
+      after(trailingComma, tokens: .close, .break(.same))
     } else {
       after(node.lastToken, tokens: .close)
     }
+
     super.visit(node)
   }
 
@@ -1397,14 +1310,14 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: MatchingPatternConditionSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 2))
+    before(node.firstToken, tokens: .open)
     after(node.caseKeyword, tokens: .break)
     after(node.lastToken, tokens: .close)
     super.visit(node)
   }
 
   override func visit(_ node: OptionalBindingConditionSyntax) {
-    before(node.firstToken, tokens: .open(.inconsistent, 2))
+    before(node.firstToken, tokens: .open)
     after(node.letOrVarKeyword, tokens: .break)
     after(node.lastToken, tokens: .close)
     super.visit(node)
@@ -1426,22 +1339,36 @@ private final class TokenStreamCreator: SyntaxVisitor {
 
   override func visit(_ token: TokenSyntax) {
     extractLeadingTrivia(token)
-    let keepExistingNewline = config.respectsExistingLineBreaks && newlinePrecedes(token)
     if let before = beforeMap[token] {
-      appendTokens(before, keepExistingNewline: keepExistingNewline, originatingFrom: token)
+      before.forEach(appendToken)
     }
 
-    appendToken(.syntax(token))
+    let text: String
+    if token.leadingTrivia.hasBackticks && token.trailingTrivia.hasBackticks {
+      text = "`\(token.text)`"
+    } else {
+      text = token.text
+    }
+    appendToken(.syntax(text))
 
     extractTrailingComment(token)
     if let afterGroups = afterMap[token] {
       for after in afterGroups.reversed() {
-        tokens += after
+        after.forEach(appendToken)
       }
     }
   }
 
   // MARK: - Various other helper methods
+
+  /// Applies formatting tokens around and between the attributes in an attribute list.
+  private func arrangeAttributeList(_ attributes: AttributeListSyntax?) {
+    if let attributes = attributes {
+      before(attributes.firstToken, tokens: .open)
+      insertTokens(.break(.same), betweenElementsOf: attributes)
+      after(attributes.lastToken, tokens: .close, .break(.same))
+    }
+  }
 
   /// Returns a value indicating whether or not the given braced syntax node is completely empty;
   /// that is, it contains neither child syntax nodes (aside from the braces) *nor* any comments.
@@ -1451,12 +1378,16 @@ private final class TokenStreamCreator: SyntaxVisitor {
   /// are line comments, we need to make sure to insert the same breaks that we would if there were
   /// other statements there to get the same layout.
   ///
+  /// Note the slightly different generic constraints on this and the other overloads. All are
+  /// required because protocols in Swift do not conform to themselves, so if the element type of
+  /// the collection is *precisely* `Syntax`, the constraint `BodyContents.Element: Syntax` is not
+  /// satisfied and we must constrain it by `BodyContents.Element == Syntax` instead.
+  ///
   /// - Parameters:
   ///   - node: A node that conforms to `BracedSyntax`.
   ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
-  ///     (a `Collection` whose elements conform to `Syntax`; this will most likely be an instance
-  ///     of one of the `*ListSyntax` types).
-  /// - Returns: True if the collection at the node's keypath is empty and there are no comments
+  ///     (a `Collection` whose elements are of a type that conforms to `Syntax`).
+  /// - Returns: True if the collection at the node's keypath is empty and there are no comments.
   private func areBracesCompletelyEmpty<Node: BracedSyntax, BodyContents: Collection>(
     _ node: Node,
     contentsKeyPath: KeyPath<Node, BodyContents>
@@ -1470,25 +1401,33 @@ private final class TokenStreamCreator: SyntaxVisitor {
   /// Returns a value indicating whether or not the given braced syntax node is completely empty;
   /// that is, it contains neither child syntax nodes (aside from the braces) *nor* any comments.
   ///
-  /// Checking for comments separately is vitally important, because a code block that appears to be
-  /// "empty" because it doesn't contain any statements might still contain comments, and if those
-  /// are line comments, we need to make sure to insert the same breaks that we would if there were
-  /// other statements there to get the same layout.
-  ///
-  /// Note the slightly different generic constraint on this overload. Both are required because
-  /// protocols in Swift do not conform to themselves, so if the element type of the collection is
-  /// *precisely* `Syntax`, the constraint `BodyContents.Element: Syntax` is not satisfied.
-  ///
   /// - Parameters:
   ///   - node: A node that conforms to `BracedSyntax`.
   ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
-  ///     (a `Collection` whose elements are exactly of type `Syntax`; this will most likely be an
-  ///     instance of one of the `*ListSyntax` types).
-  /// - Returns: True if the collection at the node's keypath is empty and there are no comments
+  ///     (a `Collection` whose elements are of type `Syntax`).
+  /// - Returns: True if the collection at the node's keypath is empty and there are no comments.
   private func areBracesCompletelyEmpty<Node: BracedSyntax, BodyContents: Collection>(
     _ node: Node,
     contentsKeyPath: KeyPath<Node, BodyContents>
   ) -> Bool where BodyContents.Element == Syntax {
+    // If the collection is empty, then any comments that might be present in the block must be
+    // leading trivia of the right brace.
+    let commentPrecedesRightBrace = node.rightBrace.leadingTrivia.numberOfComments > 0
+    return node[keyPath: contentsKeyPath].isEmpty && !commentPrecedesRightBrace
+  }
+
+  /// Returns a value indicating whether or not the given braced syntax node is completely empty;
+  /// that is, it contains neither child syntax nodes (aside from the braces) *nor* any comments.
+  ///
+  /// - Parameters:
+  ///   - node: A node that conforms to `BracedSyntax`.
+  ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
+  ///     (a `Collection` whose elements are of type `DeclSyntax`).
+  /// - Returns: True if the collection at the node's keypath is empty and there are no comments.
+  private func areBracesCompletelyEmpty<Node: BracedSyntax, BodyContents: Collection>(
+    _ node: Node,
+    contentsKeyPath: KeyPath<Node, BodyContents>
+  ) -> Bool where BodyContents.Element == DeclSyntax {
     // If the collection is empty, then any comments that might be present in the block must be
     // leading trivia of the right brace.
     let commentPrecedesRightBrace = node.rightBrace.leadingTrivia.numberOfComments > 0
@@ -1500,63 +1439,104 @@ private final class TokenStreamCreator: SyntaxVisitor {
   /// - Parameters:
   ///   - node: A node that conforms to `BracedSyntax`.
   ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
-  ///     (a `Collection` whose elements conform to `Syntax`; this will most likely be an instance
-  ///     of one of the `*ListSyntax` types).
+  ///     (a `Collection` whose elements are of a type that conforms to `Syntax`).
+  ///   - shouldResetBeforeLeftBrace: If true, a `reset` break will be inserted before the node's
+  ///     left brace (the default behavior). Passing false will suppress this break, which is useful
+  ///     if you have already placed a `reset` elsewhere (for example, in a `guard` statement, the
+  ///     `reset` is inserted before the `else` keyword to force both it and the brace down to the
+  ///     next line).
   private func arrangeBracesAndContents<Node: BracedSyntax, BodyContents: Collection>(
-    of node: Node,
-    contentsKeyPath: KeyPath<Node, BodyContents>
+    of node: Node?,
+    contentsKeyPath: KeyPath<Node, BodyContents>?,
+    shouldResetBeforeLeftBrace: Bool = true
   ) where BodyContents.Element: Syntax {
+    guard let node = node, let contentsKeyPath = contentsKeyPath else { return }
+
+    if shouldResetBeforeLeftBrace {
+      before(node.leftBrace, tokens: .break(.reset, size: 1))
+    }
     if !areBracesCompletelyEmpty(node, contentsKeyPath: contentsKeyPath) {
-      after(node.leftBrace, tokens: .break(offset: 2), .open(.consistent, 0))
-      before(node.rightBrace, tokens: .break(offset: -2), .close)
+      after(node.leftBrace, tokens: .break(.open, size: 1), .open)
+      before(node.rightBrace, tokens: .break(.close, size: 1), .close)
     } else {
-      before(node.rightBrace, tokens: .break(size: 0))
+      before(node.rightBrace, tokens: .break(.same, size: 0))
     }
   }
 
-  /// Returns `true` iff the content of the given token is immediately preceded by a newline
-  /// (ignoring whitespace and backticks).
-  private func newlinePrecedes(_ token: TokenSyntax?) -> Bool {
-    guard let token = token else { return false }
+  /// Applies consistent formatting to the braces and contents of the given node.
+  ///
+  /// - Parameters:
+  ///   - node: A node that conforms to `BracedSyntax`.
+  ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
+  ///     (a `Collection` whose elements are of type `Syntax`).
+  ///   - shouldResetBeforeLeftBrace: If true, a `reset` break will be inserted before the node's
+  ///     left brace (the default behavior). Passing false will suppress this break, which is useful
+  ///     if you have already placed a `reset` elsewhere (for example, in a `guard` statement, the
+  ///     `reset` is inserted before the `else` keyword to force both it and the brace down to the
+  ///     next line).
+  private func arrangeBracesAndContents<Node: BracedSyntax, BodyContents: Collection>(
+    of node: Node?,
+    contentsKeyPath: KeyPath<Node, BodyContents>?,
+    shouldResetBeforeLeftBrace: Bool = true
+  ) where BodyContents.Element == Syntax {
+    guard let node = node, let contentsKeyPath = contentsKeyPath else { return }
 
-    for piece in token.leadingTrivia.reversed() {
-      switch piece {
-      case .carriageReturns, .carriageReturnLineFeeds, .newlines:
-        return true
-      case .spaces, .tabs, .backticks:
-        continue
-      default:
-        return false
-      }
+    if shouldResetBeforeLeftBrace {
+      before(node.leftBrace, tokens: .break(.reset, size: 1))
     }
-    return false
+    if !areBracesCompletelyEmpty(node, contentsKeyPath: contentsKeyPath) {
+      after(node.leftBrace, tokens: .break(.open, size: 1), .open)
+      before(node.rightBrace, tokens: .break(.close, size: 1), .close)
+    } else {
+      before(node.rightBrace, tokens: .break(.same, size: 0))
+    }
   }
 
-  /// Appends the given tokens to the stream, optionally keeping an existing newline that may be
-  /// present at the first break.
-  private func appendTokens(
-    _ newTokens: [Token],
-    keepExistingNewline: Bool,
-    originatingFrom syntaxToken: TokenSyntax
-  ) {
-    var convertBreakToNewline = keepExistingNewline
-    for token in newTokens {
-      if convertBreakToNewline, case .break(_, let offset) = token {
-        // To keep the existing newline, we need to change the `break` token's length to be the
-        // maximum length of the line, to force it to wrap when laid out.
-        tokens.append(.break(size: maxlinelength, offset: offset))
-        convertBreakToNewline = false
-      } else if case .close = token {
-        if keepExistingNewline && convertBreakToNewline && syntaxToken.text == ")" {
-          // If we haven't seen a break yet and we're about to close a parenthesis-delimited group,
-          // we need to insert our own break with a -2 offset to generate the newline and put the
-          // parenthesis in the correct place.
-          tokens.append(.break(size: maxlinelength, offset: -2))
-        }
-        tokens.append(token)
-      } else {
-        tokens.append(token)
-      }
+  /// Applies consistent formatting to the braces and contents of the given node.
+  ///
+  /// - Parameters:
+  ///   - node: A node that conforms to `BracedSyntax`.
+  ///   - contentsKeyPath: A keypath describing how to get from `node` to the contents of the node
+  ///     (a `Collection` whose elements are of type `DeclSyntax`).
+  ///   - shouldResetBeforeLeftBrace: If true, a `reset` break will be inserted before the node's
+  ///     left brace (the default behavior). Passing false will suppress this break, which is useful
+  ///     if you have already placed a `reset` elsewhere (for example, in a `guard` statement, the
+  ///     `reset` is inserted before the `else` keyword to force both it and the brace down to the
+  ///     next line).
+  private func arrangeBracesAndContents<Node: BracedSyntax, BodyContents: Collection>(
+    of node: Node?,
+    contentsKeyPath: KeyPath<Node, BodyContents>?,
+    shouldResetBeforeLeftBrace: Bool = true
+  ) where BodyContents.Element == DeclSyntax {
+    guard let node = node, let contentsKeyPath = contentsKeyPath else { return }
+
+    if shouldResetBeforeLeftBrace {
+      before(node.leftBrace, tokens: .break(.reset, size: 1))
+    }
+    if !areBracesCompletelyEmpty(node, contentsKeyPath: contentsKeyPath) {
+      after(node.leftBrace, tokens: .break(.open, size: 1), .open)
+      before(node.rightBrace, tokens: .break(.close, size: 1), .close)
+    } else {
+      before(node.rightBrace, tokens: .break(.same, size: 0))
+    }
+  }
+
+  /// Applies consistent formatting to the braces and contents of the given node.
+  ///
+  /// - Parameter node: An `AccessorBlockSyntax` node.
+  private func arrangeBracesAndContents(of node: AccessorBlockSyntax) {
+    // If the collection is empty, then any comments that might be present in the block must be
+    // leading trivia of the right brace.
+    let commentPrecedesRightBrace = node.rightBrace.leadingTrivia.numberOfComments > 0
+    let bracesAreCompletelyEmpty = isAccessorBlockEmpty(node) && !commentPrecedesRightBrace
+
+    before(node.leftBrace, tokens: .break(.reset, size: 1))
+
+    if !bracesAreCompletelyEmpty {
+      after(node.leftBrace, tokens: .break(.open, size: 1), .open)
+      before(node.rightBrace, tokens: .break(.close, size: 1), .close)
+    } else {
+      before(node.rightBrace, tokens: .break(.same, size: 0))
     }
   }
 
@@ -1567,38 +1547,23 @@ private final class TokenStreamCreator: SyntaxVisitor {
       return
     }
 
-    let commentToken: Comment
     let position = token.endPositionAfterTrailingTrivia
     switch firstPiece {
     case .lineComment(let text):
-      commentToken = Comment(kind: .line, text: text, position: position)
+      appendToken(.space(size: 2))
+      appendToken(
+        .comment(Comment(kind: .line, text: text, position: position), wasEndOfLine: true))
+      appendToken(.newline)
     case .blockComment(let text):
-      commentToken = Comment(kind: .block, text: text, position: position)
+      appendToken(.space(size: 1))
+      appendToken(
+        .comment(Comment(kind: .block, text: text, position: position), wasEndOfLine: false))
+      // We place a size-0 break after the comment to allow a discretionary newline after the
+      // comment if the user places one here but the comment is otherwise adjacent to a text token.
+      appendToken(.break(.same, size: 0))
     default:
       return
     }
-
-    appendToken(.break(size: 2, offset: 0))
-    appendToken(.comment(commentToken, wasEndOfLine: true))
-
-    if nextToken != nil, ["}", ")", "]"].contains(nextToken?.withoutTrivia().text), trivia.numberOfComments == 1 {
-      appendToken(.break(size: maxlinelength, offset: -2))
-    } else {
-      appendToken(.break(size: maxlinelength))
-    }
-  }
-
-  /// Returns the offset of the first break that was registered for the given syntax token, or zero
-  /// if no break was found.
-  private func breakOffsetBefore(token: TokenSyntax) -> Int {
-    if let befores = beforeMap[token] {
-      for before in befores.reversed() {
-        if case .break(_, let offset) = before {
-          return offset
-        }
-      }
-    }
-    return 0
   }
 
   private func extractLeadingTrivia(_ token: TokenSyntax) {
@@ -1609,64 +1574,82 @@ private final class TokenStreamCreator: SyntaxVisitor {
       switch piece {
       case .lineComment(let text):
         if index > 0 || isStartOfFile {
-          if token.withoutTrivia().text == "}" {
-            if let previousToken = token.previousToken,
-              (["{", "in"].contains { $0 == previousToken.withoutTrivia().text }) {
-              // do nothing
-            } else {
-              appendToken(.break(size: maxlinelength))
-            }
-          }
-
-          let commentOffset = breakOffsetBefore(token: token)
-          if !isStartOfFile {
-            appendToken(.break(size: maxlinelength, offset: commentOffset))
-          }
           appendToken(.comment(Comment(kind: .line, text: text), wasEndOfLine: false))
-          appendToken(.break(size: maxlinelength, offset: commentOffset))
+          appendToken(.newline)
         }
 
       case .blockComment(let text):
         if index > 0 || isStartOfFile {
-          if token.withoutTrivia().text == "}" {
-            if let previousToken = token.previousToken,
-              previousToken.withoutTrivia().text == "{" {
-              // do nothing
-            } else {
-              appendToken(.break(size: maxlinelength))
-            }
-          }
-
-          let commentOffset = breakOffsetBefore(token: token)
-          if !isStartOfFile {
-            appendToken(.break(size: maxlinelength, offset: commentOffset))
-          }
           appendToken(.comment(Comment(kind: .block, text: text), wasEndOfLine: false))
-          appendToken(.break(size: maxlinelength, offset: commentOffset))
+          // We place a size-0 break after the comment to allow a discretionary newline after the
+          // comment if the user places one here but the comment is otherwise adjacent to a text
+          // token.
+          appendToken(.break(.same, size: 0))
         }
 
       case .docLineComment(let text):
         appendToken(.comment(Comment(kind: .docLine, text: text), wasEndOfLine: false))
-        if case .newlines? = trivia[safe: index + 1],
-           case .docLineComment? = trivia[safe: index + 2] {
-          // do nothing
-        } else {
-          appendToken(.newline)
-        }
+        appendToken(.newline)
 
       case .docBlockComment(let text):
         appendToken(.comment(Comment(kind: .docBlock, text: text), wasEndOfLine: false))
         appendToken(.newline)
 
-      case .newlines(let n), .carriageReturns(let n), .carriageReturnLineFeeds(let n):
-        if n > 1 {
-          appendToken(.newlines(min(n - 1, config.maximumBlankLines), offset: 0))
+      case .newlines(let count), .carriageReturns(let count), .carriageReturnLineFeeds(let count):
+        if config.respectsExistingLineBreaks && isDiscretionaryNewlineAllowed(before: token) {
+          appendToken(.newlines(count, discretionary: true))
+        }
+        else {
+          // Even if discretionary line breaks are not being respected, we still respect multiple
+          // line breaks in order to keep blank separator lines that the user might want.
+          // TODO: It would be nice to restrict this to only allow multiple lines between statements
+          // and declarations; as currently implemented, multiple newlines will locally override the
+          // configuration setting.
+          if count > 1 {
+            appendToken(.newlines(count, discretionary: true))
+          }
         }
 
       default:
         break
       }
     }
+  }
+
+  /// Returns a value indicating whether or not discretionary newlines are permitted before the
+  /// given syntax token.
+  ///
+  /// Discretionary newlines are allowed before any token that is preceded by a break or an existing
+  /// newline (ignoring open/close group tokens, which do not contribute to this). In other words,
+  /// this means that users may insert their own breaks in places where the pretty printer allows
+  /// them, even if those breaks wouldn't cause wrapping based on the column limit, but they may not
+  /// place them in places where the pretty printer would not break (for example, at a space token
+  /// that is intended to keep two tokens glued together).
+  private func isDiscretionaryNewlineAllowed(before token: TokenSyntax) -> Bool {
+    func isBreakMoreRecentThanNonbreakingContent(_ tokens: [Token]) -> Bool? {
+      for token in tokens.reversed() as ReversedCollection {
+        switch token {
+        case .break, .newlines: return true
+        case .comment, .space, .syntax, .verbatim: return false
+        default: break
+        }
+      }
+      return nil
+    }
+
+    // First, check the pretty printer tokens that will be added before the text token. If we find
+    // a break or newline before we find some other text, we allow a discretionary newline. If we
+    // find some other content, we don't allow it.
+    //
+    // If there were no before tokens, then we do the same check the token stream created thus far,
+    // returning true if there were no tokens at all in the stream (which would mean there was a
+    // discretionary newline at the beginning of the file).
+    if let beforeTokens = beforeMap[token],
+      let foundBreakFirst = isBreakMoreRecentThanNonbreakingContent(beforeTokens)
+    {
+      return foundBreakFirst
+    }
+    return isBreakMoreRecentThanNonbreakingContent(tokens) ?? true
   }
 
   func appendToken(_ token: Token) {
@@ -1679,8 +1662,25 @@ private final class TokenStreamCreator: SyntaxVisitor {
         tokens[tokens.count - 1] = .comment(newComment, wasEndOfLine: false)
         return
 
-      case (.newlines(let N1, let offset1), .newlines(let N2, let offset2)):
-        tokens[tokens.count - 1] = .newlines(N1 + N2, offset: offset1 + offset2)
+      // If we see a pair of newlines where one is required and one is not, keep only the required
+      // one.
+      case (.newlines(_, discretionary: false), .newlines(let count, discretionary: true)),
+        (.newlines(let count, discretionary: true), .newlines(_, discretionary: false)):
+        tokens[tokens.count - 1] = .newlines(count, discretionary: true)
+        return
+
+      // If we see two neighboring pairs of required newlines, combine them into a new token with
+      // the sum of their counts.
+      case (.newlines(let first, discretionary: true), .newlines(let second, discretionary: true)):
+        tokens[tokens.count - 1] = .newlines(first + second, discretionary: true)
+        return
+
+      // If we see two neighboring pairs of non-required newlines, keep only the larger one.
+      case (
+        .newlines(let first, discretionary: false),
+        .newlines(let second, discretionary: false)
+      ):
+        tokens[tokens.count - 1] = .newlines(max(first, second), discretionary: true)
         return
 
       default:

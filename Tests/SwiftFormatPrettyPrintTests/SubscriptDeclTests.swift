@@ -46,11 +46,7 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
         subscript<S, T>(row: S, col: T) -> Double {
           return self.values[row][col]
         }
-        subscript<LongTypeName1, LongTypeName2, LongTypeName3>(
-          var1: LongTypeName1,
-          var2: LongTypeName2,
-          var3: LongTypeName3
-        ) -> Int {
+        subscript<LongTypeName1, LongTypeName2, LongTypeName3>(var1: LongTypeName1, var2: LongTypeName2, var3: LongTypeName3) -> Int {
           return self.values[var1][var2][var3]
         }
       }
@@ -66,12 +62,9 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
           return self.values[row][col]
         }
         subscript<
-          LongTypeName1,
-          LongTypeName2,
-          LongTypeName3
+          LongTypeName1, LongTypeName2, LongTypeName3
         >(
-          var1: LongTypeName1,
-          var2: LongTypeName2,
+          var1: LongTypeName1, var2: LongTypeName2,
           var3: LongTypeName3
         ) -> Int {
           return self.values[var1][var2][var3]
@@ -87,20 +80,12 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
     let input =
       """
       struct MyStruct {
-        subscript<Elements: Collection, Element>(
-          var1: Element,
-          var2: Elements
-        ) -> Double where Elements.Element == Element {
+        subscript<Elements: Collection, Element>(var1: Element, var2: Elements) -> Double where Elements.Element == Element {
           return 1.23
         }
-        subscript<Elements: Collection, Element>(
-          var1: Element,
-          var2: Elements
-        ) -> Double
-        where
-          Elements.Element == Element,
-          Element: Equatable
-        { return 1.23 }
+        subscript<Elements: Collection, Element>(var1: Element, var2: Elements) -> Double where Elements.Element == Element, Element: Equatable {
+          return 1.23
+        }
       }
       """
 
@@ -108,19 +93,18 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
       """
       struct MyStruct {
         subscript<Elements: Collection, Element>(
-          var1: Element,
-          var2: Elements
+          var1: Element, var2: Elements
         ) -> Double where Elements.Element == Element {
           return 1.23
         }
         subscript<Elements: Collection, Element>(
-          var1: Element,
-          var2: Elements
+          var1: Element, var2: Elements
         ) -> Double
-        where
-          Elements.Element == Element,
+        where Elements.Element == Element,
           Element: Equatable
-        { return 1.23 }
+        {
+          return 1.23
+        }
       }
 
       """
@@ -144,8 +128,7 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
           let a = 123
           return a
         }
-        @discardableResult
-        @objc
+        @discardableResult @objc
         @inlinable
         @available(swift 4.0)
         subscript(index: Int) -> Int {
@@ -170,8 +153,7 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
           let a = 123
           return a
         }
-        @discardableResult
-        @objc
+        @discardableResult @objc
         @inlinable
         @available(swift 4.0)
         subscript(index: Int) -> Int {
@@ -206,8 +188,7 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
     let expected =
     """
     struct MyStruct {
-      @discardableResult
-      @objc
+      @discardableResult @objc
       subscript<
         ManyElements: Collection,
         Element
@@ -216,8 +197,8 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
         var2: ManyElements
       ) -> ManyElements.Index?
       where
-        ManyElements.Element ==
-        Element,
+        ManyElements.Element
+          == Element,
         Element: Equatable
       {
         get {
@@ -241,7 +222,7 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
     let input = """
       struct X {
         //
-        subscript(i: Int) {}
+        subscript(i: Int) -> Int {}
       }
       """
     assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 50)
@@ -249,10 +230,11 @@ public class SubscriptDeclTests: PrettyPrintTestCase {
     let wrapped = """
       struct X {
         //
-        subscript(i: Int) {}
+        subscript(i: Int) -> Int {
+        }
       }
 
       """
-    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 21)
+    assertPrettyPrintEqual(input: input, expected: wrapped, linelength: 28)
   }
 }

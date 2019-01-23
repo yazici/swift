@@ -42,8 +42,7 @@ public class PrettyPrintTestCase: XCTestCase {
   private func prettyPrintedSource(_ original: String, context: Context) -> String? {
     do {
       let syntax = try SyntaxTreeParser.parse(original)
-      let printer = PrettyPrinter(
-        context: context, node: syntax, isDebugMode: false, printTokenStream: false)
+      let printer = PrettyPrinter(context: context, node: syntax, printTokenStream: false)
       return printer.prettyPrint()
     } catch {
       XCTFail("Parsing failed with error: \(error)")

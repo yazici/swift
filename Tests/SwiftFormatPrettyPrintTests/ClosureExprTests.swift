@@ -163,7 +163,6 @@ public class ClosureExprTests: PrettyPrintTestCase {
       let a = funcCall() {}
       """
 
-
     let expected =
       """
       let a = funcCall() { s1, s2 in

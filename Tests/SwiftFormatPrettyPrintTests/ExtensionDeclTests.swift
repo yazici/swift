@@ -27,7 +27,8 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
         let B: Bool
       }
       public extension
-      MyLongerExtension {
+        MyLongerExtension
+      {
         let A: Int
         let B: Bool
       }
@@ -64,9 +65,7 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Bool
       }
-      extension MyExtension:
-        ProtoOne,
-        ProtoTwo,
+      extension MyExtension: ProtoOne, ProtoTwo,
         ProtoThree
       {
         let A: Int
@@ -107,9 +106,7 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
         let B: Double
       }
       extension MyExtension
-      where
-        S: Collection,
-        T: ReallyLongExtensionName,
+      where S: Collection, T: ReallyLongExtensionName,
         U: AnotherLongExtension
       {
         let A: Int
@@ -184,9 +181,7 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
         let A: Int
         let B: Double
       }
-      @dynamicMemberLookup
-      @objc
-      @objcMembers
+      @dynamicMemberLookup @objc @objcMembers
       public extension MyExtension {
         let A: Int
         let B: Double
@@ -215,13 +210,11 @@ public class ExtensionDeclTests: PrettyPrintTestCase {
     let expected =
 
       """
-      public extension MyContainer:
-        MyContainerProtocolOne,
+      public extension MyContainer: MyContainerProtocolOne,
         MyContainerProtocolTwo,
         SomeoneElsesContainerProtocol,
         SomeFrameworkContainerProtocol
-      where
-        BaseCollection: Collection,
+      where BaseCollection: Collection,
         BaseCollection.Element: Equatable,
         BaseCollection.Element: SomeOtherProtocol
       {
