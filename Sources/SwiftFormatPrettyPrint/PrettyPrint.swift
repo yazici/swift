@@ -33,7 +33,8 @@ public class PrettyPrinter {
   /// consistently break.
   private var lastBreak = false
 
-  /// Keep track of the indentation level of the current group as a sequence of space or tab values.
+  /// Keeps track of the base indentation level (as determined by the unclosed `.break(.open)`
+  /// tokens) as a sequence of space or tab values.
   private var indentationStack: [Indent] = []
 
   /// Keep track of whether we are forcing breaks within a group (for consistent breaking).
