@@ -19,103 +19,188 @@ import SwiftSyntax
 /// Lint: If a comment does not begin with a single-line summary, a lint error is raised.
 ///
 /// - SeeAlso: https://google.github.io/swift#single-sentence-summary
-public final class BeginDocumentationCommentWithOneLineSummary:  SyntaxLintRule {
+public final class BeginDocumentationCommentWithOneLineSummary: SyntaxLintRule {
+
+  /// Unit tests can testably import this module and set this to true in order to force the rule
+  /// to use the fallback (simple period separator) mode instead of the `NSLinguisticTag` mode,
+  /// even on platforms that support the latter (currently only Apple OSes).
+  ///
+  /// This allows test runs on those platforms to test both implementations.
+  static var forcesFallbackModeForTesting = false
+
   override public func visit(_ node: FunctionDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: EnumDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: InitializerDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: DeinitializerDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: SubscriptDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: ClassDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: VariableDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: StructDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: ProtocolDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
   override public func visit(_ node: TypealiasDeclSyntax) {
-    diagnoseDocComments(node)
+    diagnoseDocComments(in: node)
   }
 
-  /// Diagnose documentation comments that don't start
-  /// with one sentence summary.
-  func diagnoseDocComments(_ decl: DeclSyntax) {
+  override public func visit(_ node: AssociatedtypeDeclSyntax) {
+    diagnoseDocComments(in: node)
+  }
+
+  /// Diagnose documentation comments that don't start with one sentence summary.
+  private func diagnoseDocComments(in decl: DeclSyntax) {
     guard let commentText = decl.docComment else { return }
     let docComments = commentText.components(separatedBy: "\n")
     guard let firstPart = firstParagraph(docComments) else { return }
 
-    let commentSentences = sentences(in: firstPart)
-    if commentSentences.count > 1 {
-      diagnose(.docCommentRequiresOneSentenceSummary(commentSentences.first!), on: decl)
+    let trimmedText = firstPart.trimmingCharacters(in: .whitespacesAndNewlines)
+    let (commentSentences, trailingText) = sentences(in: trimmedText)
+    if commentSentences.count == 0 {
+      diagnose(.terminateSentenceWithPeriod(trimmedText), on: decl)
+    }
+    else if commentSentences.count > 1 {
+      diagnose(.addBlankLineAfterFirstSentence(commentSentences[0]), on: decl)
+      if !trailingText.isEmpty {
+        diagnose(.terminateSentenceWithPeriod(trailingText), on: decl)
+      }
     }
   }
 
   /// Returns the text of the first part of the comment,
-  func firstParagraph(_ comments: [String]) -> String? {
+  private func firstParagraph(_ comments: [String]) -> String? {
     var text = [String]()
     var index = 0
-    while index < comments.count  &&
-      comments[index] != "*" &&
-      comments[index] != "" {
+    while index < comments.count && comments[index] != "*" && comments[index] != "" {
       text.append(comments[index])
-      index = index + 1
+      index += 1
     }
     return comments.isEmpty ? nil : text.joined(separator:" ")
   }
 
   /// Returns all the sentences in the given text.
-  func sentences(in text: String) -> [String] {
-    var sentences = [String]()
-    if #available(OSX 10.13, *) { /// add linux condition
-      let tagger = NSLinguisticTagger(tagSchemes: [.tokenType], options: 0)
-      tagger.string = text
-      let range = NSRange(location: 0, length: text.utf16.count)
-      let options: NSLinguisticTagger.Options = [.omitWhitespace, .omitOther]
-      tagger.enumerateTags(
-        in: range,
-        unit: .sentence,
-        scheme: .tokenType,
-        options: options
-      ) {_, tokenRange, _ in
-        let sentence = (text as NSString).substring(with: tokenRange)
-        sentences.append(sentence)
+  ///
+  /// This function uses linguistic APIs if they are available on the current platform; otherwise,
+  /// simpler (and less accurate) character-based string APIs are substituted.
+  ///
+  /// - Parameter text: The text from which sentences should be extracted.
+  /// - Returns: A tuple of two values: `sentences`, the array of sentences that were found, and
+  ///   `trailingText`, which is any non-whitespace text after the last sentence that was not
+  ///   terminated by sentence terminating punctuation. Note that if the entire string is a sequence
+  ///   of words that contains _no_ terminating punctuation, the returned array will be empty to
+  ///   indicate that there were no _complete_ sentences found, and `trailingText` will contain the
+  ///   actual text).
+  private func sentences(in text: String) -> (sentences: [String], trailingText: Substring) {
+    #if os(macOS)
+      if BeginDocumentationCommentWithOneLineSummary.forcesFallbackModeForTesting {
+        return nonLinguisticSentenceApproximations(in: text)
       }
-    } else {
-      return text.components(separatedBy: ". ")
+
+      var sentences = [String]()
+      var tokenRanges = [Range<String.Index>]()
+      let tags = text.linguisticTags(
+        in: text.startIndex..<text.endIndex,
+        scheme: NSLinguisticTagScheme.lexicalClass.rawValue,
+        tokenRanges: &tokenRanges)
+      let sentenceTerminatorIndices =
+        tags.enumerated().filter { $0.element == "SentenceTerminator" }
+        .map { tokenRanges[$0.offset].lowerBound }
+
+      var previous = text.startIndex
+      for index in sentenceTerminatorIndices {
+        let sentenceRange = previous...index
+        sentences.append(text[sentenceRange].trimmingCharacters(in: .whitespaces))
+        previous = text.index(after: index)
+      }
+
+      return (sentences: sentences, trailingText: text[previous..<text.endIndex])
+    #else
+      return nonLinguisticSentenceApproximations(in: text)
+    #endif
+  }
+
+  /// Returns the best approximation of sentences in the given text using string splitting around
+  /// periods that are followed by spaces.
+  ///
+  /// This method is a fallback for platforms (like Linux, currently) where `String` does not
+  /// support `NSLinguisticTagger` and its related APIs. It will fail to catch certain kinds of
+  /// sentences (such as those containing abbrevations that are followed by a period, like "Dr.")
+  /// that the more advanced API can handle.
+  private func nonLinguisticSentenceApproximations(in text: String) -> (
+    sentences: [String], trailingText: Substring
+  ) {
+    // If we find a period followed by a space, then there is definitely one (approximate) sentence;
+    // there may be more.
+    let possiblyHasMultipleSentences = text.range(of: ". ") != nil
+
+    // If the string does not end in a period, then the text preceding it (up until the last
+    // sentence terminator, or the beginning of the string, whichever comes first), is trailing
+    // text.
+    let hasTrailingText = !text.hasSuffix(".")
+
+    if !possiblyHasMultipleSentences {
+      // If we didn't find a ". " sequence, then we either have trailing text (if there is no period
+      // at the end of the string) or we have a single sentence (if there is a final period).
+      if hasTrailingText {
+        return (sentences: [], trailingText: text[...])
+      }
+      else {
+        return (sentences: [text], trailingText: "")
+      }
     }
-    return sentences
+
+    // Otherwise, split the string around ". " sequences. All of these but the last one are
+    // definitely (approximate) sentences. The last one is either trailing text or another sentence,
+    // depending on whether the entire string ended with a period.
+    let splitText = text.components(separatedBy: ". ")
+    let definiteApproximateSentences = splitText.dropLast().map { "\($0)." }
+    let trailingText = splitText.last ?? ""
+    if hasTrailingText {
+      return (sentences: Array(definiteApproximateSentences), trailingText: trailingText[...])
+    }
+    else {
+      var sentences = Array(definiteApproximateSentences)
+      sentences.append(trailingText)
+      return (sentences: sentences, trailingText: "")
+    }
   }
 }
 
 extension Diagnostic.Message {
-  static func docCommentRequiresOneSentenceSummary(_ firstSentence: String) -> Diagnostic.Message {
-    let sentenceWithoutExtraSpaces = firstSentence.trimmingCharacters(in: .whitespacesAndNewlines)
-    return .init(
-      .warning,
-      "add a blank comment line after this sentence: \"\(sentenceWithoutExtraSpaces)\""
-    )
+
+  static func terminateSentenceWithPeriod<Sentence: StringProtocol>(_ text: Sentence)
+    -> Diagnostic.Message
+  {
+    return .init(.warning, "terminate this sentence with a period: \"\(text)\"")
+  }
+
+  static func addBlankLineAfterFirstSentence<Sentence: StringProtocol>(_ text: Sentence)
+    -> Diagnostic.Message
+  {
+    return .init(.warning, "add a blank comment line after this sentence: \"\(text)\"")
   }
 }
