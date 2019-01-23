@@ -14,7 +14,7 @@ import SwiftFormatConfiguration
 
 extension Indent {
   var character: Character {
-    switch kind {
+    switch self {
     case .tabs: return "\t"
     case .spaces: return " "
     }
@@ -25,9 +25,9 @@ extension Indent {
   }
 
   func length(in configuration: Configuration) -> Int {
-    switch kind {
-    case .spaces: return count
-    case .tabs: return count * configuration.tabWidth
+    switch self {
+    case .spaces(let count): return count
+    case .tabs(let count): return count * configuration.tabWidth
     }
   }
 }

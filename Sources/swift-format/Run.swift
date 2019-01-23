@@ -20,14 +20,15 @@ import SwiftSyntax
 /// Runs the linting pipeline over the provided source file.
 ///
 /// If there were any lint diagnostics emitted, this function returns a non-zero exit code.
+/// - Parameter configuration: The `Configuration` that contains user-specific settings.
 /// - Parameter path: The absolute path to the source file to be linted.
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
-public func lintMain(path: String) -> Int {
+public func lintMain(configuration: Configuration, path: String) -> Int {
   let url = URL(fileURLWithPath: path)
   let engine = makeDiagnosticEngine()
 
   let context = Context(
-    configuration: Configuration(),
+    configuration: configuration,
     diagnosticEngine: engine,
     fileURL: url
   )
@@ -49,11 +50,13 @@ public func lintMain(path: String) -> Int {
 
 /// Runs the formatting pipeline over the provided source file.
 ///
+/// - Parameter configuration: The `Configuration` that contains user-specific settings.
 /// - Parameter path: The absolute path to the source file to be linted.
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
-public func formatMain(path: String, prettyPrint: Bool, printTokenStream: Bool) -> Int {
+public func formatMain(
+  configuration: Configuration, path: String, prettyPrint: Bool, printTokenStream: Bool
+) -> Int {
   let url = URL(fileURLWithPath: path)
-  let configuration = Configuration()
   let context = Context(configuration: configuration, diagnosticEngine: nil, fileURL: url)
 
   let pipeline = FormatPipeline(context: context)

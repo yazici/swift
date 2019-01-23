@@ -12,10 +12,26 @@
 
 import Foundation
 
+/// A version number that can be specified in the configuration file, which allows us to change the
+/// format in the future if desired and still support older files.
+private let highestSupportedConfigurationVersion = 1
+
 /// Holds the complete set of configured values and defaults.
 public class Configuration: Codable {
-  /// The version of the configuration; used in case of breaking changes in the future.
-  public let version = 1
+
+  private enum CodingKeys: CodingKey {
+    case version
+    case maximumBlankLines
+    case lineLength
+    case tabWidth
+    case indentation
+    case respectsExistingLineBreaks
+    case blankLineBetweenMembers
+    case surroundSymbolsWithBackticks
+  }
+
+  /// The version of this configuration.
+  private let version: Int
 
   /// MARK: Common configuration
 
@@ -26,10 +42,12 @@ public class Configuration: Codable {
   public var lineLength = 100
 
   /// The width of the horizontal tab in spaces.
-  /// Used when converting indentation type.
+  ///
+  /// This value is used when converting indentation types (for example, from tabs into spaces).
   public var tabWidth = 8
 
-  /// A string that represents a single level of indentation.
+  /// A value representing a single level of indentation.
+  ///
   /// All indentation will be conducted in multiples of this configuration.
   public var indentation: Indent = .spaces(2)
 
@@ -45,13 +63,64 @@ public class Configuration: Codable {
   /// MARK: Rule-specific configuration
 
   /// Rules for limiting blank lines between members.
-  public let blankLineBetweenMembers = BlankLineBetweenMembersConfiguration()
+  public var blankLineBetweenMembers = BlankLineBetweenMembersConfiguration()
 
   /// Rules for adding backticks around special symbols in documentation comments.
-  public let surroundSymbolsWithBackticks = SurroundSymbolsWithBackticksConfiguration()
+  public var surroundSymbolsWithBackticks = SurroundSymbolsWithBackticksConfiguration()
 
   /// Constructs a Configuration with all default values.
-  public init() {}
+  public init() {
+    self.version = highestSupportedConfigurationVersion
+  }
+
+  public required init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+
+    // Unfortunately, to allow the user to leave out configuration options in the JSON, we would
+    // have to make them optional properties, but that makes using the type in the rest of the code
+    // more annoying because we'd have to unwrap everything. So, we override this initializer and
+    // provide the defaults ourselves if needed.
+
+    // If the version number is not present, assume it is 1.
+    self.version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+    guard version <= highestSupportedConfigurationVersion else {
+      throw DecodingError.dataCorruptedError(
+        forKey: .version, in: container,
+        debugDescription:
+          "This version of the formatter does not support configuration version \(version).")
+    }
+
+    // If we ever introduce a new version, this is where we should switch on the decoded version
+    // number and dispatch to different decoding methods.
+
+    self.maximumBlankLines
+      = try container.decodeIfPresent(Int.self, forKey: .maximumBlankLines) ?? 1
+    self.lineLength = try container.decodeIfPresent(Int.self, forKey: .lineLength) ?? 100
+    self.tabWidth = try container.decodeIfPresent(Int.self, forKey: .tabWidth) ?? 8
+    self.indentation
+      = try container.decodeIfPresent(Indent.self, forKey: .indentation) ?? .spaces(2)
+    self.respectsExistingLineBreaks
+      = try container.decodeIfPresent(Bool.self, forKey: .respectsExistingLineBreaks) ?? true
+    self.blankLineBetweenMembers = try container.decodeIfPresent(
+      BlankLineBetweenMembersConfiguration.self, forKey: .blankLineBetweenMembers)
+      ?? BlankLineBetweenMembersConfiguration()
+    self.surroundSymbolsWithBackticks = try container.decodeIfPresent(
+      SurroundSymbolsWithBackticksConfiguration.self, forKey: .surroundSymbolsWithBackticks)
+      ?? SurroundSymbolsWithBackticksConfiguration()
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+
+    try container.encode(version, forKey: .version)
+    try container.encode(maximumBlankLines, forKey: .maximumBlankLines)
+    try container.encode(lineLength, forKey: .lineLength)
+    try container.encode(tabWidth, forKey: .tabWidth)
+    try container.encode(indentation, forKey: .indentation)
+    try container.encode(respectsExistingLineBreaks, forKey: .respectsExistingLineBreaks)
+    try container.encode(blankLineBetweenMembers, forKey: .blankLineBetweenMembers)
+    try container.encode(surroundSymbolsWithBackticks, forKey: .surroundSymbolsWithBackticks)
+  }
 }
 
 /// Configuration for the BlankLineBetweenMembers rule.
@@ -87,21 +156,4 @@ public struct NoPlaygroundLiteralsConfiguration: Codable {
 
   /// Resolution behavior to use when encountering an ambiguous `#colorLiteral`.
   public let resolveAmbiguousColor: ResolveBehavior = .useUIColor
-}
-
-public struct Indent: Hashable, Codable {
-  public enum Kind: String, Codable {
-    case tabs
-    case spaces
-  }
-  public let kind: Kind
-  public let count: Int
-
-  public static func tabs(_ count: Int) -> Indent {
-    return .init(kind: .tabs, count: count)
-  }
-
-  public static func spaces(_ count: Int) -> Indent {
-    return .init(kind: .spaces, count: count)
-  }
 }
