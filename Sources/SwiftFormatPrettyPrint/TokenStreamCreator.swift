@@ -1054,6 +1054,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: AttributedTypeSyntax) {
+    arrangeAttributeList(node.attributes)
     after(node.specifier, tokens: .break)
     super.visit(node)
   }

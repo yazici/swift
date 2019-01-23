@@ -525,4 +525,31 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       """
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 23)
   }
+
+  public func testAttributedTypes() {
+    let input =
+      """
+      func MyFun(myvar: @escaping MyType)
+
+      func MyFun(myvar1: Int, myvar2: Double, myvar3: @escaping MyType) -> Bool {
+        // do stuff
+        return false
+      }
+      """
+
+    let expected =
+      """
+      func MyFun(myvar: @escaping MyType)
+
+      func MyFun(
+        myvar1: Int, myvar2: Double,
+        myvar3: @escaping MyType
+      ) -> Bool {
+        // do stuff
+        return false
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 35)
+  }
 }
