@@ -759,7 +759,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: MemberDeclBlockSyntax) {
-    before(node.members.firstToken, tokens: .break(.reset, size: 0))
     insertTokens(.break(.reset, size: 0), .newline, betweenElementsOf: node.members)
     super.visit(node)
   }
@@ -822,7 +821,6 @@ private final class TokenStreamCreator: SyntaxVisitor {
   }
 
   override func visit(_ node: CodeBlockItemListSyntax) {
-    before(node.firstToken, tokens: .break(.reset, size: 0))
     insertTokens(.break(.reset, size: 0), .newline, betweenElementsOf: node)
     super.visit(node)
   }

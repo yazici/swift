@@ -29,10 +29,6 @@ public class PrettyPrinter {
   /// Keep track of the token lengths.
   private var lengths = [Int]()
 
-  /// This is set to true when a break creates a new line. Since consecutive break tokens may not
-  /// all create new lines, only syntax tokens set this to false.
-  private var lastBreakConsecutive = true
-
   /// Did the previous token create a new line? This is used to determine if a group needs to
   /// consistently break.
   private var lastBreak = false
@@ -101,19 +97,30 @@ public class PrettyPrinter {
     outputBuffer.append(String(str))
   }
 
-  /// Writes the given number of newlines to the output stream.
+  /// Ensures that the given number of newlines to the output stream (taking into account any
+  /// pre-existing consecutive newlines).
+  ///
+  /// This function does some implicit collapsing of consecutive newlines to ensure that the
+  /// results are consistent when breaks and explicit newlines coincide. For example, imagine a
+  /// break token that fires (thus creating a single non-discretionary newline) because it is
+  /// followed by a group that contains 2 discretionary newlines that were found in the user's
+  /// source code at that location. In that case, the break "overlaps" with the discretionary
+  /// newlines and it will write a newline before we get to the discretionaries. Thus, we have to
+  /// subtract the previously written newlines during the second call so that we end up with the
+  /// correct number overall.
   ///
   /// - Parameters:
   ///   - count: The number of newlines to write.
   ///   - discretionary: Indicates whether the newlines are user-entered discretionary newlines.
-  ///     Discretionary newlines are always printed (up through the maximum allowed number provided
-  ///     to the printer at initialization time). Non-discretionary newlines are only printed if
-  ///     discretionary newlines have already not been printed yet.
+  ///     Discretionary newlines are always printed, after excluding any other consecutive newlines
+  ///     thus far, and up through the maximum allowed number provided to the printer at
+  ///     initialization time. Non-discretionary newlines are only printed if discretionary newlines
+  ///     have already not been printed yet.
   private func writeNewlines(_ count: Int, discretionary: Bool) {
     // We add 1 because it takes 2 newlines to create a blank line.
     let maximumNewlines = configuration.maximumBlankLines + 1
     let numberToPrint: Int
-    if consecutiveNewlineCount + count <= maximumNewlines {
+    if count <= maximumNewlines {
       numberToPrint = count - consecutiveNewlineCount
     } else {
       numberToPrint = maximumNewlines - consecutiveNewlineCount
@@ -240,13 +247,8 @@ public class PrettyPrinter {
 
       if length > spaceRemaining || mustBreak {
         currentLineIsContinuation = isContinuation
-
-        if !lastBreakConsecutive {
-          writeNewlines(1, discretionary: false)
-
-          lastBreak = true
-          lastBreakConsecutive = true
-        }
+        writeNewlines(1, discretionary: false)
+        lastBreak = true
       } else {
         if isAtStartOfLine {
           // Make sure that the continuation status is correct even at the beginning of a line
@@ -256,10 +258,7 @@ public class PrettyPrinter {
           // treat the line as a continuation.
           currentLineIsContinuation = isContinuation
         }
-        if !lastBreakConsecutive {
-          enqueueSpaces(size)
-        }
-
+        enqueueSpaces(size)
         lastBreak = false
       }
 
@@ -270,30 +269,20 @@ public class PrettyPrinter {
     // Apply `count` line breaks, calculate the indentation required, and adjust spaceRemaining.
     case .newlines(let count, let discretionary):
       currentLineIsContinuation = (lastBreakKind == .continue)
-
-      if !lastBreakConsecutive || discretionary {
-        writeNewlines(count, discretionary: discretionary)
-      }
-
+      writeNewlines(count, discretionary: discretionary)
       lastBreak = true
-      lastBreakConsecutive = true
 
     // Print any indentation required, followed by the text content of the syntax token.
     case .syntax(let text):
       guard !text.isEmpty else { break }
-
       lastBreak = false
-      lastBreakConsecutive = false
-
       write(text)
       spaceRemaining -= text.count
 
     case .comment(let comment, let wasEndOfLine):
-      if lastBreakConsecutive {
-        currentLineIsContinuation = false
-        lastBreak = false
-        lastBreakConsecutive = false
-      }
+      currentLineIsContinuation = false
+      lastBreak = false
+
       write(comment.print(indent: currentIndentation))
       if wasEndOfLine {
         if comment.length > spaceRemaining {
@@ -307,10 +296,7 @@ public class PrettyPrinter {
       writeRaw(verbatim.print(indent: currentIndentation))
       consecutiveNewlineCount = 0
       pendingSpaces = 0
-      if lastBreakConsecutive {
-        lastBreak = false
-        lastBreakConsecutive = false
-      }
+      lastBreak = false
       spaceRemaining -= length
     }
   }
