@@ -23,7 +23,7 @@ import SwiftSyntax
 /// - Parameter configuration: The `Configuration` that contains user-specific settings.
 /// - Parameter path: The absolute path to the source file to be linted.
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
-public func lintMain(configuration: Configuration, path: String) -> Int {
+func lintMain(configuration: Configuration, path: String) -> Int {
   let url = URL(fileURLWithPath: path)
   let engine = makeDiagnosticEngine()
 
@@ -50,11 +50,13 @@ public func lintMain(configuration: Configuration, path: String) -> Int {
 
 /// Runs the formatting pipeline over the provided source file.
 ///
-/// - Parameter configuration: The `Configuration` that contains user-specific settings.
-/// - Parameter path: The absolute path to the source file to be linted.
+/// - Parameters:
+///   - configuration: The `Configuration` that contains user-specific settings.
+///   - path: The absolute path to the source file to be formatted.
+///   - debugOptions: The set containing any debug options that were supplied on the command line.
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
-public func formatMain(
-  configuration: Configuration, path: String, prettyPrint: Bool, printTokenStream: Bool
+func formatMain(
+  configuration: Configuration, path: String, debugOptions: DebugOptions
 ) -> Int {
   let url = URL(fileURLWithPath: path)
   let context = Context(configuration: configuration, diagnosticEngine: nil, fileURL: url)
@@ -68,7 +70,7 @@ public func formatMain(
     // version of visit(_: SourceFileSyntax), which will not run the pipeline properly.
     let formatted = pipeline.visit(file as Syntax)
 
-    if prettyPrint {
+    if !debugOptions.contains(.disablePrettyPrint) {
       // We create a different context here because we only want diagnostics from the pretty printer
       // phase when formatting.
       let prettyPrintContext = Context(
@@ -79,8 +81,7 @@ public func formatMain(
       let printer = PrettyPrinter(
         context: prettyPrintContext,
         node: formatted,
-        printTokenStream: printTokenStream
-      )
+        printTokenStream: debugOptions.contains(.dumpTokenStream))
       print(printer.prettyPrint(), terminator: "")
     } else {
       print(formatted.description, terminator: "")

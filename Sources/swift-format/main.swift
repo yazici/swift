@@ -17,7 +17,7 @@ import SwiftFormatCore
 import SwiftFormatPrettyPrint
 import Utility
 
-enum Mode: String, Codable, ArgumentKind {
+fileprivate enum Mode: String, Codable, ArgumentKind {
   case format
   case lint
   case dumpConfiguration = "dump-configuration"
@@ -31,6 +31,14 @@ enum Mode: String, Codable, ArgumentKind {
     ])
   }
 
+  /// Indicates whether the mode requires at least one input file passed as a positional argument.
+  var requiresFiles: Bool {
+    switch self {
+    case .format, .lint: return true
+    case .dumpConfiguration, .version: return false
+    }
+  }
+
   init(argument: String) throws {
     guard let mode = Mode(rawValue: argument) else {
       throw ArgumentParserError.invalidValue(argument: argument, error: .unknown(value: argument))
@@ -39,16 +47,17 @@ enum Mode: String, Codable, ArgumentKind {
   }
 }
 
-struct CommandLineOptions: Codable {
+fileprivate struct CommandLineOptions {
   var configurationPath: String? = nil
   var paths: [String] = []
   var verboseLevel = 0
   var mode: Mode = .format
-  var prettyPrint: Bool = false
-  var printTokenStream: Bool = false
+  var debugOptions: DebugOptions = []
 }
 
-func processArguments(commandName: String, _ arguments: [String]) -> CommandLineOptions {
+fileprivate func processArguments(
+  commandName: String, _ arguments: [String]
+) -> CommandLineOptions {
   let parser = ArgumentParser(commandName: commandName,
                               usage: "[options] <filename or path> ...",
                               overview: "Format or lint Swift source code.")
@@ -84,23 +93,6 @@ func processArguments(commandName: String, _ arguments: [String]) -> CommandLine
   }
   binder.bind(
     option: parser.add(
-      option: "--pretty-print",
-      shortName: "-p",
-      kind: Bool.self,
-      usage: "Pretty-print the output and automatically apply line-wrapping."
-  )) {
-    $0.prettyPrint = $1
-  }
-  binder.bind(
-    option: parser.add(
-      option: "--token-stream",
-      kind: Bool.self,
-      usage: "Print out the pretty-printer token stream."
-  )) {
-    $0.printTokenStream = $1
-  }
-  binder.bind(
-    option: parser.add(
       option: "--configuration",
       kind: String.self,
       usage: "The path to a JSON file containing the configuration of the linter/formatter."
@@ -108,10 +100,31 @@ func processArguments(commandName: String, _ arguments: [String]) -> CommandLine
     $0.configurationPath = $1
   }
 
+  // Add advanced debug/developer options. These intentionally have no usage strings, which omits
+  // them from the `--help` screen to avoid noise for the general user.
+  binder.bind(
+    option: parser.add(
+      option: "--debug-disable-pretty-print",
+      kind: Bool.self
+  )) {
+    $0.debugOptions.set(.disablePrettyPrint, enabled: $1)
+  }
+  binder.bind(
+    option: parser.add(
+      option: "--debug-dump-token-stream",
+      kind: Bool.self
+  )) {
+    $0.debugOptions.set(.dumpTokenStream, enabled: $1)
+  }
+
   var opts = CommandLineOptions()
   do {
     let args = try parser.parse(arguments)
     binder.fill(args, into: &opts)
+
+    if opts.mode.requiresFiles && opts.paths.isEmpty {
+      throw ArgumentParserError.expectedArguments(parser, ["filenames or paths"])
+    }
   } catch {
     stderrStream.write("error: \(error)\n\n")
     parser.printUsage(on: stderrStream)
@@ -131,9 +144,7 @@ func main(_ arguments: [String]) -> Int32 {
       ret |= formatMain(
         configuration: configuration,
         path: path,
-        prettyPrint: options.prettyPrint,
-        printTokenStream: options.printTokenStream
-      )
+        debugOptions: options.debugOptions)
     }
     return Int32(ret)
   case .lint:
