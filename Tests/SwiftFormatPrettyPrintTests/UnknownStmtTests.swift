@@ -110,4 +110,19 @@ public class UnknownStmtTests: PrettyPrintTestCase {
 
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 45)
   }
+
+  public func testUnknownStmtWithTrailingComment() {
+    let input =
+      """
+      struct MyStruct {
+        #if swift(>=4.2)
+          // Do stuff here
+        #endif  // trailing comment
+
+        let someMemberVar: Int
+      }
+      """
+
+    assertPrettyPrintEqual(input: input, expected: input + "\n", linelength: 45)
+  }
 }

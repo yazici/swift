@@ -93,9 +93,15 @@ private final class TokenStreamCreator: SyntaxVisitor {
       tokens += before
     }
     appendToken(.verbatim(Verbatim(text: node.description)))
-    if let lastToken = node.lastToken, let afterGroups = afterMap[lastToken] {
-      for after in afterGroups.reversed() {
-        tokens += after
+    if let lastToken = node.lastToken {
+      // Extract any comments that trail the verbatim block since they belong to the next syntax
+      // token. Leading comments don't need special handling since they belong to the current node,
+      // and will get printed.
+      extractTrailingComment(lastToken)
+      if let afterGroups = afterMap[lastToken] {
+        for after in afterGroups.reversed() {
+          tokens += after
+        }
       }
     }
   }
