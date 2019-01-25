@@ -20,10 +20,8 @@ import SwiftSyntax
 /// - Parameter pipeline: The pipeline to populate with passes.
 func populate(_ pipeline: Pipeline) {
   /// MARK: File Passes
-  pipeline.addFileRule(UseOnlySpaces.self)
   pipeline.addFileRule(UseOnlyUTF8.self)
   pipeline.addFileRule(UseSpecialEscapeSequences.self)
-  pipeline.addFileRule(ValidFilename.self)
 
   /// MARK: Formatting Passes
 
@@ -263,6 +261,7 @@ func populate(_ pipeline: Pipeline) {
   pipeline.addLinter(
     BeginDocumentationCommentWithOneLineSummary.self,
     for:
+      AssociatedtypeDeclSyntax.self,
       ClassDeclSyntax.self,
       DeinitializerDeclSyntax.self,
       EnumDeclSyntax.self,
