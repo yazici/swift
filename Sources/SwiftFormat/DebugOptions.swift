@@ -12,21 +12,21 @@
 
 /// Advanced options that are useful when debugging and developing the formatter, but are otherwise
 /// not meant for general use.
-struct DebugOptions: OptionSet {
+public struct DebugOptions: OptionSet {
 
   /// Disables the pretty-printer pass entirely, executing only the syntax-transforming rules in the
   /// pipeline.
-  static let disablePrettyPrint = DebugOptions(rawValue: 1 << 0)
+  public static let disablePrettyPrint = DebugOptions(rawValue: 1 << 0)
 
   /// Dumps a verbose representation of the raw pretty-printer token stream.
-  static let dumpTokenStream = DebugOptions(rawValue: 1 << 1)
+  public static let dumpTokenStream = DebugOptions(rawValue: 1 << 1)
 
-  let rawValue: Int
+  public let rawValue: Int
 
-  init(rawValue: Int) { self.rawValue = rawValue }
+  public init(rawValue: Int) { self.rawValue = rawValue }
 
   /// Inserts or removes the given element from the option set, based on the value of `enabled`.
-  mutating func set(_ element: Element, enabled: Bool) {
+  public mutating func set(_ element: Element, enabled: Bool) {
     if enabled { insert(element) } else { remove(element) }
   }
 }

@@ -10,11 +10,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Basic
 import Foundation
+import SwiftFormat
 import SwiftFormatConfiguration
 import SwiftFormatCore
-import SwiftFormatRules
-import SwiftFormatPrettyPrint
 import SwiftSyntax
 
 /// Runs the linting pipeline over the provided source file.
@@ -25,27 +25,15 @@ import SwiftSyntax
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
 func lintMain(configuration: Configuration, path: String) -> Int {
   let url = URL(fileURLWithPath: path)
-  let engine = makeDiagnosticEngine()
-
-  let context = Context(
-    configuration: configuration,
-    diagnosticEngine: engine,
-    fileURL: url
-  )
-
-  let pipeline = LintPipeline(context: context)
-  populate(pipeline)
+  let diagnosticEngine = makeDiagnosticEngine()
+  let linter = SwiftLinter(configuration: configuration, diagnosticEngine: diagnosticEngine)
 
   do {
-    let file = try SyntaxTreeParser.parse(url)
-
-    // Important! We need to cast this to Syntax to avoid going directly into the specialized
-    // version of visit(_: SourceFileSyntax), which will not run the pipeline properly.
-    pipeline.visit(file as Syntax)
+    try linter.lint(contentsOf: url)
   } catch {
     fatalError("\(error)")
   }
-  return engine.diagnostics.isEmpty ? 0 : 1
+  return diagnosticEngine.diagnostics.isEmpty ? 0 : 1
 }
 
 /// Runs the formatting pipeline over the provided source file.
@@ -59,33 +47,11 @@ func formatMain(
   configuration: Configuration, path: String, debugOptions: DebugOptions
 ) -> Int {
   let url = URL(fileURLWithPath: path)
-  let context = Context(configuration: configuration, diagnosticEngine: nil, fileURL: url)
+  let formatter = SwiftFormatter(configuration: configuration, diagnosticEngine: nil)
+  formatter.debugOptions = debugOptions
 
-  let pipeline = FormatPipeline(context: context)
-  populate(pipeline)
   do {
-    let file = try SyntaxTreeParser.parse(url)
-
-    // Important! We need to cast this to Syntax to avoid going directly into the specialized
-    // version of visit(_: SourceFileSyntax), which will not run the pipeline properly.
-    let formatted = pipeline.visit(file as Syntax)
-
-    if !debugOptions.contains(.disablePrettyPrint) {
-      // We create a different context here because we only want diagnostics from the pretty printer
-      // phase when formatting.
-      let prettyPrintContext = Context(
-        configuration: configuration,
-        diagnosticEngine: makeDiagnosticEngine(),
-        fileURL: url)
-
-      let printer = PrettyPrinter(
-        context: prettyPrintContext,
-        node: formatted,
-        printTokenStream: debugOptions.contains(.dumpTokenStream))
-      print(printer.prettyPrint(), terminator: "")
-    } else {
-      print(formatted.description, terminator: "")
-    }
+    try formatter.format(contentsOf: url, to: &stdoutStream)
   } catch {
     fatalError("\(error)")
   }
