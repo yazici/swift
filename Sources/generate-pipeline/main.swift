@@ -17,7 +17,7 @@ let sourcesDir = URL(fileURLWithPath: #file)
                    .deletingLastPathComponent()
                    .deletingLastPathComponent()
 let rulesDir =  sourcesDir.appendingPathComponent("SwiftFormatRules")
-let outputFile =  sourcesDir.appendingPathComponent("swift-format")
+let outputFile =  sourcesDir.appendingPathComponent("SwiftFormat")
                             .appendingPathComponent("PopulatePipeline.swift")
 let fm = FileManager.default
 
