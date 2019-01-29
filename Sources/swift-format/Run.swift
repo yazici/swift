@@ -52,6 +52,7 @@ func formatMain(
 
   do {
     try formatter.format(contentsOf: url, to: &stdoutStream)
+    stdoutStream.flush()
   } catch {
     fatalError("\(error)")
   }
