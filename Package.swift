@@ -19,6 +19,7 @@ let package = Package(
   name: "swift-format",
   products: [
     .executable(name: "swift-format", targets: ["swift-format"]),
+    .library(name: "SwiftFormat", targets: ["SwiftFormat"]),
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.1.0"),
@@ -35,6 +36,16 @@ let package = Package(
       ]
     ),
     .target(name: "CommonMark", dependencies: ["CCommonMark"]),
+    .target(
+      name: "SwiftFormat",
+      dependencies: [
+        "SwiftFormatConfiguration",
+        "SwiftFormatCore",
+        "SwiftFormatPrettyPrint",
+        "SwiftFormatRules",
+        "SwiftSyntax",
+      ]
+    ),
     .target(name: "SwiftFormatConfiguration"),
     .target(name: "SwiftFormatCore", dependencies: ["SwiftFormatConfiguration", "SwiftSyntax"]),
     .target(
@@ -49,10 +60,9 @@ let package = Package(
     .target(
       name: "swift-format",
       dependencies: [
+        "SwiftFormat",
         "SwiftFormatConfiguration",
         "SwiftFormatCore",
-        "SwiftFormatPrettyPrint",
-        "SwiftFormatRules",
         "SwiftSyntax",
         "Utility",
       ]

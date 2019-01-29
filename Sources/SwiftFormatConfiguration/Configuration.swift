@@ -65,9 +65,6 @@ public class Configuration: Codable {
   /// Rules for limiting blank lines between members.
   public var blankLineBetweenMembers = BlankLineBetweenMembersConfiguration()
 
-  /// Rules for adding backticks around special symbols in documentation comments.
-  public var surroundSymbolsWithBackticks = SurroundSymbolsWithBackticksConfiguration()
-
   /// Constructs a Configuration with all default values.
   public init() {
     self.version = highestSupportedConfigurationVersion
@@ -104,9 +101,6 @@ public class Configuration: Codable {
     self.blankLineBetweenMembers = try container.decodeIfPresent(
       BlankLineBetweenMembersConfiguration.self, forKey: .blankLineBetweenMembers)
       ?? BlankLineBetweenMembersConfiguration()
-    self.surroundSymbolsWithBackticks = try container.decodeIfPresent(
-      SurroundSymbolsWithBackticksConfiguration.self, forKey: .surroundSymbolsWithBackticks)
-      ?? SurroundSymbolsWithBackticksConfiguration()
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -119,7 +113,6 @@ public class Configuration: Codable {
     try container.encode(indentation, forKey: .indentation)
     try container.encode(respectsExistingLineBreaks, forKey: .respectsExistingLineBreaks)
     try container.encode(blankLineBetweenMembers, forKey: .blankLineBetweenMembers)
-    try container.encode(surroundSymbolsWithBackticks, forKey: .surroundSymbolsWithBackticks)
   }
 }
 
@@ -127,18 +120,6 @@ public class Configuration: Codable {
 public struct BlankLineBetweenMembersConfiguration: Codable {
   /// If true, blank lines are not required between single-line properties.
   public let ignoreSingleLineProperties = true
-}
-
-// TODO(abl): Expand the whitelist and blacklist.
-/// Configuration for the SurroundSymbolsWithBackticks rule.
-public struct SurroundSymbolsWithBackticksConfiguration: Codable {
-  /// List of global symbols; added to the list of file-local symbols. Case-sensitive.
-  public let symbolWhitelist = ["String"]
-
-  /// List of symbols to ignore. Case-sensitive.
-  public let symbolBlacklist = [
-    "URL", // symbol name and capitalization is the same as the term.
-  ]
 }
 
 /// Configuration for the NoPlaygroundLiterals rule.
