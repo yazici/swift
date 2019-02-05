@@ -41,18 +41,31 @@ func lintMain(configuration: Configuration, path: String) -> Int {
 /// - Parameters:
 ///   - configuration: The `Configuration` that contains user-specific settings.
 ///   - path: The absolute path to the source file to be formatted.
+///   - inPlace: Whether or not to overwrite the current file when formatting.
 ///   - debugOptions: The set containing any debug options that were supplied on the command line.
 /// - Returns: Zero if there were no lint errors, otherwise a non-zero number.
 func formatMain(
-  configuration: Configuration, path: String, debugOptions: DebugOptions
+  configuration: Configuration, path: String, inPlace: Bool, debugOptions: DebugOptions
 ) -> Int {
   let url = URL(fileURLWithPath: path)
   let formatter = SwiftFormatter(configuration: configuration, diagnosticEngine: nil)
   formatter.debugOptions = debugOptions
 
   do {
-    try formatter.format(contentsOf: url, to: &stdoutStream)
-    stdoutStream.flush()
+    if inPlace {
+      let cwd = FileManager.default.currentDirectoryPath
+      var buffer = BufferedOutputByteStream()
+      try formatter.format(contentsOf: url, to: &buffer)
+      buffer.flush()
+      try localFileSystem.writeFileContents(
+        AbsolutePath(url.path, relativeTo: AbsolutePath(cwd)),
+        bytes: buffer.bytes
+      )
+    }
+    else {
+      try formatter.format(contentsOf: url, to: &stdoutStream)
+      stdoutStream.flush()
+    }
   } catch {
     fatalError("\(error)")
   }

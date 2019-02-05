@@ -28,6 +28,11 @@ struct CommandLineOptions {
   /// If not specified, the tool will be run in format mode.
   var mode: ToolMode = .format
 
+  /// Whether or not to format the Swift file in-place
+  ///
+  /// If specified, the current file is overwritten when formatting
+  var inPlace: Bool = false
+
   /// Advanced options that are useful for developing/debugging but otherwise not meant for general
   /// use.
   var debugOptions: DebugOptions = []
@@ -86,6 +91,15 @@ func processArguments(commandName: String, _ arguments: [String]) -> CommandLine
   )) {
     $0.configurationPath = $1
   }
+  binder.bind(
+    option: parser.add(
+      option: "--in-place",
+      shortName: "-i",
+      kind: Bool.self,
+      usage: "Overwrite the current file when formatting ('format' mode only)."
+  )) {
+    $0.inPlace = $1
+  }
 
   // Add advanced debug/developer options. These intentionally have no usage strings, which omits
   // them from the `--help` screen to avoid noise for the general user.
@@ -111,6 +125,10 @@ func processArguments(commandName: String, _ arguments: [String]) -> CommandLine
 
     if opts.mode.requiresFiles && opts.paths.isEmpty {
       throw ArgumentParserError.expectedArguments(parser, ["filenames or paths"])
+    }
+
+    if opts.inPlace && ToolMode.format != opts.mode {
+      throw ArgumentParserError.unexpectedArgument("--in-place, -i")
     }
   } catch {
     stderrStream.write("error: \(error)\n\n")
