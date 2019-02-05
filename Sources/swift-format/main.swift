@@ -28,6 +28,7 @@ fileprivate func main(_ arguments: [String]) -> Int32 {
       ret |= formatMain(
         configuration: configuration,
         path: path,
+        inPlace: options.inPlace,
         debugOptions: options.debugOptions)
     }
     return Int32(ret)
