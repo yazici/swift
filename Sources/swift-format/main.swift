@@ -23,8 +23,9 @@ fileprivate func main(_ arguments: [String]) -> Int32 {
   switch options.mode {
   case .format:
     var ret = 0
-    let configuration = decodedConfiguration(fromFileAtPath: options.configurationPath)
     for path in options.paths {
+      let configuration = loadConfiguration(
+        forSwiftFile: path, configFilePath: options.configurationPath)
       ret |= formatMain(
         configuration: configuration,
         path: path,
@@ -34,8 +35,9 @@ fileprivate func main(_ arguments: [String]) -> Int32 {
     return Int32(ret)
   case .lint:
     var ret = 0
-    let configuration = decodedConfiguration(fromFileAtPath: options.configurationPath)
     for path in options.paths {
+      let configuration = loadConfiguration(
+        forSwiftFile: path, configFilePath: options.configurationPath)
       ret |= lintMain(configuration: configuration, path: path)
     }
     return Int32(ret)
@@ -46,6 +48,41 @@ fileprivate func main(_ arguments: [String]) -> Int32 {
     print("0.0.1") // TODO(abl): Something fancy based on the git hash
     return 0
   }
+}
+
+/// Load the configuration.
+private func loadConfiguration(
+  forSwiftFile swiftFilePath: String, configFilePath: String?
+) -> Configuration {
+  if let path = configFilePath {
+    return decodedConfiguration(fromFileAtPath: path)
+  }
+  else {
+    // Search for a ".swift-format" configuration file in the directory of the current .swift file,
+    // or its nearest parent.
+    let swiftFileDir = URL(fileURLWithPath: swiftFilePath)
+    return decodedConfiguration(
+      fromFileAtPath: findConfigurationFile(forSwiftFile: swiftFileDir.path))
+  }
+}
+
+/// Look for a ".swift-format" configuration file in the same directory as "forSwiftFile", or its
+/// nearest parent. If one is not found, return "nil".
+private func findConfigurationFile(forSwiftFile: String) -> String? {
+  let cwd = FileManager.default.currentDirectoryPath
+  var path = URL(
+    fileURLWithPath: AbsolutePath(forSwiftFile, relativeTo: AbsolutePath(cwd)).asString)
+  let configFilename = ".swift-format"
+
+  repeat {
+    path = path.deletingLastPathComponent()
+    let testPath = path.appendingPathComponent(configFilename).path
+    if FileManager.default.isReadableFile(atPath: testPath) {
+      return testPath
+    }
+  } while path.path != "/"
+
+  return nil
 }
 
 /// Loads and returns a `Configuration` from the given JSON file if it is found and is valid. If the
