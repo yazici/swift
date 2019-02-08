@@ -31,7 +31,9 @@ func lintMain(configuration: Configuration, path: String) -> Int {
   do {
     try linter.lint(contentsOf: url)
   } catch {
-    fatalError("\(error)")
+    stderrStream.write("Unable to lint \(path): \(error)\n")
+    stderrStream.flush()
+    exit(1)
   }
   return diagnosticEngine.diagnostics.isEmpty ? 0 : 1
 }
@@ -67,7 +69,9 @@ func formatMain(
       stdoutStream.flush()
     }
   } catch {
-    fatalError("\(error)")
+    stderrStream.write("Unable to format \(path): \(error)\n")
+    stderrStream.flush()
+    exit(1)
   }
   return 0
 }
