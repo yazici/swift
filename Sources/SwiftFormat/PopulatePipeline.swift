@@ -32,12 +32,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    CollectionLiteralWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
     DoNotUseSemicolons.self,
     for:
       CodeBlockSyntax.self,
@@ -264,6 +258,12 @@ func populate(_ pipeline: Pipeline) {
 
   pipeline.addLinter(
     CloseBraceWhitespace.self,
+    for:
+      TokenSyntax.self
+  )
+
+  pipeline.addLinter(
+    CollectionLiteralWhitespace.self,
     for:
       TokenSyntax.self
   )
