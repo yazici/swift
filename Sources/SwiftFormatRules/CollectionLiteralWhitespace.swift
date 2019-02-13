@@ -20,27 +20,24 @@ import SwiftSyntax
 ///       after the opening delimiter, or any spaces before the closing delimiter, a lint
 ///       error is raised.
 ///
-/// Format: Extraneous spaces at the beginning and end of collection literals will be removed.
-///
 /// - SeeAlso: https://google.github.io/swift#horizontal-whitespace
-public final class CollectionLiteralWhitespace: SyntaxFormatRule {
-  public override func visit(_ token: TokenSyntax) -> Syntax {
+public final class CollectionLiteralWhitespace: SyntaxLintRule {
+  public override func visit(_ token: TokenSyntax) {
     // Ensure we have an adjacent token on the same line
-    guard let next = token.nextToken else { return token }
-    if next.leadingTrivia.containsNewlines { return token }
+    guard let next = token.nextToken else { return }
+    if next.leadingTrivia.containsNewlines { return }
 
     // If either this current token is a left delimiter, or the next token
     // is a right delimiter, then remove spaces from our trailing trivia.
     if token.tokenKind.isLeftBalancedDelimiter && token.trailingTrivia.containsSpaces {
       diagnose(.noSpacesAfter(token), on: token)
-      return token.withTrailingTrivia(token.trailingTrivia.withoutSpaces())
+      return
     }
 
     if next.tokenKind.isRightBalancedDelimiter && token.trailingTrivia.containsSpaces {
       diagnose(.noSpacesBefore(next), on: next)
-      return token.withTrailingTrivia(token.trailingTrivia.withoutSpaces())
+      return
     }
-    return token
   }
 }
 
