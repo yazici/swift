@@ -22,19 +22,17 @@ import SwiftSyntax
 /// Lint: If an invalid number of spaces appear before or after a colon, a lint error is
 ///       raised.
 ///
-/// Format: All colons will have no spaces before, and a single space after.
-///
 /// - SeeAlso: https://google.github.io/swift#horizontal-whitespace
-public final class ColonWhitespace: SyntaxFormatRule {
-  public override func visit(_ token: TokenSyntax) -> Syntax {
-    guard let next = token.nextToken else { return token }
+public final class ColonWhitespace: SyntaxLintRule {
+  public override func visit(_ token: TokenSyntax) {
+    guard let next = token.nextToken else { return }
 
     if token.tokenKind == .colon,
        token.containingExprStmtOrDecl is DictionaryExprSyntax,
        next.tokenKind == .rightSquareBracket,
        token.trailingTrivia.numberOfSpaces > 0 {
       diagnose(.noSpacesAfterColon, on: token)
-      return token.withoutTrailingTrivia()
+      return
     }
 
     /// Colons own their trailing spaces, so ensure it only has 1 if there's
@@ -48,16 +46,15 @@ public final class ColonWhitespace: SyntaxFormatRule {
       if numSpaces == 0 {
         diagnose(.addSpaceAfterColon, on: token)
       }
-      return token.withOneTrailingSpace()
+      return
     }
 
     /// Otherwise, colon-adjacent tokens should have 0 spaces after.
     if next.tokenKind == .colon, token.trailingTrivia.containsSpaces,
       !(next.containingExprStmtOrDecl is TernaryExprSyntax) {
       diagnose(.noSpacesBeforeColon, on: next)
-      return token.withTrailingTrivia(token.trailingTrivia.withoutSpaces())
+      return
     }
-    return token
   }
 }
 
