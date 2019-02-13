@@ -121,12 +121,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    OneSpaceAfterKeywords.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
     OneSpaceInsideBraces.self,
     for:
       TokenSyntax.self
@@ -339,6 +333,12 @@ func populate(_ pipeline: Pipeline) {
       ProtocolDeclSyntax.self,
       StructDeclSyntax.self,
       TypealiasDeclSyntax.self
+  )
+
+  pipeline.addLinter(
+    OneSpaceAfterKeywords.self,
+    for:
+      TokenSyntax.self
   )
 
   pipeline.addLinter(
