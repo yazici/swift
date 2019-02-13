@@ -19,12 +19,10 @@ import SwiftSyntax
 /// Lint: If a keyword appears before a token on the same line without a space between them, a lint
 ///       error is raised.
 ///
-/// Format: A single space will be inserted between keywords and other same-line tokens.
-///
 /// - SeeAlso: https://google.github.io/swift#horizontal-whitespace
-public final class OneSpaceAfterKeywords: SyntaxFormatRule {
-  public override func visit(_ token: TokenSyntax) -> Syntax {
-    guard let nextToken = token.nextToken else { return token }
+public final class OneSpaceAfterKeywords: SyntaxLintRule {
+  public override func visit(_ token: TokenSyntax) {
+    guard let nextToken = token.nextToken else { return }
     
     // Keywords own their trailing spaces, so ensure it only has 1, if there's
     // another token on the same line.
@@ -33,11 +31,10 @@ public final class OneSpaceAfterKeywords: SyntaxFormatRule {
        !nextToken.leadingTrivia.containsNewlines {
       let numSpaces = token.trailingTrivia.numberOfSpaces
       if numSpaces > 1 {
-        diagnose(.removeSpacesAfterKeyword(numSpaces - 1, token.description), on: token)
-        return token.withOneTrailingSpace()
+        diagnose(
+          .removeSpacesAfterKeyword(numSpaces - 1, token.withoutTrivia().description), on: token)
       }
     }
-    return token
   }
 }
 
