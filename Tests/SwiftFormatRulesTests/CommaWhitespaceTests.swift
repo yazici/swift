@@ -5,47 +5,55 @@ import XCTest
 
 public class CommaWhitespaceTests: DiagnosingTestCase {
   public func testInvalidFuncCommaWhiteSpace() {
-    XCTAssertFormatting(
-      CommaWhitespace.self,
-      input: """
-             func testComma(paramA: Bool,paramB: Bool ,paramC: Bool , paramD: Bool) -> Bool {
+    let input =
+      """
+      func testComma(paramA: Bool,paramB: Bool ,paramC: Bool , paramD: Bool) -> Bool {
 
-             if paramA,
-                !paramB ,
-                paramC   ,
-                paramD {
-              return true
-                }
-             return false
-             }
-             """,
-      expected: """
-                func testComma(paramA: Bool, paramB: Bool, paramC: Bool, paramD: Bool) -> Bool {
+      if paramA,
+         !paramB ,
+         paramC   ,
+         paramD {
+       return true
+         }
+      return false
+      }
+      """
 
-                if paramA,
-                   !paramB,
-                   paramC,
-                   paramD {
-                 return true
-                   }
-                return false
-                }
-                """)
+    performLint(CommaWhitespace.self, input: input)
+
+    // func testComma...
+    XCTAssertDiagnosed(.addSpaceAfterComma)
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
+    XCTAssertDiagnosed(.addSpaceAfterComma)
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
+
+    // if paramA...
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
   }
   
   public func testInvalidDeclCommaWhiteSpace() {
-    XCTAssertFormatting(
-      CommaWhitespace.self,
-      input: """
-             let numA = [1,2,3]
-             let numB = [1 ,2 ,3]
-             let numC = [1 , 2 , 3]
-             """,
-      expected: """
-                let numA = [1, 2, 3]
-                let numB = [1, 2, 3]
-                let numC = [1, 2, 3]
-                """)
+    let input = """
+      let numA = [1,2,3]
+      let numB = [1 ,2 ,3]
+      let numC = [1 , 2 , 3]
+      """
+
+    performLint(CommaWhitespace.self, input: input)
+
+    // let numA
+    XCTAssertDiagnosed(.addSpaceAfterComma)
+    XCTAssertDiagnosed(.addSpaceAfterComma)
+
+    // let numB
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
+    XCTAssertDiagnosed(.addSpaceAfterComma)
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
+    XCTAssertDiagnosed(.addSpaceAfterComma)
+
+    // let numC
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
+    XCTAssertDiagnosed(.noSpacesBeforeComma)
   }
   
   #if !os(macOS)

@@ -22,12 +22,10 @@ import SwiftSyntax
 /// Lint: If an invalid number of spaces appear before or after a comma, a lint error is
 ///       raised.
 ///
-/// Format: All commas will have no spaces before, and a single space after.
-///
 /// - SeeAlso: https://google.github.io/swift#horizontal-whitespace
-public final class CommaWhitespace: SyntaxFormatRule {
-  public override func visit(_ token: TokenSyntax) -> Syntax {
-    guard let next = token.nextToken else { return token }
+public final class CommaWhitespace: SyntaxLintRule {
+  public override func visit(_ token: TokenSyntax) {
+    guard let next = token.nextToken else { return }
 
     // Commas own their trailing spaces, so ensure it only has 1 if there's
     // another token on the same line.
@@ -39,15 +37,14 @@ public final class CommaWhitespace: SyntaxFormatRule {
       else if numSpaces == 0 {
         diagnose(.addSpaceAfterComma, on: token)
       }
-      return token.withOneTrailingSpace()
+      return
     }
 
     // Otherwise, comma-adjacent tokens should have 0 spaces after.
     if next.tokenKind == .comma && token.trailingTrivia.containsSpaces {
       diagnose(.noSpacesBeforeComma, on: next)
-      return token.withTrailingTrivia(token.trailingTrivia.withoutSpaces())
+      return
     }
-    return token
   }
 }
 
