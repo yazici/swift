@@ -6,25 +6,18 @@ import SwiftSyntax
 
 public class CloseBraceWhitespaceTests: DiagnosingTestCase {
   public func testInvalidCloseBraceWhitespace() {
-    XCTAssertFormatting(
-      CloseBraceWhitespace.self,
-      input: """
-             func a()
-             { print("hello")
-               print("goodbye")}
-             func b(){
-             }
-             func c() {}
-             """,
-      expected: """
-                func a()
-                { print("hello")
-                  print("goodbye")
-                }
-                func b(){
-                }
-                func c() {}
-                """)
+    let input =
+      """
+      func a()
+      { print("hello")
+        print("goodbye")}
+      func b(){
+      }
+      func c() {}
+      """
+
+    performLint(CloseBraceWhitespace.self, input: input)
+    XCTAssertDiagnosed(.lineBreakRequiredBeforeCloseBrace)
   }
 
 #if !os(macOS)
@@ -32,6 +25,4 @@ public class CloseBraceWhitespaceTests: DiagnosingTestCase {
     CloseBraceWhitespaceTests.testInvalidCloseBraceWhitespace,
   ]
 #endif
-
 }
-

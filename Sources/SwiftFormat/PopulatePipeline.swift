@@ -32,12 +32,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    CloseBraceWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
     CollectionLiteralWhitespace.self,
     for:
       TokenSyntax.self
@@ -278,6 +272,12 @@ func populate(_ pipeline: Pipeline) {
     CaseIndentLevelEqualsSwitch.self,
     for:
       SwitchStmtSyntax.self
+  )
+
+  pipeline.addLinter(
+    CloseBraceWhitespace.self,
+    for:
+      TokenSyntax.self
   )
 
   pipeline.addLinter(
