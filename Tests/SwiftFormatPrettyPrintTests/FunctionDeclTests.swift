@@ -552,4 +552,33 @@ public class FunctionDeclTests: PrettyPrintTestCase {
       """
     assertPrettyPrintEqual(input: input, expected: expected, linelength: 35)
   }
+
+  public func testRemovesLineBreakBeforeOpenBraceUnlessAbsolutelyNecessary() {
+    let input =
+      """
+      func foo(bar: Int)
+      {
+        baz()
+      }
+
+      func foo(longer: Int)
+      {
+        baz()
+      }
+      """
+
+    let expected =
+      """
+      func foo(bar: Int) {
+        baz()
+      }
+
+      func foo(longer: Int)
+      {
+        baz()
+      }
+
+      """
+    assertPrettyPrintEqual(input: input, expected: expected, linelength: 21)
+  }
 }

@@ -193,7 +193,7 @@ public class PrettyPrinter {
 
     // Create a line break if needed. Calculate the indentation required and adjust spaceRemaining
     // accordingly.
-    case .break(let kind, let size):
+    case .break(let kind, let size, _):
       lastBreakKind = kind
       var mustBreak = forceBreakStack.last ?? false
       var isContinuation = false
@@ -346,7 +346,7 @@ public class PrettyPrinter {
 
       // Break lengths are equal to its size plus the token or group following it. Calculate the
       // length of any prior break tokens.
-      case .break(_, let size):
+      case .break(_, let size, _):
         if let index = delimIndexStack.last, case .break = tokens[index] {
           lengths[index] += total
           delimIndexStack.removeLast()
@@ -436,9 +436,11 @@ public class PrettyPrinter {
       printDebugIndent()
       print("[SYNTAX \"\(syntax)\" Length: \(length)]")
 
-    case .break(let kind, let size):
+    case .break(let kind, let size, let ignoresDiscretionary):
       printDebugIndent()
-      print("[BREAK Kind: \(kind) Size: \(size) Length: \(length)]")
+      print(
+        "[BREAK Kind: \(kind) Size: \(size) Length: \(length) "
+          + "Ignores Discretionary NL: \(ignoresDiscretionary)]")
 
     case .open(let breakstyle):
       printDebugIndent()
