@@ -1460,7 +1460,7 @@ private final class TokenStreamCreator: SyntaxVisitor {
     guard let node = node, let contentsKeyPath = contentsKeyPath else { return }
 
     if shouldResetBeforeLeftBrace {
-      before(node.leftBrace, tokens: .break(.reset, size: 1))
+      before(node.leftBrace, tokens: .break(.reset, size: 1, ignoresDiscretionary: true))
     }
     if !areBracesCompletelyEmpty(node, contentsKeyPath: contentsKeyPath) {
       after(node.leftBrace, tokens: .break(.open, size: 1), .open)
@@ -1626,17 +1626,25 @@ private final class TokenStreamCreator: SyntaxVisitor {
   /// Returns a value indicating whether or not discretionary newlines are permitted before the
   /// given syntax token.
   ///
-  /// Discretionary newlines are allowed before any token that is preceded by a break or an existing
-  /// newline (ignoring open/close group tokens, which do not contribute to this). In other words,
-  /// this means that users may insert their own breaks in places where the pretty printer allows
-  /// them, even if those breaks wouldn't cause wrapping based on the column limit, but they may not
-  /// place them in places where the pretty printer would not break (for example, at a space token
-  /// that is intended to keep two tokens glued together).
+  /// Discretionary newlines are allowed before any token (ignoring open/close group tokens, which
+  /// do not contribute to this) that is preceded by an existing newline or that is preceded by a
+  /// break whose `ignoresDiscretionary` property is false. In other words, this means that users
+  /// may insert their own breaks in places where the pretty printer allows them, even if those
+  /// breaks wouldn't cause wrapping based on the column limit, but they may not place them in
+  /// places where the pretty printer would not break (for example, at a space token that is
+  /// intended to keep two tokens glued together).
+  ///
+  /// Furthermore, breaks with `ignoresDiscretionary` equal to `true` are in effect "last resort"
+  /// breaks; a user's newline will be discarded unless the algorithm *must* break there. For
+  /// example, an open curly brace on a non-continuation line should always be kept on the same line
+  /// as the tokens before it unless the tokens before it are exactly the length of the line and a
+  /// break must be inserted there to prevent the brace from going over the limit.
   private func isDiscretionaryNewlineAllowed(before token: TokenSyntax) -> Bool {
     func isBreakMoreRecentThanNonbreakingContent(_ tokens: [Token]) -> Bool? {
       for token in tokens.reversed() as ReversedCollection {
         switch token {
-        case .break, .newlines: return true
+        case .newlines: return true
+        case .break(_, _, let ignoresDiscretionary): return !ignoresDiscretionary
         case .comment, .space, .syntax, .verbatim: return false
         default: break
         }
