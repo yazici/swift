@@ -50,26 +50,13 @@ final class MarkdownDocumentTest: XCTestCase {
       """)
   }
 
-  func testInitByParsing_header() {
+  func testInitByParsing_heading() {
     let document = MarkdownDocument(byParsing: "# Foo")
 
-    let header = document.children[0] as! HeaderNode
-    XCTAssertEqual(header.level, .h1)
-    let text = header.children[0] as! TextNode
+    let heading = document.children[0] as! HeadingNode
+    XCTAssertEqual(heading.level, .h1)
+    let text = heading.children[0] as! TextNode
     XCTAssertEqual(text.literalContent, "Foo")
-  }
-
-  func testInitByParsing_horizontalRule() {
-    let document = MarkdownDocument(byParsing: """
-      foo
-
-      ---
-
-      bar
-      """)
-
-    let rule = document.children[1] as? HorizontalRuleNode
-    XCTAssertNotNil(rule)
   }
 
   func testInitByParsing_image() {
@@ -172,6 +159,19 @@ final class MarkdownDocumentTest: XCTestCase {
     let paragraph = document.children[0] as! ParagraphNode
     let text = paragraph.children[0] as! TextNode
     XCTAssertEqual(text.literalContent, "basic")
+  }
+
+  func testInitByParsing_thematicBreak() {
+    let document = MarkdownDocument(byParsing: """
+      foo
+
+      ---
+
+      bar
+      """)
+
+    let rule = document.children[1] as? ThematicBreakNode
+    XCTAssertNotNil(rule)
   }
 }
 

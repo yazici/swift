@@ -31,9 +31,7 @@ public enum PrimitiveNode {
 
   case emphasis(EmphasisNode)
 
-  case header(HeaderNode)
-
-  case horizontalRule(HorizontalRuleNode)
+  case heading(HeadingNode)
 
   case htmlBlock(HTMLBlockNode)
 
@@ -58,4 +56,6 @@ public enum PrimitiveNode {
   case strong(StrongNode)
 
   case text(TextNode)
+
+  case thematicBreak(ThematicBreakNode)
 }

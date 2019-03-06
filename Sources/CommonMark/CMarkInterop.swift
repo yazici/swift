@@ -43,14 +43,12 @@ fileprivate func makeNode(from cNode: OpaquePointer) -> MarkdownNode {
     node = EmphasisNode(
       children: makeNodes(fromChildrenOf: cNode) as! [InlineContent],
       sourceRange: sourceRange)
-  case CMARK_NODE_HEADER:
-    node = HeaderNode(
-      level: HeaderNode.Level(rawValue: numericCast(cmark_node_get_header_level(cNode)))!,
+  case CMARK_NODE_HEADING:
+    node = HeadingNode(
+      level: HeadingNode.Level(rawValue: numericCast(cmark_node_get_heading_level(cNode)))!,
       children: makeNodes(fromChildrenOf: cNode) as! [InlineContent],
       sourceRange: sourceRange)
-  case CMARK_NODE_HRULE:
-    node = HorizontalRuleNode(sourceRange: sourceRange)
-  case CMARK_NODE_HTML:
+  case CMARK_NODE_HTML_BLOCK:
     node = HTMLBlockNode(
       literalContent: String(cString: cmark_node_get_literal(cNode)),
       sourceRange: sourceRange)
@@ -60,7 +58,7 @@ fileprivate func makeNode(from cNode: OpaquePointer) -> MarkdownNode {
       title: String(cString: cmark_node_get_title(cNode)),
       children: makeNodes(fromChildrenOf: cNode) as! [InlineContent],
       sourceRange: sourceRange)
-  case CMARK_NODE_INLINE_HTML:
+  case CMARK_NODE_HTML_INLINE:
     node = InlineHTMLNode(
       literalContent: String(cString: cmark_node_get_literal(cNode)),
       sourceRange: sourceRange)
@@ -106,6 +104,8 @@ fileprivate func makeNode(from cNode: OpaquePointer) -> MarkdownNode {
     node = TextNode(
       literalContent: String(cString: cmark_node_get_literal(cNode)),
       sourceRange: sourceRange)
+  case CMARK_NODE_THEMATIC_BREAK:
+    node = ThematicBreakNode(sourceRange: sourceRange)
   default:
     fatalError("Unexpected node type \(type) encountered")
   }
@@ -180,8 +180,7 @@ extension PrimitiveNode: CMarkNodeConvertible {
     case .codeBlock(let node): return node.makeCNode()
     case .document(let node): return node.makeCNode()
     case .emphasis(let node): return node.makeCNode()
-    case .header(let node): return node.makeCNode()
-    case .horizontalRule(let node): return node.makeCNode()
+    case .heading(let node): return node.makeCNode()
     case .htmlBlock(let node): return node.makeCNode()
     case .image(let node): return node.makeCNode()
     case .inlineCode(let node): return node.makeCNode()
@@ -194,6 +193,7 @@ extension PrimitiveNode: CMarkNodeConvertible {
     case .softBreak(let node): return node.makeCNode()
     case .strong(let node): return node.makeCNode()
     case .text(let node): return node.makeCNode()
+    case .thematicBreak(let node): return node.makeCNode()
     }
   }
 }
@@ -233,28 +233,21 @@ extension EmphasisNode: CMarkNodeConvertible {
 extension HTMLBlockNode: CMarkNodeConvertible {
 
   func makeCNode() -> OpaquePointer {
-    let cNode = cmark_node_new(CMARK_NODE_HTML)!
+    let cNode = cmark_node_new(CMARK_NODE_HTML_BLOCK)!
     cmark_node_set_literal(cNode, literalContent)
     return cNode
   }
 }
 
-extension HeaderNode: CMarkNodeConvertible {
+extension HeadingNode: CMarkNodeConvertible {
 
   func makeCNode() -> OpaquePointer {
-    let cNode = cmark_node_new(CMARK_NODE_HEADER)!
-    cmark_node_set_header_level(cNode, numericCast(level.rawValue))
+    let cNode = cmark_node_new(CMARK_NODE_HEADING)!
+    cmark_node_set_heading_level(cNode, numericCast(level.rawValue))
     for child in children {
       cmark_node_append_child(cNode, child.primitiveRepresentation.makeCNode())
     }
     return cNode
-  }
-}
-
-extension HorizontalRuleNode: CMarkNodeConvertible {
-
-  func makeCNode() -> OpaquePointer {
-    return cmark_node_new(CMARK_NODE_HRULE)!
   }
 }
 
@@ -283,7 +276,7 @@ extension InlineCodeNode: CMarkNodeConvertible {
 extension InlineHTMLNode: CMarkNodeConvertible {
 
   func makeCNode() -> OpaquePointer {
-    let cNode = cmark_node_new(CMARK_NODE_INLINE_HTML)!
+    let cNode = cmark_node_new(CMARK_NODE_HTML_INLINE)!
     cmark_node_set_literal(cNode, literalContent)
     return cNode
   }
@@ -386,5 +379,12 @@ extension TextNode: CMarkNodeConvertible {
     let cNode = cmark_node_new(CMARK_NODE_TEXT)!
     cmark_node_set_literal(cNode, literalContent)
     return cNode
+  }
+}
+
+extension ThematicBreakNode: CMarkNodeConvertible {
+
+  func makeCNode() -> OpaquePointer {
+    return cmark_node_new(CMARK_NODE_THEMATIC_BREAK)!
   }
 }

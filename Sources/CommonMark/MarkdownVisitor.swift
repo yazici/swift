@@ -33,8 +33,7 @@ open class MarkdownVisitor {
     case let castNode as CodeBlockNode: visit(castNode)
     case let castNode as EmphasisNode: visit(castNode)
     case let castNode as HTMLBlockNode: visit(castNode)
-    case let castNode as HeaderNode: visit(castNode)
-    case let castNode as HorizontalRuleNode: visit(castNode)
+    case let castNode as HeadingNode: visit(castNode)
     case let castNode as ImageNode: visit(castNode)
     case let castNode as InlineCodeNode: visit(castNode)
     case let castNode as InlineHTMLNode: visit(castNode)
@@ -47,6 +46,7 @@ open class MarkdownVisitor {
     case let castNode as SoftBreakNode: visit(castNode)
     case let castNode as StrongNode: visit(castNode)
     case let castNode as TextNode: visit(castNode)
+    case let castNode as ThematicBreakNode: visit(castNode)
     default: visit(extension: node)
     }
     afterVisit(node)
@@ -104,22 +104,15 @@ open class MarkdownVisitor {
   /// - Parameter node: The node being visited.
   open func visit(_ node: HTMLBlockNode) {}
 
-  /// Called when a `HeaderNode` is visited.
+  /// Called when a `HeadingNode` is visited.
   ///
   /// The base class implementation of this method automatically visits the children of the node. If
   /// you override it, you must call `super.visit(node)` if you wish to visit the children as well.
   ///
   /// - Parameter node: The node being visited.
-  open func visit(_ node: HeaderNode) {
+  open func visit(_ node: HeadingNode) {
     visitAll(node.children)
   }
-
-  /// Called when a `HorizontalRuleNode` is visited.
-  ///
-  /// The base class implementation of this method does nothing.
-  ///
-  /// - Parameter node: The node being visited.
-  open func visit(_ node: HorizontalRuleNode) {}
 
   /// Called when a `ImageNode` is visited.
   ///
@@ -225,6 +218,13 @@ open class MarkdownVisitor {
   ///
   /// - Parameter node: The node being visited.
   open func visit(_ node: TextNode) {}
+
+  /// Called when a `ThematicBreakNode` is visited.
+  ///
+  /// The base class implementation of this method does nothing.
+  ///
+  /// - Parameter node: The node being visited.
+  open func visit(_ node: ThematicBreakNode) {}
 
   /// Visits a custom extension node.
   ///

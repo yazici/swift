@@ -57,15 +57,15 @@ final class MarkdownRedneringTest: XCTestCase {
       """)
   }
 
-  func testStringRenderedUsing_header() {
+  func testStringRenderedUsing_heading() {
     let document = MarkdownDocument(
       children: [
-        HeaderNode(level: .h1, children: [TextNode(literalContent: "header 1")]),
-        HeaderNode(level: .h2, children: [TextNode(literalContent: "header 2")]),
-        HeaderNode(level: .h3, children: [TextNode(literalContent: "header 3")]),
-        HeaderNode(level: .h4, children: [TextNode(literalContent: "header 4")]),
-        HeaderNode(level: .h5, children: [TextNode(literalContent: "header 5")]),
-        HeaderNode(level: .h6, children: [TextNode(literalContent: "header 6")]),
+        HeadingNode(level: .h1, children: [TextNode(literalContent: "header 1")]),
+        HeadingNode(level: .h2, children: [TextNode(literalContent: "header 2")]),
+        HeadingNode(level: .h3, children: [TextNode(literalContent: "header 3")]),
+        HeadingNode(level: .h4, children: [TextNode(literalContent: "header 4")]),
+        HeadingNode(level: .h5, children: [TextNode(literalContent: "header 5")]),
+        HeadingNode(level: .h6, children: [TextNode(literalContent: "header 6")]),
       ])
     let rendered = document.string(renderedUsing: .commonMark)
     XCTAssertEqual(rendered, """
@@ -80,24 +80,6 @@ final class MarkdownRedneringTest: XCTestCase {
       ##### header 5
 
       ###### header 6
-
-      """)
-  }
-
-  func testStringRenderedUsing_horizontalRule() {
-    let document = MarkdownDocument(
-      children: [
-        ParagraphNode(children: [TextNode(literalContent: "First paragraph.")]),
-        HorizontalRuleNode(),
-        ParagraphNode(children: [TextNode(literalContent: "Second paragraph.")]),
-      ])
-    let rendered = document.string(renderedUsing: .commonMark)
-    XCTAssertEqual(rendered, """
-      First paragraph.
-
-      -----
-
-      Second paragraph.
 
       """)
   }
@@ -177,7 +159,7 @@ final class MarkdownRedneringTest: XCTestCase {
       ])
     let rendered = document.string(renderedUsing: .commonMark)
     XCTAssertEqual(rendered, """
-      Before the break.\\
+      Before the break.\u{0020}\u{0020}
       After the break.
 
       """)
@@ -215,9 +197,9 @@ final class MarkdownRedneringTest: XCTestCase {
       ])
     let rendered = document.string(renderedUsing: .commonMark)
     XCTAssertEqual(rendered, """
-      * item 1
-      * item 2
-      * item 3
+        - item 1
+        - item 2
+        - item 3
 
       """)
   }
@@ -300,6 +282,24 @@ final class MarkdownRedneringTest: XCTestCase {
     let rendered = document.string(renderedUsing: .commonMark)
     XCTAssertEqual(rendered, """
       Some text.
+
+      """)
+  }
+
+  func testStringRenderedUsing_thematicBreak() {
+    let document = MarkdownDocument(
+      children: [
+        ParagraphNode(children: [TextNode(literalContent: "First paragraph.")]),
+        ThematicBreakNode(),
+        ParagraphNode(children: [TextNode(literalContent: "Second paragraph.")]),
+      ])
+    let rendered = document.string(renderedUsing: .commonMark)
+    XCTAssertEqual(rendered, """
+      First paragraph.
+
+      -----
+
+      Second paragraph.
 
       """)
   }

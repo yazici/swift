@@ -33,6 +33,7 @@ let package = Package(
         // We must exclude main.c or SwiftPM will treat this target as an executable target instead
         // of a library, and we won't be able to import it from the CommonMark Swift module.
         "cmark/src/main.c",
+        "cmark/test",
       ]
     ),
     .target(name: "CommonMark", dependencies: ["CCommonMark"]),
