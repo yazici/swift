@@ -36,8 +36,7 @@ open class MarkdownRewriter {
     case let castNode as CodeBlockNode: return visit(castNode)
     case let castNode as EmphasisNode: return visit(castNode)
     case let castNode as HTMLBlockNode: return visit(castNode)
-    case let castNode as HeaderNode: return visit(castNode)
-    case let castNode as HorizontalRuleNode: return visit(castNode)
+    case let castNode as HeadingNode: return visit(castNode)
     case let castNode as ImageNode: return visit(castNode)
     case let castNode as InlineCodeNode: return visit(castNode)
     case let castNode as InlineHTMLNode: return visit(castNode)
@@ -50,6 +49,7 @@ open class MarkdownRewriter {
     case let castNode as SoftBreakNode: return visit(castNode)
     case let castNode as StrongNode: return visit(castNode)
     case let castNode as TextNode: return visit(castNode)
+    case let castNode as ThematicBreakNode: return visit(castNode)
     case let castNode as BlockContent: return visit(extension: castNode)
     case let castNode as InlineContent: return visit(extension: castNode)
     default:
@@ -121,7 +121,7 @@ open class MarkdownRewriter {
     return node
   }
 
-  /// Called when a `HeaderNode` is visited, replacing it in the AST with the returned node.
+  /// Called when a `HeadingNode` is visited, replacing it in the AST with the returned node.
   ///
   /// The base class implementation of this method automatically visits the children of the node and
   /// returns a node whose children have been replaced by the results of that visitation. If you
@@ -129,18 +129,8 @@ open class MarkdownRewriter {
   ///
   /// - Parameter node: The node being visited.
   /// - Returns: The node that should replace the given node in the AST.
-  open func visit(_ node: HeaderNode) -> BlockContent {
+  open func visit(_ node: HeadingNode) -> BlockContent {
     return node.replacingChildren(visitAll(node.children))
-  }
-
-  /// Called when a `HorizontalRuleNode` is visited, replacing it in the AST with the returned node.
-  ///
-  /// The base class implementation of this method simply returns the same node.
-  ///
-  /// - Parameter node: The node being visited.
-  /// - Returns: The node that should replace the given node in the AST.
-  open func visit(_ node: HorizontalRuleNode) -> BlockContent {
-    return node
   }
 
   /// Called when a `ImageNode` is visited, replacing it in the AST with the returned node.
@@ -274,6 +264,16 @@ open class MarkdownRewriter {
   /// - Parameter node: The node being visited.
   /// - Returns: The node that should replace the given node in the AST.
   open func visit(_ node: TextNode) -> InlineContent {
+    return node
+  }
+
+  /// Called when a `ThematicBreakNode` is visited, replacing it in the AST with the returned node.
+  ///
+  /// The base class implementation of this method simply returns the same node.
+  ///
+  /// - Parameter node: The node being visited.
+  /// - Returns: The node that should replace the given node in the AST.
+  open func visit(_ node: ThematicBreakNode) -> BlockContent {
     return node
   }
 

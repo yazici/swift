@@ -10,14 +10,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// A block element that represents a horizontal rule.
-public struct HorizontalRuleNode: BlockContent {
+/// A block element that represents a thematic break between large ranges of Markdown content (which
+/// is typically rendered as a horizontal rule).
+public struct ThematicBreakNode: BlockContent {
 
   public let sourceRange: Range<SourceLocation>?
 
-  public var primitiveRepresentation: PrimitiveNode { return .horizontalRule(self) }
+  public var primitiveRepresentation: PrimitiveNode { return .thematicBreak(self) }
 
-  /// Creates a new horizontal rule node.
+  /// Creates a new thematic break node.
   ///
   /// - Parameter sourceRange: The source range from which the node was parsed, if known.
   public init(sourceRange: Range<SourceLocation>? = nil) {
@@ -29,7 +30,7 @@ public struct HorizontalRuleNode: BlockContent {
   ///
   /// - Parameter sourceRange: The new source range.
   /// - Returns: The new node.
-  public func replacingSourceRange(_ sourceRange: Range<SourceLocation>?) -> HorizontalRuleNode {
-    return HorizontalRuleNode(sourceRange: sourceRange)
+  public func replacingSourceRange(_ sourceRange: Range<SourceLocation>?) -> ThematicBreakNode {
+    return ThematicBreakNode(sourceRange: sourceRange)
   }
 }
