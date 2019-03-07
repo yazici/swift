@@ -40,4 +40,4 @@ swift build --product swift-format
 
 # Run a side-by-side diff with the original source file on the left and the
 # formatted output on the right.
-"$DIFF" -y -W 210 "$SRCFILE" <(.build/debug/swift-format -p "$@" "$SRCFILE")
+"$DIFF" -y -W 210 "$SRCFILE" <(.build/debug/swift-format "$@" "$SRCFILE")
