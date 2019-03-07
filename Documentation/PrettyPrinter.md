@@ -1,8 +1,11 @@
-# SwiftFormat Pretty Printer
+# swift-format Pretty Printer
+
+> :warning: **NOTE:** Some of the information in this document is out of date
+> and needs to be rewritten.
 
 ## Introduction
 
-The algorithm used in the SwiftFormat pretty printer is based on the "simple"
+The algorithm used in the swift-format pretty printer is based on the "simple"
 version of the algorithm described by Derek Oppen in his paper [*Pretty
 Printing*](http://i.stanford.edu/pub/cstr/reports/cs/tr/79/770/CS-TR-79-770.pdf)
 (1979). It employs two functions: *scan* and *print*. The *scan* function
@@ -10,7 +13,7 @@ accepts a stream of tokens and calculates the lengths of these tokens. It then
 passes the tokens and their computed lengths to *print*, which handles the
 actual printing of the tokens, automatically inserting line breaks and indents
 to obey a given maximum line length. We describe in detail how these functions
-have been implemented in SwiftFormat.
+have been implemented in swift-format.
 
 ## Tokens
 
@@ -434,7 +437,7 @@ value is appended to the length array, and added to `total`.
 ## Print
 
 The purpose of the *print* phase is to print the contents of a syntax node to
-the console or to append it to a string buffer as we do in SwiftFormat. It
+the console or to append it to a string buffer as we do in swift-format. It
 tracks the remaining space left on the line, and it decides whether or not to
 insert a line break based on the length of the token. It uses the following
 variables to track state in between calls to `print`:
@@ -551,14 +554,14 @@ equivalent to the maximum line width.
 ## Differences from Oppen's Algorithm
 
 For those who might already be familiar with Oppen's pretty-printing algorithm,
-described below are ways in which SwiftFormat's pretty-printer differs from
+described below are ways in which swift-format's pretty-printer differs from
 Oppen's.
 
 ### Absence of a "stream"
 
 Oppen's algorithm was designed to run like a server. It accepts tokens one at a
 time ad infinitum, so it requires a buffer to accumulate tokens. It prints them
-out as it goes along. All of SwiftFormat's tokens are already available as an
+out as it goes along. All of swift-format's tokens are already available as an
 array in memory, so we don't need a buffer. We access the token array directly,
 rather than using a separate `stream`.
 
