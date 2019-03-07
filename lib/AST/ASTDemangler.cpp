@@ -268,6 +268,10 @@ Type ASTBuilder::createFunctionType(
   else
     einfo = einfo.withNoEscape(true);
 
+  // SWIFT_ENABLE_TENSORFLOW
+  if (flags.isDifferentiable())
+    einfo = einfo.withDifferentiable(true);
+
   // The result type must be materializable.
   if (!output->isMaterializable()) return Type();
 
@@ -285,7 +289,9 @@ Type ASTBuilder::createFunctionType(
     auto parameterFlags = ParameterTypeFlags()
                               .withValueOwnership(ownership)
                               .withVariadic(flags.isVariadic())
-                              .withAutoClosure(flags.isAutoClosure());
+                              // SWIFT_ENABLE_TENSORFLOW
+                              .withAutoClosure(flags.isAutoClosure())
+                              .withNonDifferentiable(flags.isNonDifferentiable());
 
     funcParams.push_back(AnyFunctionType::Param(type, label, parameterFlags));
   }

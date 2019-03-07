@@ -6919,6 +6919,7 @@ bool FailureDiagnosis::visitKeyPathExpr(KeyPathExpr *KPE) {
   return diagnoseKeyPathComponents(CS, KPE, rootType);
 }
 
+
 bool FailureDiagnosis::visitArrayExpr(ArrayExpr *E) {
   // If we had a contextual type, then it either conforms to
   // ExpressibleByArrayLiteral or it is an invalid contextual type.
@@ -7077,6 +7078,11 @@ bool FailureDiagnosis::visitDictionaryExpr(DictionaryExpr *E) {
 /// the target.
 bool FailureDiagnosis::visitObjectLiteralExpr(ObjectLiteralExpr *E) {
   auto &TC = CS.getTypeChecker();
+
+  // SWIFT_ENABLE_TENSORFLOW
+  // TensorFlow ops don't act like other literals.
+  if (E->isTFOp())
+    return false;
 
   // Type check the argument first.
   auto protocol = TC.getLiteralProtocol(E);

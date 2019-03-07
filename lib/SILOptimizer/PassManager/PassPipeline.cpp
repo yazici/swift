@@ -97,6 +97,11 @@ static void addMandatoryOptPipeline(SILPassPipelinePlan &P,
   addDefiniteInitialization(P);
   P.addClosureLifetimeFixup();
   P.addOwnershipModelEliminator();
+  // SWIFT_ENABLE_TENSORFLOW
+  if (Options.SerializeForDifferentiation) {
+    P.addSerializeSILPass();
+  }
+  P.addDifferentiation();
   P.addMandatoryInlining();
   P.addMandatorySILLinker();
   P.addPredictableMemoryOptimizations();
@@ -111,6 +116,9 @@ static void addMandatoryOptPipeline(SILPassPipelinePlan &P,
   P.addEmitDFDiagnostics();
   // Canonical swift requires all non cond_br critical edges to be split.
   P.addSplitNonCondBrCriticalEdges();
+
+  // SWIFT_ENABLE_TENSORFLOW
+  P.addTFDeabstraction();
 }
 
 SILPassPipelinePlan
@@ -620,6 +628,19 @@ SILPassPipelinePlan SILPassPipelinePlan::getOnonePassPipeline() {
 
   return P;
 }
+
+// SWIFT_ENABLE_TENSORFLOW
+//===----------------------------------------------------------------------===//
+//                          TensorFlow Pass Pipeline
+//===----------------------------------------------------------------------===//
+
+SILPassPipelinePlan SILPassPipelinePlan::getTFPartitionPassPipeline() {
+  SILPassPipelinePlan P;
+  P.startPipeline("TensorFlow Partitioning");
+  P.addTFPartition();
+  return P;
+}
+/// SWIFT_ENABLE_TENSORFLOW End
 
 //===----------------------------------------------------------------------===//
 //                          Inst Count Pass Pipeline

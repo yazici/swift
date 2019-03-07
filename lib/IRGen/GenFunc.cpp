@@ -474,6 +474,10 @@ Address irgen::projectBlockStorageCapture(IRGenFunction &IGF,
 }
 
 const TypeInfo *TypeConverter::convertFunctionType(SILFunctionType *T) {
+  // SWIFT_ENABLE_TENSORFLOW
+  if (T->isDifferentiable())
+    return convertDifferentiableFunctionType(T);
+
   switch (T->getRepresentation()) {
   case SILFunctionType::Representation::Block:
     return new BlockTypeInfo(CanSILFunctionType(T),
@@ -488,6 +492,8 @@ const TypeInfo *TypeConverter::convertFunctionType(SILFunctionType *T) {
   case SILFunctionType::Representation::ObjCMethod:
   case SILFunctionType::Representation::CFunctionPointer:
   case SILFunctionType::Representation::Closure:
+  // SWIFT_ENABLE_TENSORFLOW
+  case SILFunctionType::Representation::TensorFlow:
     return ThinFuncTypeInfo::create(CanSILFunctionType(T),
                                     IGM.FunctionPtrTy,
                                     IGM.getPointerSize(),
@@ -502,7 +508,6 @@ const TypeInfo *TypeConverter::convertFunctionType(SILFunctionType *T) {
     // contexts into the pointer value, so let's not take any spare bits from
     // it.
     spareBits.appendClearBits(IGM.getPointerSize().getValueInBits());
-    
     if (T->isNoEscape()) {
       // @noescape thick functions are trivial types.
       return FuncTypeInfo::create(
@@ -541,6 +546,8 @@ getFuncSignatureInfoForLowered(IRGenModule &IGM, CanSILFunctionType type) {
   case SILFunctionType::Representation::WitnessMethod:
   case SILFunctionType::Representation::ObjCMethod:
   case SILFunctionType::Representation::Closure:
+  // SWIFT_ENABLE_TENSORFLOW
+  case SILFunctionType::Representation::TensorFlow:
     return ti.as<ThinFuncTypeInfo>();
   case SILFunctionType::Representation::Thick:
     return ti.as<FuncTypeInfo>();
@@ -1241,7 +1248,21 @@ static llvm::Function *emitPartialApplicationForwarder(IRGenModule &IGM,
     // cast to the result type - it could be substituted.
     if (origConv.getSILResultType().hasTypeParameter()) {
       auto ResType = fwd->getReturnType();
-      callResult = subIGF.Builder.CreateBitCast(callResult, ResType);
+      // SWIFT_ENABLE_TENSORFLOW
+      if (auto *structType = dyn_cast<llvm::StructType>(ResType)) {
+        // Cast all struct elements to the desired type.
+        llvm::Value *castResult = llvm::UndefValue::get(structType);
+        for (auto i : range(structType->getStructNumElements())) {
+          auto desiredEltTy = structType->getElementType(i);
+          auto elt = subIGF.Builder.CreateExtractValue(callResult, {i});
+          auto castElt = subIGF.Builder.CreateBitCast(elt, desiredEltTy);
+          castResult =
+              subIGF.Builder.CreateInsertValue(castResult, castElt, {i});
+        }
+        callResult = castResult;
+      }
+      else
+        callResult = subIGF.Builder.CreateBitCast(callResult, ResType);
     }
     subIGF.Builder.CreateRet(callResult);
   }

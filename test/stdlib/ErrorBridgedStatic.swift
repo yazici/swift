@@ -9,6 +9,9 @@
 // REQUIRES: static_stdlib
 // REQUIRES: rdar42789939
 
+// SWIFT_ENABLE_TENSORFLOW: This test is unsupported because TensorFlow currently doesn't work with static-stdlib.
+// UNSUPPORTED: tensorflow
+
 import StdlibUnittest
 
 class Bar: Foo {

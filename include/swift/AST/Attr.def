@@ -52,6 +52,10 @@ TYPE_ATTR(convention)
 TYPE_ATTR(noreturn)
 TYPE_ATTR(noescape)
 TYPE_ATTR(escaping)
+// SWIFT_ENABLE_TENSORFLOW
+TYPE_ATTR(differentiable)
+TYPE_ATTR(autodiff)
+TYPE_ATTR(nondiff)
 
 // SIL-specific attributes
 TYPE_ATTR(block_storage)
@@ -390,6 +394,24 @@ DECL_ATTR(_private, PrivateImport,
   OnImport |
   UserInaccessible |
   NotSerialized, 82)
+
+// SWIFT_ENABLE_TENSORFLOW
+DECL_ATTR(differentiable, Differentiable,
+  OnAccessor | OnConstructor | OnFunc | OnVar | LongAttribute |
+  AllowMultipleAttributes,
+  83)
+DECL_ATTR(differentiating, Differentiating,
+  OnFunc | LongAttribute | AllowMultipleAttributes,
+  84)
+SIMPLE_DECL_ATTR(compilerEvaluable, CompilerEvaluable,
+                 OnAccessor | OnFunc | OnConstructor | OnSubscript,
+                 /* Not serialized */ 85)
+SIMPLE_DECL_ATTR(TensorFlowGraph, TensorFlowGraph,
+                 OnFunc, 86)
+SIMPLE_DECL_ATTR(_fieldwiseDifferentiable, FieldwiseDifferentiable,
+                 OnNominalType | UserInaccessible, 87)
+SIMPLE_DECL_ATTR(noDerivative, NoDerivative,
+                 OnVar, 88)
 
 #undef TYPE_ATTR
 #undef DECL_ATTR_ALIAS

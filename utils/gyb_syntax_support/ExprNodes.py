@@ -564,6 +564,8 @@ EXPR_NODES = [
                        'PoundColorLiteralToken',
                        'PoundFileLiteralToken',
                        'PoundImageLiteralToken',
+                       # SWIFT_ENABLE_TENSORFLOW
+                       'PoundTensorFlowOpToken',
                    ]),
              Child('LeftParen', kind='LeftParenToken'),
              Child('Arguments', kind='FunctionCallArgumentList'),

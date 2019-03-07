@@ -25,12 +25,17 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/ImmutableSet.h"
 #include "llvm/ADT/Statistic.h"
+// SWIFT_ENABLE_TENSORFLOW
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 
 using namespace swift;
 
 using DenseFunctionSet = llvm::DenseSet<SILFunction *>;
 using ImmutableFunctionSet = llvm::ImmutableSet<SILFunction *>;
+
+// SWIFT_ENABLE_TENSORFLOW
+extern llvm::cl::opt<bool> TFLogDeabstractionStats;
 
 STATISTIC(NumMandatoryInlines,
           "Number of function application sites inlined by the mandatory "
@@ -301,7 +306,9 @@ static void collectPartiallyAppliedArguments(
 static SILFunction *getCalleeFunction(
     SILFunction *F, FullApplySite AI, bool &IsThick,
     SmallVectorImpl<std::pair<SILValue, ParameterConvention>> &CaptureArgs,
-    SmallVectorImpl<SILValue> &FullArgs, PartialApplyInst *&PartialApply) {
+    SmallVectorImpl<SILValue> &FullArgs, PartialApplyInst *&PartialApply,
+    // SWIFT_ENABLE_TENSORFLOW
+    const ShouldMandatoryInlineFnPred &shouldInlinePredicate) {
   IsThick = false;
   PartialApply = nullptr;
   CaptureArgs.clear();
@@ -438,24 +445,20 @@ static SILFunction *getCalleeFunction(
   case SILFunctionTypeRepresentation::Closure:
   case SILFunctionTypeRepresentation::WitnessMethod:
     break;
-    
+
+  // SWIFT_ENABLE_TENSORFLOW
+  case SILFunctionTypeRepresentation::TensorFlow:
   case SILFunctionTypeRepresentation::CFunctionPointer:
   case SILFunctionTypeRepresentation::ObjCMethod:
   case SILFunctionTypeRepresentation::Block:
     return nullptr;
   }
 
+  // TODO(SR-8015): `shouldInlinePredicate` does too much. Fix this.
   // If the CalleeFunction is a not-transparent definition, we can not process
   // it.
-  if (CalleeFunction->isTransparent() == IsNotTransparent)
-    return nullptr;
-
-  // If CalleeFunction is a declaration, see if we can load it.
-  if (CalleeFunction->empty())
-    AI.getModule().loadFunction(CalleeFunction);
-
-  // If we fail to load it, bail.
-  if (CalleeFunction->empty())
+  // SWIFT_ENABLE_TENSORFLOW
+  if (!shouldInlinePredicate(AI, *CalleeFunction))
     return nullptr;
 
   if (F->isSerialized() &&
@@ -489,6 +492,20 @@ tryDevirtualizeApplyHelper(FullApplySite InnerAI, SILBasicBlock::iterator I,
                          newApplyAI->getIterator());
 }
 
+// SWIFT_ENABLE_TENSORFLOW
+// Event schema:
+//
+// "S4TF CallEdge", ParentName, ParentSizeBefore, ParentSizeAfter, ChildName,
+// ChildSize
+static void maybeLogCallEdge(SILFunction *parent, unsigned parentSizeBefore,
+                             SILFunction *child) {
+  if (!TFLogDeabstractionStats)
+    return;
+  llvm::dbgs() << "S4TF CallEdge," << parent->getName() << ","
+               << parentSizeBefore << "," << parent->codeSize() << ","
+               << child->getName() << "," << child->codeSize() << "\n";
+}
+
 /// \brief Inlines all mandatory inlined functions into the body of a function,
 /// first recursively inlining all mandatory apply instructions in those
 /// functions into their bodies if necessary.
@@ -503,13 +520,14 @@ tryDevirtualizeApplyHelper(FullApplySite InnerAI, SILBasicBlock::iterator I,
 ///   the current call stack of recursive calls
 ///
 /// \returns true if successful, false if failed due to circular inlining.
-static bool
-runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder,
-			 SILFunction *F, FullApplySite AI,
-                         DenseFunctionSet &FullyInlinedSet,
-                         ImmutableFunctionSet::Factory &SetFactory,
-                         ImmutableFunctionSet CurrentInliningSet,
-                         ClassHierarchyAnalysis *CHA) {
+static bool runOnFunctionRecursively(
+    SILOptFunctionBuilder &FuncBuilder, SILFunction *F, FullApplySite AI,
+    DenseFunctionSet &FullyInlinedSet,
+    ImmutableFunctionSet::Factory &SetFactory,
+    ImmutableFunctionSet CurrentInliningSet, ClassHierarchyAnalysis *CHA,
+    // SWIFT_ENABLE_TENSORFLOW
+    SILInliner::InlineKind inlineKind,
+    const ShouldMandatoryInlineFnPred &shouldInlinePredicate) {
   // Avoid reprocessing functions needlessly.
   if (FullyInlinedSet.count(F))
     return true;
@@ -556,7 +574,8 @@ runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder,
       bool IsThick;
       PartialApplyInst *PAI;
       SILFunction *CalleeFunction = getCalleeFunction(
-          F, InnerAI, IsThick, CaptureArgs, FullArgs, PAI);
+          F, InnerAI, IsThick, CaptureArgs, FullArgs, PAI,
+          shouldInlinePredicate);  // SWIFT_ENABLE_TENSORFLOW
 
       if (!CalleeFunction)
         continue;
@@ -564,7 +583,9 @@ runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder,
       // Then recursively process it first before trying to inline it.
       if (!runOnFunctionRecursively(FuncBuilder, CalleeFunction, InnerAI,
                                     FullyInlinedSet, SetFactory,
-                                    CurrentInliningSet, CHA)) {
+                                    CurrentInliningSet, CHA,
+                                    // SWIFT_ENABLE_TENSORFLOW
+                                    inlineKind, shouldInlinePredicate)) {
         // If we failed due to circular inlining, then emit some notes to
         // trace back the failure if we have more information.
         // FIXME: possibly it could be worth recovering and attempting other
@@ -595,8 +616,10 @@ runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder,
         OpenedArchetypesTracker.registerUsedOpenedArchetypes(PAI);
       }
 
-      SILInliner Inliner(FuncBuilder, SILInliner::InlineKind::MandatoryInline,
-                         Subs, OpenedArchetypesTracker);
+      // SWIFT_ENABLE_TENSORFLOW
+      unsigned parentSizeBefore = F->codeSize();
+      SILInliner Inliner(FuncBuilder, inlineKind, Subs,
+                         OpenedArchetypesTracker);
       if (!Inliner.canInlineApplySite(InnerAI)) {
         // See comment above about casting when devirtualizing and how this
         // sometimes causes II and InnerAI to be different and even in different
@@ -643,6 +666,9 @@ runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder,
       assert(nextI == ApplyBlock->end()
              || nextI->getParent() == ApplyBlock
                     && "Mismatch between the instruction and basic block");
+
+      // SWIFT_ENABLE_TENSORFLOW
+      maybeLogCallEdge(F, parentSizeBefore, CalleeFunction);
     }
   }
 
@@ -650,6 +676,29 @@ runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder,
   // reprocessing them.
   FullyInlinedSet.insert(F);
   return true;
+}
+
+// SWIFT_ENABLE_TENSORFLOW
+/// Scan the given function body, mandatory inlining calls to callees that
+/// satisfy the specified predicate, including calls sites exposed by inlining
+/// other functions.
+///
+/// The deabstraction phase of TensorFlow support needs to mandatory inline
+/// certain functions using the standard mandatory inlining algorithm.  This
+/// function implements support for it, inlining direct calls to callees that
+/// satisfy the given predicate.
+void swift::inlineForTFDeabstraction(SILOptFunctionBuilder &FB, SILFunction &fn,
+                                 const ShouldMandatoryInlineFnPred &predicate) {
+  DenseFunctionSet FullyInlinedSet;
+  ImmutableFunctionSet::Factory SetFactory;
+
+  runOnFunctionRecursively(FB, &fn,
+                           FullApplySite(static_cast<ApplyInst*>(nullptr)),
+                           FullyInlinedSet,
+                           SetFactory, SetFactory.getEmptySet(),
+                           /*CHA*/nullptr,
+                           SILInliner::InlineKind::PerformanceInline,
+                           predicate);
 }
 
 //===----------------------------------------------------------------------===//
@@ -677,9 +726,24 @@ class MandatoryInlining : public SILModuleTransform {
       if (F.wasDeserializedCanonical())
         continue;
 
+      // SWIFT_ENABLE_TENSORFLOW
       runOnFunctionRecursively(FuncBuilder, &F,
-                               FullApplySite(), FullyInlinedSet, SetFactory,
-                               SetFactory.getEmptySet(), CHA);
+                               FullApplySite(),
+                               FullyInlinedSet,
+                               SetFactory, SetFactory.getEmptySet(), CHA,
+                               SILInliner::InlineKind::MandatoryInline,
+         [&](FullApplySite site, SILFunction &callee) -> bool {
+           if (callee.isTransparent() != IsTransparent)
+             return false;
+
+           // If CalleeFunction is a declaration, see if we can load it.
+           if (callee.empty())
+             site.getModule().loadFunction(&callee);
+
+           // If we failed to load it, bail.
+           return !callee.empty();
+         }
+       );
     }
 
     if (!ShouldCleanup)

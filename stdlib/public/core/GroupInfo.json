@@ -146,7 +146,8 @@
     "SmallBuffer.swift"
   ],
   "KeyPaths": [
-    "KeyPath.swift"
+    "KeyPath.swift",
+    "KeyPathIterable.swift"
   ],
   "Reflection": [
     "Dump.swift",
@@ -167,6 +168,9 @@
       "FloatingPoint.swift",
       "FloatingPointParsing.swift",
       "FloatingPointTypes.swift"]}
+  ],
+  "AutoDiff": [
+    "AutoDiff.swift",
   ],
   "Optional": [
     "Optional.swift"

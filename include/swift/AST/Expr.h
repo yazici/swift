@@ -25,6 +25,8 @@
 #include "swift/AST/TypeAlignments.h"
 #include "swift/AST/TypeLoc.h"
 #include "swift/AST/TypeRepr.h"
+// SWIFT_ENABLE_TENSORFLOW
+#include "swift/AST/AutoDiff.h"
 #include "swift/AST/Availability.h"
 #include "swift/Basic/InlineBitfield.h"
 #include "llvm/Support/TrailingObjects.h"
@@ -1172,6 +1174,13 @@ public:
 
   LiteralKind getLiteralKind() const {
     return static_cast<LiteralKind>(Bits.ObjectLiteralExpr.LitKind);
+  }
+
+  // SWIFT_ENABLE_TENSORFLOW
+  /// Return true if this object literal is the #tfop(...) op descriptor for
+  /// TensorFlow.
+  bool isTFOp() const {
+    return getLiteralKind() == LiteralKind::tfop;
   }
 
   Expr *getArg() const { return Arg; }
@@ -2876,6 +2885,28 @@ public:
   }
 };
 
+// SWIFT_ENABLE_TENSORFLOW
+class AutoDiffFunctionExpr : public ImplicitConversionExpr {
+public:
+  AutoDiffFunctionExpr(Expr *subExpr, Type ty)
+      : ImplicitConversionExpr(ExprKind::AutoDiffFunction, subExpr, ty) {}
+
+  static bool classof(const Expr *E) {
+    return E->getKind() == ExprKind::AutoDiffFunction;
+  }
+};
+
+class AutoDiffFunctionExtractOriginalExpr : public ImplicitConversionExpr {
+public:
+  AutoDiffFunctionExtractOriginalExpr(Expr *subExpr, Type ty)
+      : ImplicitConversionExpr(ExprKind::AutoDiffFunctionExtractOriginal,
+                               subExpr, ty) {}
+
+  static bool classof(const Expr *E) {
+    return E->getKind() == ExprKind::AutoDiffFunctionExtractOriginal;
+  }
+};
+
 /// TupleShuffleExpr - This represents a permutation of a tuple value to a new
 /// tuple type.
 ///
@@ -3866,8 +3897,7 @@ public:
 };
 
 /// An expression referring to an opaque object of a fixed type.
-///
-/// Opaque value expressions occur when a particular value within the AST
+/// /// Opaque value expressions occur when a particular value within the AST
 /// needs to be re-used without being re-evaluated or for a value that is
 /// a placeholder. OpaqueValueExpr nodes are introduced by some other AST
 /// node (say, a \c DynamicMemberRefExpr) and can only be used within the

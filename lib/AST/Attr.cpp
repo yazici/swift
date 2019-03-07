@@ -21,6 +21,8 @@
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/Types.h"
+// SWIFT_ENABLE_TENSORFLOW
+#include "swift/AST/ParameterList.h"
 #include "swift/Basic/Defer.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
@@ -552,6 +554,106 @@ bool DeclAttribute::printImpl(ASTPrinter &Printer, const PrintOptions &Options,
     break;
   }
 
+  // SWIFT_ENABLE_TENSORFLOW
+  case DAK_Differentiable: {
+    Printer.printAttrName("@differentiable");
+    auto *attr = cast<DifferentiableAttr>(this);
+    auto parsedParams = attr->getParsedParameters();
+    // If no attribute parameter is specified, do not print parentheses at all.
+    if (parsedParams.empty() && !attr->getJVP() && !attr->getVJP() &&
+        !attr->getWhereClause())
+      break;
+    Printer << '(';
+    // Get original function.
+    auto *original = dyn_cast_or_null<AbstractFunctionDecl>(D);
+    if (auto *varDecl = dyn_cast_or_null<VarDecl>(D))
+      original = varDecl->getGetter();
+
+    // Print comma if not leading clause.
+    bool isLeadingClause = true;
+    auto printCommaIfNecessary = [&] {
+      if (isLeadingClause) {
+        isLeadingClause = false;
+        return;
+      }
+      Printer << ", ";
+    };
+
+    // Print differentiation parameters, if any.
+    if (auto indices = attr->getParameterIndices()) {
+      if (!parsedParams.empty()) {
+        printCommaIfNecessary();
+        Printer << "wrt: ";
+        if (parsedParams.size() > 1)
+          Printer << '(';
+        interleave(parsedParams, [&](const ParsedAutoDiffParameter &param) {
+          switch (param.getKind()) {
+          case ParsedAutoDiffParameter::Kind::Named:
+            Printer << param.getName();
+            break;
+          case ParsedAutoDiffParameter::Kind::Self:
+            Printer << "self";
+            break;
+          }
+        }, [&]{ Printer << ", "; });
+        if (parsedParams.size() > 1)
+          Printer << ')';
+      }
+    }
+    // Print jvp function name.
+    if (auto jvp = attr->getJVP()) {
+      printCommaIfNecessary();
+      Printer << "jvp: " << jvp->Name;
+    }
+    // Print vjp function name.
+    if (auto vjp = attr->getVJP()) {
+      printCommaIfNecessary();
+      Printer << "vjp: " << vjp->Name;
+    }
+    // Print 'where' clause, if any.
+    if (!attr->getRequirements().empty()) {
+      Printer << " where ";
+      std::function<Type(Type)> getInterfaceType;
+      if (!original || !original->getGenericEnvironment()) {
+        getInterfaceType = [](Type Ty) -> Type { return Ty; };
+      } else {
+        // Use GenericEnvironment to produce user-friendly
+        // names instead of something like 't_0_0'.
+        auto *genericEnv = original->getGenericEnvironment();
+        assert(genericEnv);
+        getInterfaceType = [=](Type Ty) -> Type {
+          return genericEnv->getSugaredType(Ty);
+        };
+      }
+      interleave(attr->getRequirements(), [&](Requirement req) {
+        auto FirstTy = getInterfaceType(req.getFirstType());
+        if (req.getKind() != RequirementKind::Layout) {
+          auto SecondTy = getInterfaceType(req.getSecondType());
+          Requirement ReqWithDecls(req.getKind(), FirstTy, SecondTy);
+          ReqWithDecls.print(Printer, Options);
+        } else {
+          Requirement ReqWithDecls(req.getKind(), FirstTy,
+          req.getLayoutConstraint());
+          ReqWithDecls.print(Printer, Options);
+        }
+      }, [&] {
+        Printer << ", ";
+      });
+    }
+    Printer << ')';
+    break;
+  }
+
+  // SWIFT_ENABLE_TENSORFLOW
+  case DAK_Differentiating: {
+    Printer.printAttrName("@differentiating");
+    Printer << '(';
+    auto *attr = cast<DifferentiatingAttr>(this);
+    Printer << attr->getOriginal().Name;
+    Printer << ')';
+    break;
+  }
+
   case DAK_DynamicReplacement: {
     Printer.printAttrName("@_dynamicReplacement");
     Printer << "(for: \"";
@@ -686,6 +788,11 @@ StringRef DeclAttribute::getAttrName() const {
     return "_implements";
   case DAK_ClangImporterSynthesizedType:
     return "_clangImporterSynthesizedType";
+  // SWIFT_ENABLE_TENSORFLOW
+  case DAK_Differentiable:
+    return "differentiable";
+  case DAK_Differentiating:
+    return "differentiating";
   }
   llvm_unreachable("bad DeclAttrKind");
 }
@@ -1025,6 +1132,80 @@ SpecializeAttr *SpecializeAttr::create(ASTContext &Ctx, SourceLoc atLoc,
       SpecializeAttr(atLoc, range, requirements, exported, kind);
 }
 
+// SWIFT_ENABLE_TENSORFLOW
+DifferentiableAttr::DifferentiableAttr(ASTContext &context, bool implicit,
+                                       SourceLoc atLoc, SourceRange baseRange,
+                                       ArrayRef<ParsedAutoDiffParameter> params,
+                                       Optional<DeclNameWithLoc> jvp,
+                                       Optional<DeclNameWithLoc> vjp,
+                                       TrailingWhereClause *clause)
+  : DeclAttribute(DAK_Differentiable, atLoc, baseRange, implicit),
+    NumParsedParameters(params.size()),
+    JVP(std::move(jvp)), VJP(std::move(vjp)), WhereClause(clause) {
+  std::copy(params.begin(), params.end(),
+            getTrailingObjects<ParsedAutoDiffParameter>());
+}
+
+DifferentiableAttr::DifferentiableAttr(ASTContext &context, bool implicit,
+                                       SourceLoc atLoc, SourceRange baseRange,
+                                       AutoDiffParameterIndices *indices,
+                                       Optional<DeclNameWithLoc> jvp,
+                                       Optional<DeclNameWithLoc> vjp,
+                                       ArrayRef<Requirement> requirements)
+  : DeclAttribute(DAK_Differentiable, atLoc, baseRange, implicit),
+    JVP(std::move(jvp)), VJP(std::move(vjp)), ParameterIndices(indices) {
+  setRequirements(context, requirements);
+}
+
+DifferentiableAttr *
+DifferentiableAttr::create(ASTContext &context, bool implicit,
+                           SourceLoc atLoc, SourceRange baseRange,
+                           ArrayRef<ParsedAutoDiffParameter> parameters,
+                           Optional<DeclNameWithLoc> jvp,
+                           Optional<DeclNameWithLoc> vjp,
+                           TrailingWhereClause *clause) {
+  unsigned size = totalSizeToAlloc<ParsedAutoDiffParameter>(parameters.size());
+  void *mem = context.Allocate(size, alignof(DifferentiableAttr));
+  return new (mem) DifferentiableAttr(context, implicit, atLoc, baseRange,
+                                      parameters, std::move(jvp),
+                                      std::move(vjp), clause);
+}
+
+DifferentiableAttr *
+DifferentiableAttr::create(ASTContext &context, bool implicit,
+                           SourceLoc atLoc, SourceRange baseRange,
+                           AutoDiffParameterIndices *indices,
+                           Optional<DeclNameWithLoc> jvp,
+                           Optional<DeclNameWithLoc> vjp,
+                           ArrayRef<Requirement> requirements) {
+  void *mem = context.Allocate(sizeof(DifferentiableAttr),
+                               alignof(DifferentiableAttr));
+  return new (mem) DifferentiableAttr(context, implicit, atLoc, baseRange,
+                                      indices, std::move(jvp), std::move(vjp),
+                                      requirements);
+}
+
+void DifferentiableAttr::setRequirements(ASTContext &context,
+                                         ArrayRef<Requirement> requirements) {
+  Requirements = context.AllocateCopy(requirements);
+}
+
+// SWIFT_ENABLE_TENSORFLOW
+DifferentiatingAttr::DifferentiatingAttr(ASTContext &context, bool implicit,
+                                         SourceLoc atLoc, SourceRange baseRange,
+                                         DeclNameWithLoc original)
+  : DeclAttribute(DAK_Differentiating, atLoc, baseRange, implicit),
+    Original(std::move(original)) {}
+
+DifferentiatingAttr *
+DifferentiatingAttr::create(ASTContext &context, bool implicit,
+                            SourceLoc atLoc, SourceRange baseRange,
+                            DeclNameWithLoc original) {
+  void *mem = context.Allocate(sizeof(DifferentiatingAttr),
+                               alignof(DifferentiatingAttr));
+  return new (mem) DifferentiatingAttr(context, implicit, atLoc, baseRange,
+                                       std::move(original));
+}
 
 ImplementsAttr::ImplementsAttr(SourceLoc atLoc, SourceRange range,
                                TypeLoc ProtocolType,

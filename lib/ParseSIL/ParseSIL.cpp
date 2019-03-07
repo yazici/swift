@@ -12,6 +12,8 @@
 
 #include "SILParserFunctionBuilder.h"
 #include "swift/AST/ASTWalker.h"
+/// SWIFT_ENABLE_TENSORFLOW
+#include "swift/AST/AutoDiff.h"
 #include "swift/AST/ExistentialLayout.h"
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/NameLookup.h"
@@ -26,6 +28,9 @@
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
+/// SWIFT_ENABLE_TENSORFLOW
+#include "swift/SIL/GraphOperationBuilder.h"
+#include "swift/SIL/SILConstants.h"
 #include "swift/SIL/SILDebugScope.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILUndef.h"
@@ -910,6 +915,306 @@ void SILParser::convertRequirements(SILFunction *F,
   }
 }
 
+// SWIFT_ENABLE_TENSORFLOW
+/// Parse a SIL constant value (one of the following categories):
+/// - An integer datatype and literal (i32 42).
+/// - A floating point datatype and literal (f64 3.14).
+///   - The literal value may be in either decimal format or the hexadecimal
+///     format used by the 'float_literal' instruction.
+/// - A UTF-8 string literal ("foo").
+/// - A metatype (the instance type is parsed) ($Float).
+/// - An aggregate ((i32 1, i64 2, f32 3.0)).
+///   - Aggregates values represent constant structs/tuples.
+/// - A SIL function reference (@foo : $(Int) -> Int).
+/// Returns true on error.
+static bool parseSymbolicValue(SymbolicValue &value, SILParser &SP,
+                               SILBuilder &B) {
+  auto &P = SP.P;
+  auto &allocator = B.getModule().getASTContext().getAllocator();
+
+  if (P.Tok.is(tok::identifier)) {
+    // Bitwidth of the integer/floating point literal.
+    unsigned width;
+    // Handle integer literals.
+    if (P.Tok.getText().startswith("i")) {
+      // Parse integer datatype.
+      P.consumeStartingCharacterOfCurrentToken();
+      if (SP.parseInteger(width, diag::sil_const_expected_int_datatype))
+        return true;
+
+      // Parse integer value.
+      bool negative = false;
+      if (P.Tok.isAnyOperator() && P.Tok.getText() == "-") {
+        negative = true;
+        P.consumeToken();
+      }
+      APInt intValue(width, 0);
+      if (SP.parseInteger(intValue, diag::sil_const_expected_int_value))
+        return true;
+
+      // Negate and truncate value, if necessary.
+      if (negative)
+        intValue = -intValue;
+      if (intValue.getBitWidth() != width)
+        intValue = intValue.zextOrTrunc(width);
+
+      value = SymbolicValue::getInteger(intValue, allocator);
+      return false;
+    }
+    // Handle floating point literals.
+    if (P.Tok.getText().startswith("f")) {
+      // Parse floating point datatype.
+      auto datatypeToken = P.Tok;
+      P.consumeStartingCharacterOfCurrentToken();
+      if (SP.parseInteger(width, diag::sil_const_expected_fp_datatype))
+        return true;
+
+      // Parse floating point value.
+      // Handle hexadecimal case.
+      if (P.Tok.is(tok::integer_literal) && P.Tok.getText().startswith("0x")) {
+        APInt bits(width, 0);
+        P.Tok.getText().getAsInteger(0, bits);
+        P.consumeToken(tok::integer_literal);
+        if (bits.getBitWidth() != width)
+          bits = bits.zextOrTrunc(width);
+        switch (width) {
+          case 32: {
+            APFloat floatValue(APFloat::IEEEsingle(), bits);
+            value = SymbolicValue::getFloat(floatValue, allocator);
+            return false;
+          }
+          case 64: {
+            APFloat floatValue(APFloat::IEEEdouble(), bits);
+            value = SymbolicValue::getFloat(floatValue, allocator);
+            return false;
+          }
+          default:
+            P.diagnose(datatypeToken, diag::sil_const_expected_fp_datatype);
+            return true;
+        }
+      }
+      // Handle decimal case.
+      bool negative = false;
+      if (P.Tok.isAnyOperator() && P.Tok.getText() == "-") {
+        negative = true;
+        P.consumeToken();
+      }
+      if (!P.Tok.is(tok::floating_literal)) {
+        P.diagnose(P.Tok, diag::sil_const_expected_fp_value);
+        return true;
+      }
+      double tmpValue;
+      P.Tok.getText().getAsDouble(tmpValue);
+      P.consumeToken(tok::floating_literal);
+
+      APFloat floatValue((float) 0);
+      switch (width) {
+      case 32:
+        floatValue = APFloat((float) tmpValue);
+        break;
+      case 64:
+        floatValue = APFloat(tmpValue);
+        break;
+      default:
+        P.diagnose(datatypeToken, diag::sil_const_expected_fp_datatype);
+        return true;
+      }
+      if (negative)
+        floatValue.changeSign();
+      value = SymbolicValue::getFloat(floatValue, allocator);
+      return false;
+    }
+  }
+  // Handle string literals.
+  if (P.Tok.is(tok::string_literal)) {
+    StringRef rawString = P.Tok.getText().drop_front().drop_back();
+    value = SymbolicValue::getString(rawString, allocator);
+    P.consumeToken(tok::string_literal);
+    return false;
+  }
+  // Handle metatypes (the instance type is parsed).
+  if (P.Tok.is(tok::sil_dollar)) {
+    SILType temp;
+    if (SP.parseSILType(temp))
+      return true;
+    value = SymbolicValue::getMetatype(temp.getASTType());
+    return false;
+  }
+  // Handle SIL function references.
+  if (P.Tok.is(tok::at_sign)) {
+    SILFunction *func;
+    SILLocation funcLoc = RegularLocation(P.getEndOfPreviousLoc());
+    if (SP.parseSILFunctionRef(funcLoc, func))
+      return true;
+
+    Identifier subConventionId;
+    FunctionSubstitutionConvention subConvention;
+    if (P.Tok.isNot(tok::l_paren)) {
+      P.diagnose(P.Tok, diag::sil_const_expected_fn_sub_conv);
+      return true;
+    }
+    P.consumeToken();
+    if (P.Tok.isNot(tok::identifier)) {
+      P.diagnose(P.Tok, diag::sil_const_expected_fn_sub_conv);
+      return true;
+    }
+    P.consumeIdentifier(&subConventionId);
+    if (subConventionId.str() == "N") {
+      subConvention = FunctionSubstitutionConvention::Normal;
+    } else if (subConventionId.str() == "W") {
+      subConvention = FunctionSubstitutionConvention::Witness;
+    } else {
+      P.diagnose(P.Tok, diag::sil_const_expected_fn_sub_conv);
+      return true;
+    }
+    if (P.Tok.isNot(tok::r_paren)) {
+      P.diagnose(P.Tok, diag::sil_const_expected_fn_sub_conv);
+      return true;
+    }
+    P.consumeToken();
+
+    value = SymbolicValue::getFunction(func, subConvention);
+    return false;
+  }
+  // Handle aggregate literals.
+  if (P.Tok.is(tok::l_paren)) {
+    SourceLoc lParenLoc = P.consumeToken(tok::l_paren);
+    SourceLoc rParenLoc;
+
+    SmallVector<SymbolicValue, 8> elements;
+    ParserStatus status =
+      P.parseList(tok::r_paren, lParenLoc, rParenLoc,
+                  /*AllowSepAfterLast*/ false,
+                  diag::sil_const_aggregate_expected_rparen,
+                  SyntaxKind::Unknown, [&]() -> ParserStatus {
+      SymbolicValue element;
+      if (parseSymbolicValue(element, SP, B))
+        return makeParserError();
+      elements.push_back(element);
+      return makeParserSuccess();
+    });
+    if (status.isError())
+      return true;
+    value = SymbolicValue::getAggregate(elements, allocator);
+    return false;
+  }
+  // Handle array literals.
+  if (P.Tok.is(tok::l_square)) {
+    SourceLoc lSquareLoc = P.consumeToken(tok::l_square);
+    SILType elementType;
+    if (SP.parseSILType(elementType))
+      return true;
+
+    if (!P.consumeIf(tok::colon)) {
+      P.diagnose(P.Tok, diag::expected_sil_colon, "array elements");
+      return true;
+    }
+
+    SourceLoc rSquareLoc;
+
+    SmallVector<SymbolicValue, 8> elements;
+    ParserStatus status =
+      P.parseList(tok::r_square, lSquareLoc, rSquareLoc,
+                  /*AllowSepAfterLast*/ false,
+                  diag::sil_const_array_expected_rsquare,
+                  SyntaxKind::Unknown,
+                  [&]() -> ParserStatus {
+      SymbolicValue element;
+      if (parseSymbolicValue(element, SP, B))
+        return makeParserError();
+      elements.push_back(element);
+      return makeParserSuccess();
+    });
+    if (status.isError())
+      return true;
+    value = SymbolicValue::getArray(elements, elementType.getASTType(),
+                                    allocator);
+    return false;
+  }
+  P.diagnose(P.Tok, diag::sil_graph_op_expected_attr_value);
+  return true;
+};
+
+/// SWIFT_ENABLE_TENSORFLOW
+/// Parse a `differentiable` attribute, e.g.
+/// `[differentiable wrt 0, 1 adjoint @other]`.
+/// Returns true on error.
+static bool parseDifferentiableAttr(
+  SmallVectorImpl<SILDifferentiableAttr *> &DAs, SILParser &SP) {
+  auto &P = SP.P;
+  SourceLoc LastLoc = P.getEndOfPreviousLoc();
+  // Parse 'source'.
+  unsigned SourceIndex;
+  if (P.parseSpecificIdentifier(
+          "source", diag::sil_attr_differentiable_expected_keyword, "source") ||
+      P.parseUnsignedInteger(SourceIndex, LastLoc,
+           diag::sil_attr_differentiable_expected_source_index))
+    return true;
+  // Parse 'wrt'.
+  if (P.parseSpecificIdentifier(
+        "wrt", diag::sil_attr_differentiable_expected_keyword, "wrt"))
+    return true;
+  // Parse parameter index list.
+  SmallVector<unsigned, 8> ParamIndices;
+  // Function that parses an index into `ParamIndices`. Returns true on error.
+  auto parseParam = [&]() -> bool {
+    unsigned Index;
+    // TODO: Reject non-ascending parameter index lists.
+    if (P.parseUnsignedInteger(Index, LastLoc,
+            diag::sil_attr_differentiable_expected_parameter_index))
+      return true;
+    ParamIndices.push_back(Index);
+    return false;
+  };
+  // Parse first.
+  if (parseParam())
+    return true;
+  // Parse rest.
+  while (P.consumeIf(tok::comma))
+    if (parseParam())
+      return true;
+
+  // Parse a SIL function name, e.g. '@foo'.
+  auto parseFnName = [&P, &LastLoc](Identifier &id) -> bool {
+    return P.parseToken(tok::at_sign, diag::expected_sil_function_name) ||
+      P.parseIdentifier(id, LastLoc, diag::expected_sil_function_name);
+  };
+
+  // Parse optional 'jvp'.
+  Identifier JVPName;
+  if (P.Tok.is(tok::identifier) && P.Tok.getText() == "jvp") {
+    P.consumeToken();
+    if (parseFnName(JVPName)) return true;
+  }
+  // Parse optional 'vjp'.
+  Identifier VJPName;
+  if (P.Tok.is(tok::identifier) && P.Tok.getText() == "vjp") {
+    P.consumeToken();
+    if (parseFnName(VJPName)) return true;
+  }
+  // Parse ']'.
+  if (P.parseToken(tok::r_square,
+                   diag::sil_attr_differentiable_expected_rsquare))
+    return true;
+  // Parse a trailing 'where' clause if any.
+  TrailingWhereClause *WhereClause = nullptr;
+  if (P.Tok.is(tok::kw_where)) {
+    SourceLoc whereLoc;
+    SmallVector<RequirementRepr, 4> requirementReprs;
+    bool firstTypeInComplete;
+    P.parseGenericWhereClause(whereLoc, requirementReprs, firstTypeInComplete,
+                              /*AllowLayoutConstraints=*/false);
+    WhereClause = TrailingWhereClause::create(SP.SILMod.getASTContext(),
+                                              whereLoc, requirementReprs);
+  }
+  // Create a SILDifferentiableAttr and we are done.
+  auto *Attr = SILDifferentiableAttr::create(
+      SP.SILMod, {SourceIndex, ParamIndices}, JVPName.str(), VJPName.str(),
+      WhereClause);
+  DAs.push_back(Attr);
+  return false;
+}
+
 static bool parseDeclSILOptional(bool *isTransparent,
                                  IsSerialized_t *isSerialized,
                                  bool *isCanonical,
@@ -924,6 +1229,8 @@ static bool parseDeclSILOptional(bool *isTransparent,
                                  bool *isWithoutActuallyEscapingThunk,
                                  SmallVectorImpl<std::string> *Semantics,
                                  SmallVectorImpl<ParsedSpecAttr> *SpecAttrs,
+                                 // SWIFT_ENABLE_TENSORFLOW
+                          SmallVectorImpl<SILDifferentiableAttr *> *DiffAttrs,
                                  ValueDecl **ClangDecl,
                                  EffectsKind *MRK, SILParser &SP,
                                  SILModule &M) {
@@ -1051,6 +1358,13 @@ static bool parseDeclSILOptional(bool *isTransparent,
                           : SILSpecializeAttr::SpecializationKind::Partial;
       SpecAttr.exported = Attr->isExported();
       SpecAttrs->emplace_back(SpecAttr);
+      continue;
+    }
+    // SWIFT_ENABLE_TENSORFLOW
+    else if (DiffAttrs && SP.P.Tok.getText() == "differentiable") {
+      SP.P.consumeToken(tok::identifier);
+      if (parseDifferentiableAttr(*DiffAttrs, SP))
+        return true;
       continue;
     }
     else if (ClangDecl && SP.P.Tok.getText() == "clang") {
@@ -1315,11 +1629,14 @@ static Optional<AccessorKind> getAccessorKind(StringRef ident) {
            .Default(None);
 }
 
+// SWIFT_ENABLE_TENSORFLOW
 ///  sil-decl-ref ::= '#' sil-identifier ('.' sil-identifier)* sil-decl-subref?
 ///  sil-decl-subref ::= '!' sil-decl-subref-part ('.' sil-decl-uncurry-level)?
-///                      ('.' sil-decl-lang)?
+///                      ('.' sil-decl-lang)? ('.' sil-decl-autodiff)?
 ///  sil-decl-subref ::= '!' sil-decl-uncurry-level ('.' sil-decl-lang)?
-///  sil-decl-subref ::= '!' sil-decl-lang
+///                      ('.' sil-decl-autodiff)?
+///  sil-decl-subref ::= '!' sil-decl-lang ('.' sil-decl-autodiff)?
+///  sil-decl-subref ::= '!' sil-decl-autodiff
 ///  sil-decl-subref-part ::= 'getter'
 ///  sil-decl-subref-part ::= 'setter'
 ///  sil-decl-subref-part ::= 'allocator'
@@ -1329,6 +1646,12 @@ static Optional<AccessorKind> getAccessorKind(StringRef ident) {
 ///  sil-decl-subref-part ::= 'globalaccessor'
 ///  sil-decl-uncurry-level ::= [0-9]+
 ///  sil-decl-lang ::= 'foreign'
+///  sil-decl-autodiff ::= sil-decl-autodiff-kind '.' sil-decl-autodiff-order
+///                        '.' sil-decl-autodiff-indices
+///  sil-decl-autodiff-kind ::= 'jvp'
+///  sil-decl-autodiff-kind ::= 'vjp'
+///  sil-decl-autodiff-order ::= [0-9]+
+///  sil-decl-autodiff-indices ::= [FM][SU]+
 bool SILParser::parseSILDeclRef(SILDeclRef &Result,
                                 SmallVectorImpl<ValueDecl *> &values) {
   ValueDecl *VD;
@@ -1339,6 +1662,8 @@ bool SILParser::parseSILDeclRef(SILDeclRef &Result,
   SILDeclRef::Kind Kind = SILDeclRef::Kind::Func;
   unsigned uncurryLevel = 0;
   bool IsObjC = false;
+  // SWIFT_ENABLE_TENSORFLOW
+  AutoDiffAssociatedFunctionIdentifier *autoDiffFuncId = nullptr;
 
   if (!P.consumeIf(tok::sil_exclamation)) {
     // Construct SILDeclRef.
@@ -1350,10 +1675,13 @@ bool SILParser::parseSILDeclRef(SILDeclRef &Result,
 
   // Handle sil-constant-kind-and-uncurry-level.
   // ParseState indicates the value we just handled.
-  // 1 means we just handled Kind, 2 means we just handled uncurryLevel.
-  // We accept func|getter|setter|...|foreign or an integer when ParseState is
-  // 0; accept foreign or an integer when ParseState is 1; accept foreign when
-  // ParseState is 2.
+  // SWIFT_ENABLE_TENSORFLOW
+  // 1 means we just handled Kind, 2 means we just handled uncurryLevel, 3 means
+  // we just handled foreign.
+  // We accept func|getter|setter|...|foreign, an autodiff identifier, or an
+  // integer when ParseState is 0; accept foreign, an autodiff identifier, or an
+  // integer when ParseState is 1; accept foreign or an autodiff identifier when
+  // ParseState is 2; accept an autodiff identifier when ParseState is 3.
   unsigned ParseState = 0;
   Identifier Id;
   do {
@@ -1413,8 +1741,49 @@ bool SILParser::parseSILDeclRef(SILDeclRef &Result,
       } else if (!ParseState && Id.str() == "propertyinit") {
         Kind = SILDeclRef::Kind::StoredPropertyInitializer;
         ParseState = 1;
-      } else if (Id.str() == "foreign") {
+      // SWIFT_ENABLE_TENSORFLOW
+      } else if (ParseState < 3 && Id.str() == "foreign") {
         IsObjC = true;
+        // SWIFT_ENABLE_TENSORFLOW
+        ParseState = 3;
+      } else if (Id.str() == "jvp" || Id.str() == "vjp") {
+        AutoDiffAssociatedFunctionKind kind;
+        unsigned differentiationOrder;
+        AutoDiffParameterIndices *parameterIndices = nullptr;
+
+        if (Id.str() == "jvp")
+          kind = AutoDiffAssociatedFunctionKind::JVP;
+        else if (Id.str() == "vjp")
+          kind = AutoDiffAssociatedFunctionKind::VJP;
+        else
+          llvm_unreachable("Should only have JVP and VJP here");
+
+        if (!P.consumeIf(tok::period)) {
+          P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, ".");
+          return true;
+        }
+
+        if (parseInteger(differentiationOrder,
+                         diag::sil_const_expected_int_value))
+          return true;
+
+        if (!P.consumeIf(tok::period)) {
+          P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, ".");
+          return true;
+        }
+
+        parameterIndices = AutoDiffParameterIndices::create(
+            SILMod.getASTContext(), P.Tok.getText());
+        if (!parameterIndices) {
+          P.diagnose(P.Tok, diag::malformed_autodiff_parameter_indices);
+          return true;
+        }
+        P.consumeToken();
+
+        autoDiffFuncId = AutoDiffAssociatedFunctionIdentifier::get(
+            kind, differentiationOrder, parameterIndices,
+            SILMod.getASTContext());
+
         break;
       } else
         break;
@@ -1428,7 +1797,8 @@ bool SILParser::parseSILDeclRef(SILDeclRef &Result,
   } while (P.consumeIf(tok::period));
 
   // Construct SILDeclRef.
-  Result = SILDeclRef(VD, Kind, /*isCurried=*/false, IsObjC);
+  // SWIFT_ENABLE_TENSORFLOW
+  Result = SILDeclRef(VD, Kind, /*isCurried=*/false, IsObjC, autoDiffFuncId);
   if (uncurryLevel < Result.getParameterListCount() - 1)
     Result = Result.asCurried();
   return false;
@@ -2607,6 +2977,136 @@ bool SILParser::parseSILInstruction(SILBuilder &B) {
     ResultVal = B.createFunctionRef(InstLoc, Fn);
     break;
   }
+
+  // SWIFT_ENABLE_TENSORFLOW
+  case SILInstructionKind::AutoDiffFunctionInst: {
+    // e.g. autodiff_function [wrt 0 1 2] [order 2] %0 : $T
+    //
+    // e.g. autodiff_function [wrt 0 1 2] [order 2] %0 : $T with
+    //      {%1 : $T, %2 : $T}, {%3 : $T, %4 : $T}
+    //        ^ jvp    ^ vjp
+    SourceLoc lastLoc;
+    SmallBitVector parameterIndices(32);
+    unsigned order = 1;
+    // Parse optional `[wrt <integer_literal>...]`
+    if (P.Tok.is(tok::l_square) &&
+        P.peekToken().is(tok::identifier) &&
+        P.peekToken().getText() == "wrt") {
+      P.consumeToken(tok::l_square);
+      P.consumeToken(tok::identifier);
+      // Parse indices.
+      unsigned size = parameterIndices.size();
+      while (P.Tok.is(tok::integer_literal)) {
+        unsigned index;
+        if (P.parseUnsignedInteger(index, lastLoc,
+              diag::sil_inst_autodiff_expected_parameter_index))
+          return true;
+        if (index >= size)
+          parameterIndices.resize((size *= 2));
+        parameterIndices.set(index);
+      }
+      if (P.parseToken(tok::r_square,
+                       diag::sil_inst_autodiff_attr_expected_rsquare,
+                       "parameter index list"))
+        return true;
+    }
+    // Parse optional `[order <integer_literal>]`.
+    if (P.Tok.is(tok::l_square) &&
+        P.peekToken().is(tok::identifier) &&
+        P.peekToken().getText() == "order") {
+      P.consumeToken(tok::l_square);
+      P.consumeToken(tok::identifier);
+      // Parse an order.
+      if (P.parseUnsignedInteger(order, lastLoc,
+                                 diag::sil_inst_autodiff_expected_order) ||
+          P.parseToken(tok::r_square,
+                       diag::sil_inst_autodiff_attr_expected_rsquare,
+                       "differentiation order"))
+        return true;
+      if (order == 0) {
+        P.diagnose(lastLoc, diag::sil_inst_autodiff_expected_nonzero_order);
+        return true;
+      }
+    }
+    // Parse the original function value.
+    SILValue original;
+    if (parseTypedValueRef(original, B))
+      return true;
+    SmallVector<SILValue, 16> associatedFunctions;
+    // Parse optional operand lists `with { <operand> , <operand> }, ...`.
+    if (P.Tok.is(tok::identifier) && P.Tok.getText() == "with") {
+      P.consumeToken(tok::identifier);
+      // Parse associated function values as operand lists. There are as many
+      // operand lists as the differentiation order.
+      associatedFunctions.reserve(2 * order);
+      for (unsigned listIdx = 0; listIdx < order; ++listIdx) {
+        // FIXME(rxwei): Change this to *not* require a type signature once
+        // we can infer AD associated function types.
+        SILValue newAssocFn1, newAssocFn2;
+        if (P.parseToken(tok::l_brace,
+                diag::sil_inst_autodiff_operand_list_expected_lbrace) ||
+            parseTypedValueRef(newAssocFn1, B) ||
+            P.parseToken(tok::comma,
+                diag::sil_inst_autodiff_operand_list_expected_comma) ||
+            parseTypedValueRef(newAssocFn2, B) ||
+            P.parseToken(tok::r_brace,
+                         diag::sil_inst_autodiff_operand_list_expected_rbrace))
+          return true;
+        associatedFunctions.push_back(newAssocFn1);
+        associatedFunctions.push_back(newAssocFn2);
+      }
+      if (P.Tok.is(tok::l_brace)) {
+        P.diagnose(P.Tok,
+                   diag::sil_inst_autodiff_num_operand_list_order_mismatch);
+        return true;
+      }
+    }
+    if (parseSILDebugLocation(InstLoc, B))
+      return true;
+    ResultVal = B.createAutoDiffFunction(InstLoc, parameterIndices, order,
+                                         original, associatedFunctions);
+    break;
+  }
+  
+  case SILInstructionKind::AutoDiffFunctionExtractInst: {
+    // Parse the rest of the instruction: an associated function kind, a
+    // function operand, an order operand and a debug location.
+    AutoDiffFunctionExtractInst::Extractee extractee;
+    StringRef extracteeNames[3] = {"original", "jvp", "vjp"};
+    unsigned order = 0;
+    SILValue functionOperand;
+    SourceLoc lastLoc;
+    if (P.parseToken(tok::l_square,
+            diag::sil_inst_autodiff_expected_associated_function_kind_attr) ||
+        parseSILIdentifierSwitch(extractee, extracteeNames,
+            diag::sil_inst_autodiff_expected_associated_function_kind_attr) ||
+        P.parseToken(tok::r_square,
+                     diag::sil_inst_autodiff_attr_expected_rsquare,
+                     "associated function kind"))
+      return true;
+    if (P.Tok.is(tok::l_square) && P.peekToken().is(tok::identifier) &&
+        P.peekToken().getText() == "order") {
+      P.consumeToken(tok::l_square);
+      P.consumeToken(tok::identifier);
+      if (P.parseUnsignedInteger(order, lastLoc,
+                                 diag::sil_inst_autodiff_expected_order) ||
+          P.parseToken(tok::r_square,
+                       diag::sil_inst_autodiff_attr_expected_rsquare,
+                       "differentiation order"))
+        return true;
+      if (order == 0) {
+        P.diagnose(lastLoc, diag::sil_inst_autodiff_expected_nonzero_order);
+        return true;
+      }
+    }
+    if (parseTypedValueRef(functionOperand, B) ||
+        parseSILDebugLocation(InstLoc, B))
+      return true;
+    ResultVal = B.createAutoDiffFunctionExtract(InstLoc, extractee, order,
+                                                functionOperand);
+    break;
+  }
+
   case SILInstructionKind::DynamicFunctionRefInst: {
     SILFunction *Fn;
     if (parseSILFunctionRef(InstLoc, Fn) ||
@@ -2623,6 +3123,7 @@ bool SILParser::parseSILInstruction(SILBuilder &B) {
     ResultVal = B.createPreviousDynamicFunctionRef(InstLoc, Fn);
     break;
   }
+
   case SILInstructionKind::BuiltinInst: {
     if (P.Tok.getKind() != tok::string_literal) {
       P.diagnose(P.Tok, diag::expected_tok_in_sil_instr,"builtin name");
@@ -2631,12 +3132,13 @@ bool SILParser::parseSILInstruction(SILBuilder &B) {
     StringRef Str = P.Tok.getText();
     Identifier Id = P.Context.getIdentifier(Str.substr(1, Str.size()-2));
     P.consumeToken(tok::string_literal);
-    
+
     // Find the builtin in the Builtin module
     SmallVector<ValueDecl*, 2> foundBuiltins;
     P.Context.TheBuiltinModule->lookupMember(foundBuiltins,
                                              P.Context.TheBuiltinModule, Id,
                                              Identifier());
+
     if (foundBuiltins.empty()) {
       P.diagnose(P.Tok, diag::expected_tok_in_sil_instr,"builtin name");
       return true;
@@ -2660,7 +3162,7 @@ bool SILParser::parseSILInstruction(SILBuilder &B) {
       if (!subMap)
         return true;
     }
-    
+
     if (P.Tok.getKind() != tok::l_paren) {
       P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, "(");
       return true;
@@ -2697,6 +3199,147 @@ bool SILParser::parseSILInstruction(SILBuilder &B) {
     if (parseSILDebugLocation(InstLoc, B))
       return true;
     ResultVal = B.createBuiltin(InstLoc, Id, ResultTy, subMap, Args);
+    break;
+  }
+  // SWIFT_ENABLE_TENSORFLOW
+  case SILInstructionKind::GraphOperationInst: {
+    bool noClustering = false;
+    if (P.consumeIf(tok::l_square)) {
+      // The only valid option is [no_clustering], when we see an l_square.
+      noClustering = true;
+
+      Identifier ident;
+      if (parseSILIdentifier(ident, diag::expected_in_attribute_list) ||
+          ident.str() != "no_clustering") {
+        P.diagnose(P.Tok, diag::expected_tok_in_sil_instr,
+                   "'no_clustering' attribute");
+        return true;
+      }
+      if (P.parseToken(tok::r_square,
+                       diag::sil_graph_op_no_clustering_attr_expected_rsquare))
+        return true;
+    }
+
+    // Parse graph operation name.
+    if (P.Tok.isNot(tok::string_literal)) {
+      P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, "graph_op name");
+      return true;
+    }
+    StringRef opName = P.Tok.getText().drop_front().drop_back();
+    if (opName.find(',') != StringRef::npos) {
+      P.diagnose(P.Tok, diag::sil_graph_op_name_comma);
+      return true;
+    }
+    tf::GraphOperationBuilder opBuilder(opName);
+    P.consumeToken(tok::string_literal);
+
+    // Parses a top-level operand to the graphop, and add it to `opBuilder`.
+    auto parseOperand = [&]() -> ParserStatus {
+      // Parse the optional operand name.
+      StringRef operandName;
+      if (P.Tok.is(tok::identifier)) {
+        operandName = P.Tok.getText();
+        P.consumeToken();
+      }
+
+      if (P.Tok.is(tok::l_square)) {
+        // It is a list operand.
+        SourceLoc lSquareLoc = P.consumeToken(tok::l_square);
+        SourceLoc rSquareLoc;
+        SmallVector<SILValue, 4> elements;
+
+        // Parses an element of a list operand, and adds it to `elements`.
+        auto parseListOperandElement = [&]() -> ParserStatus {
+          SILValue value;
+          if (parseTypedValueRef(value, B))
+            return makeParserError();
+          elements.push_back(value);
+          return makeParserSuccess();
+        };
+
+        ParserStatus status = P.parseList(tok::r_square, lSquareLoc, rSquareLoc,
+                                          /*AllowSepAfterLast*/ false,
+                                          diag::sil_graph_op_expected_rsquare,
+                                          SyntaxKind::TuplePatternElementList,
+                                          parseListOperandElement);
+        if (status.isError())
+          return status;
+        opBuilder.addListArgument(elements, operandName);
+        return makeParserSuccess();
+      } else {
+        // It is a single operand.
+        SILValue value;
+        if (parseTypedValueRef(value, B))
+          return makeParserError();
+        opBuilder.addArgument(value, operandName);
+        return makeParserSuccess();
+      }
+    };
+
+    // Parse graph operation operands.
+    if (P.Tok.isNot(tok::l_paren)) {
+      P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, "(");
+      return true;
+    }
+    SourceLoc lParenLoc = P.consumeToken(tok::l_paren);
+    SourceLoc rParenLoc;
+    ParserStatus status = P.parseList(tok::r_paren, lParenLoc, rParenLoc,
+                                      /*AllowSepAfterLast*/ false,
+                                      diag::sil_graph_op_expected_rparen,
+                                      SyntaxKind::TuplePatternElementList,
+                                      parseOperand);
+    if (status.isError())
+      return true;
+
+    // Parse optional graph operation attributes.
+    SourceLoc lBraceLoc;
+    if (P.consumeIf(tok::l_brace, lBraceLoc)) {
+      SourceLoc rBraceLoc;
+      ParserStatus status =
+        P.parseList(tok::r_brace, lBraceLoc, rBraceLoc,
+                    /*AllowSepAfterLast*/ false,
+                    diag::sil_graph_op_expected_rbrace,
+                    SyntaxKind::Unknown,
+                    [&]() -> ParserStatus {
+        // Parse an attribute.
+        Identifier attrName;
+        if (parseSILIdentifier(attrName, lBraceLoc,
+                               diag::sil_graph_op_expected_attr_name))
+          return makeParserError();
+        SymbolicValue attrValue;
+        if (!P.consumeIf(tok::colon)) {
+          P.diagnose(P.Tok, diag::sil_graph_op_expected_colon_after_attr_name);
+          return makeParserError();
+        }
+        if (parseSymbolicValue(attrValue, *this, B))
+          return makeParserError();
+        opBuilder.addAttribute({ attrName, attrValue });
+        return makeParserSuccess();
+      });
+      if (status.isError())
+        return true;
+    }
+
+    // Parse graph operation result types.
+    if (P.parseToken(tok::colon,
+                     diag::sil_graph_op_expected_colon_before_result_types))
+      return true;
+    SmallVector<SILType, 4> resultTypes;
+    SILType temp;
+    while (true) {
+      if (parseSILType(temp))
+        return true;
+      resultTypes.push_back(temp);
+      if (!P.consumeIf(tok::comma))
+        break;
+    }
+
+    if (parseSILDebugLocation(InstLoc, B))
+      return true;
+
+    auto op = opBuilder.build(B, P.Context, InstLoc, resultTypes);
+    op->setNoClustering(noClustering);
+    ResultVal = op;
     break;
   }
   case SILInstructionKind::OpenExistentialAddrInst:
@@ -5286,6 +5929,8 @@ bool SILParserTUState::parseDeclSIL(Parser &P) {
   OptimizationMode optimizationMode = OptimizationMode::NotSet;
   SmallVector<std::string, 1> Semantics;
   SmallVector<ParsedSpecAttr, 4> SpecAttrs;
+  // SWIFT_ENABLE_TENSORFLOW
+  SmallVector<SILDifferentiableAttr *, 4> DiffAttrs;
   ValueDecl *ClangDecl = nullptr;
   EffectsKind MRK = EffectsKind::Unspecified;
   SILFunction *DynamicallyReplacedFunction = nullptr;
@@ -5296,7 +5941,9 @@ bool SILParserTUState::parseDeclSIL(Parser &P) {
                            &objCReplacementFor, &isGlobalInit, &inlineStrategy,
                            &optimizationMode, nullptr, &isWeakLinked,
                            &isWithoutActuallyEscapingThunk, &Semantics,
-                           &SpecAttrs, &ClangDecl, &MRK, FunctionState, M) ||
+                           // SWIFT_ENABLE_TENSORFLOW
+                           &SpecAttrs, &DiffAttrs, &ClangDecl, &MRK,
+                           FunctionState, M) ||
       P.parseToken(tok::at_sign, diag::expected_sil_function_name) ||
       P.parseIdentifier(FnName, FnNameLoc, diag::expected_sil_function_name) ||
       P.parseToken(tok::colon, diag::expected_sil_type))
@@ -5332,6 +5979,9 @@ bool SILParserTUState::parseDeclSIL(Parser &P) {
       isWithoutActuallyEscapingThunk);
     FunctionState.F->setInlineStrategy(inlineStrategy);
     FunctionState.F->setOptimizationMode(optimizationMode);
+    // SWIFT_ENABLE_TENSORFLOW
+    for (auto &Attr : DiffAttrs)
+      FunctionState.F->addDifferentiableAttr(Attr);
     FunctionState.F->setEffectsKind(MRK);
     if (ClangDecl)
       FunctionState.F->setClangNodeOwner(ClangDecl);
@@ -5359,6 +6009,19 @@ bool SILParserTUState::parseDeclSIL(Parser &P) {
               FunctionState.F->getModule(), requirements, Attr.exported,
               Attr.kind));
         }
+      }
+
+      // SWIFT_ENABLE_TENSORFLOW
+      for (auto &attr : DiffAttrs) {
+        // Resolve where clause requirements.
+        // If no where clause, continue.
+        if (!attr->getWhereClause())
+          continue;
+        SmallVector<Requirement, 2> requirements;
+        FunctionState.convertRequirements(
+            FunctionState.F, attr->getWhereClause()->getRequirements(),
+            requirements);
+        attr->setRequirements(requirements);
       }
 
       // Parse the basic block list.
@@ -5507,10 +6170,11 @@ bool SILParserTUState::parseSILGlobal(Parser &P) {
   Scope S(&P, ScopeKind::TopLevel);
   SILParser State(P);
   if (parseSILLinkage(GlobalLinkage, P) ||
+      // SWIFT_ENABLE_TENSORFLOW
       parseDeclSILOptional(nullptr, &isSerialized, nullptr, nullptr, nullptr,
                            nullptr, nullptr, nullptr, nullptr, nullptr, &isLet,
                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                           State, M) ||
+                           nullptr, State, M) ||
       P.parseToken(tok::at_sign, diag::expected_sil_value_name) ||
       P.parseIdentifier(GlobalName, NameLoc, diag::expected_sil_value_name) ||
       P.parseToken(tok::colon, diag::expected_sil_type))
@@ -5559,7 +6223,7 @@ bool SILParserTUState::parseSILProperty(Parser &P) {
   if (parseDeclSILOptional(nullptr, &Serialized, nullptr, nullptr, nullptr,
                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                           SP, M))
+                           nullptr, SP, M))
     return true;
   
   ValueDecl *VD;
@@ -5625,10 +6289,11 @@ bool SILParserTUState::parseSILVTable(Parser &P) {
   SILParser VTableState(P);
 
   IsSerialized_t Serialized = IsNotSerialized;
+  // SWIFT_ENABLE_TENSORFLOW
   if (parseDeclSILOptional(nullptr, &Serialized, nullptr, nullptr, nullptr,
                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                           VTableState, M))
+                           nullptr, VTableState, M))
     return true;
 
   // Parse the class name.
@@ -6112,6 +6777,8 @@ static bool parseSILVTableEntry(
   }
 
   SILDeclRef Ref;
+
+
   Identifier FuncName;
   SourceLoc FuncLoc;
   if (witnessState.parseSILDeclRef(Ref, true) ||
@@ -6133,6 +6800,7 @@ static bool parseSILVTableEntry(
       return true;
     }
   }
+
   witnessEntries.push_back(SILWitnessTable::MethodWitness{
     Ref, Func
   });
@@ -6161,10 +6829,11 @@ bool SILParserTUState::parseSILWitnessTable(Parser &P) {
   parseSILLinkage(Linkage, P);
   
   IsSerialized_t isSerialized = IsNotSerialized;
+  // SWIFT_ENABLE_TENSORFLOW
   if (parseDeclSILOptional(nullptr, &isSerialized, nullptr, nullptr, nullptr,
                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                           WitnessState, M))
+                           nullptr, WitnessState, M))
     return true;
 
   Scope S(&P, ScopeKind::TopLevel);

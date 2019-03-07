@@ -34,6 +34,12 @@
             "remote": { "id": "apple/swift-xcode-playground-support" } },
         "ninja": {
             "remote": { "id": "ninja-build/ninja" } },
+        "tensorflow": {
+            "remote": { "id": "tensorflow/tensorflow" } },
+        "tensorflow-swift-bindings": {
+            "remote": { "id": "tensorflow/swift-bindings" } },
+        "tensorflow-swift-apis": {
+            "remote": { "id": "tensorflow/swift-apis" } },
         "icu": {
             "remote": { "id": "unicode-org/icu" },
             "platforms": [ "Linux" ]
@@ -212,6 +218,31 @@
                 "swift-xcode-playground-support": "swift-5.0-branch",
                 "ninja": "release",
                 "icu": "release-61-1"
+            }
+        },
+        "tensorflow": {
+            "aliases": ["tensorflow"],
+            "repos": {
+                "llvm": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "clang": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swift": "tensorflow",
+                "lldb": "c1e5da4f5f5b06254f13125e70554b23adb0199a",
+                "cmark": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "llbuild": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swiftpm": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swift-syntax": "1aeb642da66a23a66c9ac80d74813e1a4b963999",
+                "swift-stress-tester": "2fc093642df924f6adf9de9e4397c7c6fc8b5fc8",
+                "compiler-rt": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swift-corelibs-xctest": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swift-corelibs-foundation": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swift-corelibs-libdispatch": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swift-integration-tests": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "swift-xcode-playground-support": "swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a",
+                "ninja": "253e94c1fa511704baeb61cf69995bbf09ba435e",
+                "icu": "release-61-1",
+                "tensorflow": "641d3f1ed1324229ae6a003b00fca08b8ddf516b",
+                "tensorflow-swift-bindings": "c852b63b6ac3c4b53199aab96c021501978b843d",
+                "tensorflow-swift-apis": "451f1b53cc7cc40599aa17aa19249b24b545e500"
             }
         }
     }

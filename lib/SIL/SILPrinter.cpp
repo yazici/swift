@@ -22,6 +22,9 @@
 #include "swift/SIL/SILPrintContext.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/CFG.h"
+// SWIFT_ENABLE_TENSORFLOW
+#include "swift/SIL/GraphOperationInfo.h"
+#include "swift/SIL/SILConstants.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILCoverageMap.h"
 #include "swift/SIL/SILDebugScope.h"
@@ -340,6 +343,23 @@ void SILDeclRef::print(raw_ostream &OS) const {
 
   if (isDirectReference)
     OS << ((isDot || uncurryLevel != 0) ? '.' : '!')  << "direct";
+
+  // SWIFT_ENABLE_TENSORFLOW
+  if (autoDiffAssociatedFunctionIdentifier) {
+    auto *autoDiffFuncId = autoDiffAssociatedFunctionIdentifier;
+    OS << ((isDot || uncurryLevel != 0 || isForeign || isDirectReference)
+               ? '.' : '!');
+    switch (autoDiffFuncId->getKind()) {
+    case AutoDiffAssociatedFunctionKind::JVP:
+      OS << "jvp.";
+      break;
+    case AutoDiffAssociatedFunctionKind::VJP:
+      OS << "vjp.";
+      break;
+    }
+    OS << autoDiffFuncId->getDifferentiationOrder() << "."
+       << autoDiffFuncId->getParameterIndices()->getString();
+  }
 }
 
 void SILDeclRef::dump() const {
@@ -1134,6 +1154,47 @@ public:
     *this << Ctx.getID(AI->getOperand());
   }
 
+  // SWIFT_ENABLE_TENSORFLOW
+  void visitAutoDiffFunctionInst(AutoDiffFunctionInst *adfi) {
+    if (adfi->getParameterIndices().any()) {
+      *this << "[wrt";
+      for (auto i : adfi->getParameterIndices().set_bits())
+        *this << ' ' << i;
+      *this << "] ";
+    }
+    *this << "[order " << adfi->getDifferentiationOrder() << "] ";
+    *this << getIDAndType(adfi->getOriginalFunction());
+    if (!adfi->getAssociatedFunctions().empty()) {
+      *this << " with ";
+      interleave(range(1, adfi->getDifferentiationOrder() + 1),
+                 [&](unsigned order) {
+                   auto pair = adfi->getAssociatedFunctionPair(order);
+                   *this << '{' << getIDAndType(pair.first) << ", "
+                         << getIDAndType(pair.second) << '}';
+                 }, [this] { *this << ", "; });
+    }
+  }
+
+  void visitAutoDiffFunctionExtractInst(AutoDiffFunctionExtractInst *adfei) {
+    *this << '[';
+    switch (adfei->getExtractee()) {
+    case AutoDiffFunctionExtractee::Original:
+      *this << "original";
+      break;
+    case AutoDiffFunctionExtractee::JVP:
+      *this << "jvp";
+      break;
+    case AutoDiffFunctionExtractee::VJP:
+      *this << "vjp";
+      break;
+    }
+    *this << "] ";
+    auto order = adfei->getDifferentiationOrder();
+    if (order > 0)
+      *this << "[order " << order << "] ";
+    *this << getIDAndType(adfei->getFunctionOperand());
+  }
+
   void visitFunctionRefInst(FunctionRefInst *FRI) {
     FRI->getReferencedFunction()->printName(PrintState.OS);
     *this << " : " << FRI->getType();
@@ -1161,6 +1222,141 @@ public:
     
     *this << ") : ";
     *this << BI->getType();
+  }
+
+  // SWIFT_ENABLE_TENSORFLOW
+  void visitSymbolicValue(SymbolicValue v) {
+    switch (v.getKind()) {
+    case SymbolicValue::Integer: {
+      APInt intValue = v.getIntegerValue();
+      *this << "i" << intValue.getBitWidth() << " " << intValue;
+      return;
+    }
+    case SymbolicValue::Float: {
+      APFloat floatValue = v.getFloatValue();
+      *this << "f" << APFloat::getSizeInBits(floatValue.getSemantics()) << " ";
+
+      APInt bits = floatValue.bitcastToAPInt();
+      *this << "0x" << bits.toString(16, /*Signed*/ false);
+      *this << " ";
+
+      SmallString<12> decimal;
+      floatValue.toString(decimal);
+      *this << "/* " << decimal << " */";
+      return;
+    }
+    case SymbolicValue::String:
+      *this << QuotedString(v.getStringValue());
+      return;
+    case SymbolicValue::Metatype:
+      *this << SILType::getPrimitiveObjectType(v.getMetatypeValue());
+      return;
+    case SymbolicValue::Function: {
+      auto function = v.getFunctionValue();
+      *this << "@" << function->getName();
+      *this << " : $" << function->getLoweredFunctionType();
+      switch (v.getFunctionSubstitutionConvention()) {
+      case FunctionSubstitutionConvention::Normal:
+        *this << " (N)";
+        break;
+      case FunctionSubstitutionConvention::Witness:
+        *this << " (W)";
+        break;
+      }
+      return;
+    }
+    case SymbolicValue::Aggregate: {
+      *this << '(';
+      interleave(v.getAggregateValue(), [&](SymbolicValue element) {
+        visitSymbolicValue(element);
+      }, [&] {
+        *this << ", ";
+      });
+      *this << ')';
+      return;
+    }
+    case SymbolicValue::Enum:
+      *this << SILDeclRef(v.getEnumValue(), SILDeclRef::Kind::EnumElement);
+      return;
+    case SymbolicValue::EnumWithPayload:
+      *this << '(';
+      *this << SILDeclRef(v.getEnumValue(), SILDeclRef::Kind::EnumElement);
+      *this << ", ";
+      visitSymbolicValue(v.getEnumPayloadValue());
+      *this << ')';
+      return;
+    case SymbolicValue::Array: {
+      CanType elementType;
+      auto elements = v.getArrayValue(elementType);
+
+      *this << "[$" << elementType << ": ";
+      interleave(elements, [&](SymbolicValue element) {
+        visitSymbolicValue(element);
+      }, [&] {
+        *this << ", ";
+      });
+      *this << ']';
+      return;
+    }
+    case SymbolicValue::UninitMemory:
+    case SymbolicValue::Unknown:
+    case SymbolicValue::Address:
+      llvm_unreachable("Unimplemented SymbolicValue case");
+    }
+  }
+
+  // SWIFT_ENABLE_TENSORFLOW
+  void visitGraphOperationInst(GraphOperationInst *GI) {
+    tf::GraphOperationInfo info(GI);
+    auto opName = info.getOperationName();
+    auto &arguments = info.getStructuredArguments();
+
+    if (GI->getNoClustering())
+      *this << "[no_clustering] ";
+
+    *this << QuotedString(opName);
+
+    *this << "(";
+    interleave(arguments, [&](tf::GraphOperationInfo::StructuredArgument argument) {
+      if (!argument.getArgumentNameWithSuffix().empty())
+        *this << argument.getArgumentNameWithSuffix() << " ";
+      switch (argument.getKind()) {
+      case tf::GraphOperationInfo::SAK_Single:
+        *this << getIDAndType(argument.getSingleArgument());
+        break;
+      case tf::GraphOperationInfo::SAK_List:
+        *this << "[";
+        interleave(argument.getArgumentList(), [&](SILValue v) {
+          *this << getIDAndType(v);
+        }, [&] {
+          *this << ", ";
+        });
+        *this << "]";
+        break;
+      }
+    }, [&] {
+      *this << ", ";
+    });
+    *this << ")";
+
+    if (GI->getNumAttributes()) {
+      *this << " {";
+      interleave(GI->getAttributes(), [&](GraphOperationAttribute attr) {
+        *this << attr.name.str();
+        *this << ": ";
+        visitSymbolicValue(attr.value);
+      }, [&] {
+        *this << ", ";
+      });
+      *this << "}";
+    }
+
+    *this << " : ";
+    interleave(GI->getResultTypes(), [&](SILType type) {
+      *this << type;
+    }, [&] {
+      *this << ", ";
+    });
   }
   
   void visitAllocGlobalInst(AllocGlobalInst *AGI) {
@@ -2338,6 +2534,11 @@ void SILFunction::print(SILPrintContext &PrintCtx) const {
     OS << "[_specialize "; Attr->print(OS); OS << "] ";
   }
 
+  // SWIFT_ENABLE_TENSORFLOW
+  for (auto *Attr : getDifferentiableAttrs()) {
+    OS << "[differentiable "; Attr->print(OS); OS << "] ";
+  }
+
   // TODO: Handle clang node owners which don't have a name.
   if (hasClangNode() && getClangNodeOwner()->hasName()) {
     OS << "[clang ";
@@ -2681,6 +2882,7 @@ void SILModule::print(SILPrintContext &PrintCtx, ModuleDecl *M,
     for (const Decl *D : topLevelDecls) {
       if (!WholeModuleMode && !(D->getDeclContext() == AssociatedDeclContext))
           continue;
+      // SWIFT_ENABLE_TENSORFLOW
       if ((isa<ValueDecl>(D) || isa<OperatorDecl>(D) ||
            isa<ExtensionDecl>(D) || isa<ImportDecl>(D)) &&
           !D->isImplicit()) {
@@ -3014,6 +3216,49 @@ void SILSpecializeAttr::print(llvm::raw_ostream &OS) const {
                  }
                },
                [&] { OS << ", "; });
+  }
+}
+
+/// SWIFT_ENABLE_TENSORFLOW
+void SILDifferentiableAttr::print(llvm::raw_ostream &OS) const {
+  auto &indices = getIndices();
+  OS << "source " << indices.source << " wrt ";
+  interleave(indices.parameters.set_bits(),
+             [&](unsigned index) { OS << index; },
+             [&] { OS << ", "; });
+  if (!JVPName.empty()) {
+    OS << " jvp @" << JVPName;
+  }
+  if (!VJPName.empty()) {
+    OS << " vjp @" << VJPName;
+  }
+  if (!getRequirements().empty()) {
+    OS << " where ";
+    SILFunction *original = getOriginal();
+    assert(original);
+    auto genericEnv = original->getGenericEnvironment();
+    PrintOptions SubPrinter = PrintOptions::printSIL();
+    interleave(getRequirements(), [&](Requirement req) {
+      if (!genericEnv) {
+         req.print(OS, SubPrinter);
+         return;
+      }
+      // Use GenericEnvironment to produce user-friendly
+      // names instead of something like 't_0_0'.
+      auto FirstTy = genericEnv->getSugaredType(req.getFirstType());
+      if (req.getKind() != RequirementKind::Layout) {
+        auto SecondTy =
+        genericEnv->getSugaredType(req.getSecondType());
+        Requirement ReqWithDecls(req.getKind(), FirstTy, SecondTy);
+        ReqWithDecls.print(OS, SubPrinter);
+      } else {
+        Requirement ReqWithDecls(req.getKind(), FirstTy,
+                                 req.getLayoutConstraint());
+        ReqWithDecls.print(OS, SubPrinter);
+      }
+    }, [&] {
+      OS << ", ";
+    });
   }
 }
 

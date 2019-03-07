@@ -132,6 +132,9 @@ normalize_boolean_spelling(SWIFT_STDLIB_ASSERTIONS)
 normalize_boolean_spelling(SWIFT_AST_VERIFIER)
 normalize_boolean_spelling(SWIFT_ASAN_BUILD)
 normalize_boolean_spelling(SWIFT_ENABLE_SOURCEKIT_TESTS)
+# SWIFT_ENABLE_TENSORFLOW
+normalize_boolean_spelling(SWIFT_ENABLE_TENSORFLOW)
+normalize_boolean_spelling(SWIFT_ENABLE_TENSORFLOW_GPU)
 is_build_type_optimized("${SWIFT_STDLIB_BUILD_TYPE}" SWIFT_OPTIMIZED)
 
 set(profdata_merge_worker
@@ -253,6 +256,15 @@ foreach(SDK ${SWIFT_SDKS})
       if(NOT SWIFT_BUILD_STDLIB)
         list(APPEND LIT_ARGS
             "--param" "test_sdk_overlay_dir=${SWIFTLIB_DIR}/${SWIFT_SDK_${SDK}_LIB_SUBDIR}")
+      endif()
+
+      if(SWIFT_ENABLE_TENSORFLOW)
+        list(APPEND LIT_ARGS
+            "--param" "swift_tensorflow_path=${SWIFT_TENSORFLOW_TARGET_LIB_DIR}")
+      endif()
+      if(SWIFT_ENABLE_TENSORFLOW_GPU)
+        list(APPEND LIT_ARGS
+            "--param" "swift_tensorflow_gpu")
       endif()
 
       execute_process(COMMAND

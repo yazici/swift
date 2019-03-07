@@ -520,6 +520,7 @@ public:
     llvm::PointerType *RelativeAddressPtrTy;
   };
   llvm::IntegerType *Int64Ty;          /// i64
+
   union {
     llvm::IntegerType *SizeTy;         /// usually i32 or i64
     llvm::IntegerType *IntPtrTy;

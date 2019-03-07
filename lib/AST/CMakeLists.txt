@@ -3,6 +3,14 @@ if (SWIFT_FORCE_OPTIMIZED_TYPECHECKER)
   set(EXTRA_AST_FLAGS "FORCE_BUILD_OPTIMIZED")
 endif()
 
+if(SWIFT_ENABLE_TENSORFLOW)
+  find_package(TensorFlow REQUIRED)
+  if (TF_PATH_ADJUSTMENT)
+    include_directories(BEFORE "${TF_INCLUDE_DIR}/${TF_PATH_ADJUSTMENT}")
+  endif()
+  include_directories(BEFORE "${TF_INCLUDE_DIR}")
+endif()
+
 add_swift_host_library(swiftAST STATIC
   AccessScopeChecker.cpp
   AccessRequests.cpp
@@ -16,6 +24,8 @@ add_swift_host_library(swiftAST STATIC
   ASTVerifier.cpp
   ASTWalker.cpp
   Attr.cpp
+  # SWIFT_ENABLE_TENSORFLOW
+  AutoDiff.cpp
   Availability.cpp
   AvailabilitySpec.cpp
   Builtins.cpp
@@ -34,6 +44,9 @@ add_swift_host_library(swiftAST STATIC
   GenericEnvironment.cpp
   GenericSignature.cpp
   GenericSignatureBuilder.cpp
+  # SWIFT_ENABLE_TENSORFLOW
+  GraphOperationBuilder.cpp
+  GraphOperationInfo.cpp
   Identifier.cpp
   InlinableText.cpp
   LayoutConstraint.cpp
@@ -55,6 +68,8 @@ add_swift_host_library(swiftAST STATIC
   Stmt.cpp
   SubstitutionMap.cpp
   SwiftNameTranslation.cpp
+  # SWIFT_ENABLE_TENSORFLOW
+  TensorFlow.cpp
   Type.cpp
   TypeCheckRequests.cpp
   TypeJoinMeet.cpp
@@ -111,6 +126,6 @@ else()
   set(swift_ast_verifier_flag " -DSWIFT_DISABLE_AST_VERIFIER=1")
 endif()
 
-set_property(SOURCE Verifier.cpp APPEND_STRING PROPERTY COMPILE_FLAGS
+set_property(SOURCE ASTVerifier.cpp APPEND_STRING PROPERTY COMPILE_FLAGS
   "${swift_ast_verifier_flag}")
 

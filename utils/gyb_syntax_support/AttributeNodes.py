@@ -17,6 +17,7 @@ ATTRIBUTE_NODES = [
     #                | availability-spec-list
     #                | specialize-attr-spec-list
     #                | implements-attr-arguments
+    #                | differentiable-attr-arguments
     #                | named-attribute-string-argument
     #              )? ')'?
     Node('Attribute', kind='Syntax',
@@ -43,6 +44,9 @@ ATTRIBUTE_NODES = [
                        Child('ObjCName', kind='ObjCSelector'),
                        Child('ImplementsArguments', 
                              kind='ImplementsAttributeArguments'),
+                       # SWIFT_ENABLE_TENSORFLOW
+                       Child('DifferentiableArguments',
+                             kind='DifferentiableAttributeArguments'),
                        Child('NamedAttributeString',
                              kind='NamedAttributeStringArgument'),
                    ], description='''
@@ -159,6 +163,123 @@ ATTRIBUTE_NODES = [
                    The argument labels of the protocol\'s requirement if it \
                    is a function requirement.
                    '''),
+         ]),
+
+    # SWIFT_ENABLE_TENSORFLOW
+    # The argument of '@differentiable(...)'.
+    # differentiable-attr-arguments ->
+    #     differentiable-attr-parameters?
+    #     differentiable-attr-func-specifier? # primal
+    #     differentiable-attr-func-specifier? # adjoint
+    #     differentiable-attr-func-specifier? # jvp
+    #     differentiable-attr-func-specifier? # vjp
+    #     generic-where-clause?
+    # FIXME: There is currently no guarantee that 'MaybePrimal' is in fact
+    # the primal specifier, it could be any specifier. The current syntax
+    # definitions only ensure that there are between 0 and 4 function
+    # specifiers. A more robust definition would enforce that specific function
+    # specifiers appear only once, in order.
+    Node('DifferentiableAttributeArguments', kind='Syntax',
+         description='''
+         The arguments for the `@differentiable` attribute: an optional \
+         differentiation parameter list and associated functions.
+         ''',
+         children=[
+             Child('DiffParams', kind='DifferentiableAttributeDiffParamsClause',
+                   is_optional=True),
+             Child('MaybePrimal', kind='DifferentiableAttributeFuncSpecifier',
+                   is_optional=True),
+             Child('MaybeAdjoint', kind='DifferentiableAttributeFuncSpecifier',
+                   is_optional=True),
+             Child('MaybeJVP', kind='DifferentiableAttributeFuncSpecifier',
+                   is_optional=True),
+             Child('MaybeVJP', kind='DifferentiableAttributeFuncSpecifier',
+                   is_optional=True),
+             Child('WhereClause', kind='GenericWhereClause', is_optional=True),
+         ]),
+
+    # differentiable-attr-parameters-clause ->
+    #     'wrt' ':'
+    #     (differentiable-attr-diff-params | differentiable-attr-diff-param)
+    #     ','?
+    Node('DifferentiableAttributeDiffParamsClause', kind='Syntax',
+         description='The clause containing the differentiation parameters.',
+         traits=['WithTrailingComma'],
+         children=[
+             Child('WrtLabel', kind='IdentifierToken',
+                   text_choices=['wrt'], description='The "wrt" label.'),
+             Child('Colon', kind='ColonToken', description='''
+                   The colon separating "wrt" and the parameter list.
+                   '''),
+             Child('Parameters', kind='Syntax',
+                   node_choices=[
+                       Child('Parameter',
+                             kind='DifferentiableAttributeDiffParam'),
+                       Child('ParameterList',
+                             kind='DifferentiableAttributeDiffParams'),
+                   ]),
+             Child('TrailingComma', kind='CommaToken', is_optional=True),
+         ]),
+
+    # differentiable-attr-diff-params ->
+    #     '(' differentiable-attr-diff-param-list ')'
+    Node('DifferentiableAttributeDiffParams', kind='Syntax',
+         description='The differentiation parameters.',
+         children=[
+             Child('LeftParen', kind='LeftParenToken'),
+             Child('DiffParams', kind='DifferentiableAttributeDiffParamList',
+                   description='The parameters for differentiation.'),
+             Child('RightParen', kind='RightParenToken'),
+         ]),
+
+    # differentiable-attr-diff-param-list ->
+    #     differentiable-attr-diff-param differentiable-attr-diff-param-list?
+    Node('DifferentiableAttributeDiffParamList', kind='SyntaxCollection',
+         element='DifferentiableAttributeDiffParam'),
+
+    # differentiable-attr-diff-param ->
+    #     ('self' | identifer) ','?
+    Node('DifferentiableAttributeDiffParam', kind='Syntax',
+         description='''
+         A differentiation parameter: either the "self" identifier or a \
+         function parameter name.
+         ''',
+         traits=['WithTrailingComma'],
+         children=[
+             Child('Parameter', kind='Syntax',
+                   node_choices=[
+                       Child('Self', kind='SelfToken'),
+                       Child('Name', kind='IdentifierToken'),
+                   ]),
+             Child('TrailingComma', kind='CommaToken', is_optional=True),
+         ]),
+
+    # differentiation-func-specifier ->
+    #     ('jvp' | 'vjp') ':' decl-name ','?
+    # decl-name -> (identifier | operator) decl-name-arguments?
+    Node('DifferentiableAttributeFuncSpecifier', kind='Syntax',
+         description='''
+         A function specifier, consisting of an identifier, colon, and a \
+         function declaration name (e.g. `vjp: foo(_:_:)`).
+         ''',
+         traits=['WithTrailingComma'],
+         children=[
+             Child('Label', kind='IdentifierToken',
+                   text_choices=['jvp', 'vjp']),
+             Child('Colon', kind='ColonToken'),
+             Child('DeclBaseName', kind='Syntax', description='''
+                   The base name of the referenced function.
+                   ''',
+                   node_choices=[
+                       Child('Identifier', kind='IdentifierToken'),
+                       Child('Operator', kind='PrefixOperatorToken'),
+                   ]),
+             Child('DeclNameArguments', kind='DeclNameArguments',
+                   is_optional=True, description='''
+                   The argument labels of the referenced function, optionally \
+                   specified.
+                   '''),
+             Child('TrailingComma', kind='CommaToken', is_optional=True),
          ]),
 
     # objc-selector-piece -> identifier? ':'?

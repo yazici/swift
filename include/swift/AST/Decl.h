@@ -3263,6 +3263,16 @@ public:
   /// Is this a key path type?
   Optional<KeyPathTypeKind> getKeyPathTypeKind() const;
 
+  // SWIFT_ENABLE_TENSORFLOW
+  /// Get effective memberwise initializer for the given nominal type, if it
+  /// exists: either a synthesized memberwise initializer or a user-defined
+  /// initializer with the same signature.
+  ConstructorDecl *getEffectiveMemberwiseInitializer();
+
+  // SWIFT_ENABLE_TENSORFLOW
+  /// Add `@_fixed_layout` attribute to the nominal type, if possible.
+  void addFixedLayoutAttr();
+
 private:
   /// Predicate used to filter StoredPropertyRange.
   struct ToStoredProperty {

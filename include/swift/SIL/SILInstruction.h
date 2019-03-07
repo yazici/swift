@@ -17,6 +17,8 @@
 #ifndef SWIFT_SIL_INSTRUCTION_H
 #define SWIFT_SIL_INSTRUCTION_H
 
+// SWIFT_ENABLE_TENSORFLOW
+#include "swift/AST/AutoDiff.h"
 #include "swift/AST/Builtins.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/GenericSignature.h"
@@ -29,6 +31,7 @@
 #include "swift/Basic/Range.h"
 #include "swift/SIL/Consumption.h"
 #include "swift/SIL/SILAllocated.h"
+#include "swift/SIL/SILConstants.h"
 #include "swift/SIL/SILArgumentArrayRef.h"
 #include "swift/SIL/SILDeclRef.h"
 #include "swift/SIL/SILFunctionConventions.h"
@@ -54,6 +57,10 @@ class MultipleValueInstruction;
 class MultipleValueInstructionResult;
 class DestructureTupleInst;
 class DestructureStructInst;
+// SWIFT_ENABLE_TENSORFLOW
+class SymbolicValue;
+struct GraphOperationAttribute;
+class GraphOperationInst;
 class NonValueInstruction;
 class SILBasicBlock;
 class SILBuilder;
@@ -7618,6 +7625,146 @@ class TryApplyInst final
          const GenericSpecializationInformation *SpecializationInfo);
 };
 
+// SWIFT_ENABLE_TENSORFLOW
+/// `autodiff_function` - given a function and differentiation indices and its
+/// associated differentiation functions, create an `@differentiable` function that
+/// represents a bundle of these functions and configurations.
+class AutoDiffFunctionInst final :
+    public InstructionBaseWithTrailingOperands<
+               SILInstructionKind::AutoDiffFunctionInst,
+               AutoDiffFunctionInst, OwnershipForwardingSingleValueInst> {
+private:
+  friend SILBuilder;
+  /// Differentiation parameter indices.
+  SmallBitVector parameterIndices;
+  /// The order of differentiation.
+  unsigned differentiationOrder;
+  /// The number of operands. The first operand is always the original function.
+  /// The rest of operands determined by the order of differentiation and whether
+  /// this is the new AD model or the legacy reverse-mode AD model.
+  unsigned numOperands;
+
+  AutoDiffFunctionInst(SILModule &module, SILDebugLocation debugLoc,
+                       const SmallBitVector &parameterIndices,
+                       unsigned differentiationOrder,
+                       SILValue originalFunction,
+                       ArrayRef<SILValue> associatedFunctions);
+
+public:
+  static AutoDiffFunctionInst *create(SILModule &module,
+                                      SILDebugLocation debugLoc,
+                                      const SmallBitVector &parameterIndices,
+                                      unsigned differentiationOrder,
+                                      SILValue originalFunction,
+                                      ArrayRef<SILValue> associatedFunctions);
+
+  static SILType getAutoDiffType(SILValue original,
+                                 unsigned differentiationOrder,
+                                 const SmallBitVector &parameterIndices);
+
+  /// Returns the original function.
+  SILValue getOriginalFunction() const { return getAllOperands()[0].get(); }
+
+  /// Returns differentiation indices.
+  const SmallBitVector &getParameterIndices() const {
+    return parameterIndices;
+  }
+
+  /// Returns the differentiation order.
+  unsigned getDifferentiationOrder() const {
+    return differentiationOrder;
+  }
+
+  unsigned getNumAssociatedFunctions() const {
+    return numOperands - 1;
+  }
+
+  bool hasAssociatedFunctions() const {
+    return numOperands > 1;
+  }
+
+  ArrayRef<Operand> getAssociatedFunctions() const {
+    return getAllOperands().drop_front();
+  }
+
+  std::pair<SILValue, SILValue>
+  getAssociatedFunctionPair(unsigned differentiationOrder) const;
+
+  SILValue getAssociatedFunction(unsigned differentiationOrder,
+                                 AutoDiffAssociatedFunctionKind kind) const;
+};
+
+/// `autodiff_function_extract` - given an `@differentiable` function representing a
+/// bundle of the original function and associated functions, extract the
+/// specified function.
+class AutoDiffFunctionExtractInst
+    : public InstructionBase<SILInstructionKind::AutoDiffFunctionExtractInst,
+                             OwnershipForwardingSingleValueInst> {
+public:
+  struct Extractee {
+    enum innerty : unsigned {
+      Original = 0,
+      JVP = 1,
+      VJP = 2
+    } rawValue;
+    Extractee() = default;
+    Extractee(innerty rawValue) : rawValue(rawValue) {}
+    Extractee(unsigned rawValue) : Extractee((innerty)rawValue) {}
+    Extractee(AutoDiffAssociatedFunctionKind kind);
+    explicit Extractee(StringRef name);
+    operator innerty() const { return rawValue; }
+
+    Optional<AutoDiffAssociatedFunctionKind>
+    getExtracteeAsAssociatedFunction() const;
+  };
+
+private:
+  /// The extractee.
+  Extractee extractee;
+  /// The differentiation order. A zero value is only legal when the extractee
+  /// is the original function, and it is a private representation only.
+  unsigned differentiationOrder;
+  /// The list containing the `@differentiable` function operand.
+  FixedOperandList<1> operands;
+
+  static SILType
+  getExtracteeType(SILValue function, Extractee extractee,
+                   unsigned differentiationOrder, SILModule &module);
+
+public:
+  explicit AutoDiffFunctionExtractInst(
+      SILModule &module, SILDebugLocation debugLoc, Extractee extractee,
+      unsigned differentiationOrder, SILValue theFunction);
+
+  Extractee getExtractee() const {
+    return extractee;
+  }
+
+  AutoDiffAssociatedFunctionKind getAssociatedFunctionKind() const {
+    auto kind = extractee.getExtracteeAsAssociatedFunction();
+    assert(kind);
+    return *kind;
+  }
+
+  SILValue getFunctionOperand() const {
+    return operands[0].get();
+  }
+
+  unsigned getDifferentiationOrder() const {
+    return differentiationOrder;
+  }
+
+  ArrayRef<Operand> getAllOperands() const {
+    return operands.asArray();
+  }
+
+  MutableArrayRef<Operand> getAllOperands() {
+    return operands.asArray();
+  }
+};
+
+typedef AutoDiffFunctionExtractInst::Extractee AutoDiffFunctionExtractee;
+
 // This is defined out of line to work around the fact that this depends on
 // PartialApplyInst being defined, but PartialApplyInst is a subclass of
 // ApplyInstBase, so we can not place ApplyInstBase after it.
@@ -7755,6 +7902,135 @@ inline DestructureTupleInst *DestructureTupleResult::getParent() {
   auto *Parent = MultipleValueInstructionResult::getParent();
   return cast<DestructureTupleInst>(Parent);
 }
+
+/// SWIFT_ENABLE_TENSORFLOW
+/// A graph operation attribute, used by GraphOperationInst.
+/// Attributes have a name and a constant value.
+struct GraphOperationAttribute {
+  Identifier name;
+  SymbolicValue value;
+};
+
+/// A result for the graph_op instruction. See documentation for
+/// graph_op for more information.
+class GraphOperationResult final : public MultipleValueInstructionResult {
+public:
+  GraphOperationResult(unsigned Index, SILType Type,
+                       ValueOwnershipKind OwnershipKind)
+  : MultipleValueInstructionResult(ValueKind::GraphOperationResult, Index,
+                                   Type, OwnershipKind) {}
+
+  static bool classof(const SILNode *N) {
+    return N->getKind() == SILNodeKind::GraphOperationResult;
+  }
+
+  GraphOperationInst *getParent() {
+    auto *Parent = MultipleValueInstructionResult::getParent();
+    return cast<GraphOperationInst>(Parent);
+  };
+
+  const GraphOperationInst *getParent() const {
+    return const_cast<GraphOperationResult *>(this)->getParent();
+  }
+};
+
+/// A graph operation, which takes operands and attributes and returns results.
+///
+/// Operands have values that are possibly unknown at compile time. Operands
+/// are grouped into `GraphOperationInfo::StructuredArgument`s. See there for
+/// more documentation. This structure is mangled into `Name`.
+///
+/// Attributes have values that are known at compile time, and these values are
+/// stored in the GraphOperationInst.
+///
+/// Results can be represented in 3 different ways:
+/// 1. As a single output parameter with type that is a TensorFlow value or
+///    aggregate of TensorFlow values.
+/// 2. As a single result that is a TensorFlow value or aggregate of TensorFlow
+///    values.
+/// 3. As multiple results, where each result is a TensorFlow value (not an
+///    aggregate of TensorFlow values!).
+/// The later result representations are "better" than the earlier ones because
+/// code performing the operations has to do less work to deal with the results.
+/// Various compiler passes try to improve the result representations.
+/// Successful deabstraction currently guarantees that the result will be in
+/// form 3.
+class GraphOperationInst final
+  : public InstructionBase<
+               SILInstructionKind::GraphOperationInst,
+               MultipleValueInstruction>,
+    public MultipleValueInstructionTrailingObjects<
+               GraphOperationInst, GraphOperationResult,
+               InitialTrailingObjects<>,
+               FinalTrailingObjects<Operand>> {
+  friend TrailingObjects;
+
+  /// The name of the graph operation.
+  Identifier Name;
+  /// The number of operands.
+  unsigned NumOperands;
+  /// The attributes of the graph operation.
+  MutableArrayRef<GraphOperationAttribute> Attributes;
+  /// When true, this instruction is to be executed out-of-graph (via eager op
+  /// dispatch). Otherwise, we attempt to "cluster" this graph op with other
+  /// graph ops into a graph function. For an op with dynamic attribute(s), it
+  /// must run out-of-graph, and thus have this field set to true.
+  bool NoClustering;
+
+  GraphOperationInst(SILModule &M, SILDebugLocation loc, Identifier name,
+                     ArrayRef<SILValue> arguments,
+                     ArrayRef<GraphOperationAttribute> attrs, bool noClustering,
+                     ArrayRef<SILType> resultTypes,
+                     ArrayRef<ValueOwnershipKind> resultOwnerships);
+
+public:
+  using MultipleValueInstructionTrailingObjects::numTrailingObjects;
+  using MultipleValueInstructionTrailingObjects::totalSizeToAlloc;
+
+  ~GraphOperationInst();
+  static GraphOperationInst *
+  create(SILModule &M, SILDebugLocation loc, Identifier name,
+         ArrayRef<SILValue> arguments, ArrayRef<GraphOperationAttribute> attrs,
+         bool noClustering, ArrayRef<SILType> resultTypes);
+
+  Identifier getName() const { return Name; }
+  unsigned getNumOperands() const { return NumOperands; }
+  unsigned getNumAttributes() const { return Attributes.size(); }
+
+  unsigned numTrailingObjects(OverloadToken<Operand>) const {
+    return NumOperands;
+  }
+
+  ArrayRef<Operand> getAllOperands() const {
+    return { getTrailingObjects<Operand>(), NumOperands };
+  }
+
+  MutableArrayRef<Operand> getAllOperands() {
+    return { getTrailingObjects<Operand>(), NumOperands };
+  }
+
+  OperandValueArrayRef getArguments() const {
+    return OperandValueArrayRef(getAllOperands());
+  }
+  GraphOperationAttribute getAttribute(unsigned i) const;
+
+  ArrayRef<GraphOperationAttribute> getAttributes() const {
+    return Attributes;
+  }
+
+  MutableArrayRef<GraphOperationAttribute> getAttributes() {
+    return Attributes;
+  }
+
+  Optional<SymbolicValue> getAttributeNamed(StringRef name) const;
+
+  void setNoClustering(bool noClustering) { NoClustering = noClustering; }
+  bool getNoClustering() const { return NoClustering; }
+
+  static bool classof(const SILNode *N) {
+    return N->getKind() == SILNodeKind::GraphOperationInst;
+  }
+};
 
 inline SILType *AllocRefInstBase::getTypeStorage() {
   // If the size of the subclasses are equal, then all of this compiles away.

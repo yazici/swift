@@ -463,6 +463,8 @@ func objectLiterals() {
   #fileLiteral(a)
   #colorLiteral(a, b)
   #imageLiteral(a, b, c)
+  // SWIFT_ENABLE_TENSORFLOW
+  #tfop("Add", a, b, T: Int32.self)
   #column
   #file
   #function
@@ -562,3 +564,20 @@ func foo() {}
 #assert(true)
 #assert(false)
 #assert(true, "hello world")
+
+// SWIFT_ENABLE_TENSORFLOW
+@differentiable(jvp: foo(_:_:))
+func bar(_ x: Float, _: Float) -> Float { return 1 }
+
+@differentiable(jvp: foo(_:_:) where T : FloatingPoint)
+func bar<T : Numeric>(_ x: T, _: T) -> T { return 1 }
+
+@differentiable(wrt: x, jvp: foo(_:_:))
+func bar(_ x: Float, _: Float) -> Float { return 1 }
+
+@differentiable(wrt: (self, x, y), jvp: foo(_:_:))
+func bar(_ x: Float, y: Float) -> Float { return 1 }
+
+@differentiable(wrt: (self, x, y), jvp: bar, vjp: foo(_:_:) where T : FloatingPoint)
+func bar<T : Numeric>(_ x: T, y: T) -> T { return 1 }
+

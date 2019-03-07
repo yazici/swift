@@ -488,6 +488,9 @@ ERROR(expected_sil_value_ownership_kind,none,
       "expected value ownership kind in SIL code", ())
 ERROR(expected_sil_colon,none,
       "expected ':' before %0", (StringRef))
+// SWIFT_ENABLE_TENSORFLOW
+ERROR(malformed_autodiff_parameter_indices,none,
+      "malformed autodiff parameter indices", ())
 
 // SIL Values
 ERROR(sil_value_redefinition,none,
@@ -1499,6 +1502,59 @@ ERROR(attr_specialize_expected_partial_or_full,none,
 ERROR(attr_implements_expected_member_name,PointsToFirstBadToken,
       "expected a member name as second parameter in '_implements' attribute", ())
 
+// SWIFT_ENABLE_TENSORFLOW
+// differentiable
+ERROR(attr_differentiable_expected_function_name,PointsToFirstBadToken,
+      "expected a %0 function name", (StringRef))
+ERROR(attr_differentiable_expected_parameter_list,PointsToFirstBadToken,
+      "expected a list of parameters to differentiate with respect to", ())
+ERROR(attr_differentiable_use_wrt_not_withrespectto,none,
+      "use 'wrt:' to specify parameters to differentiate with respect to", ())
+ERROR(attr_differentiable_expected_parameter,PointsToFirstBadToken,
+      "expected a parameter, which can be a function parameter name or 'self'", ())
+ERROR(attr_differentiable_missing_label,PointsToFirstBadToken,
+      "missing label '%0:' in '@differentiable' attribute", (StringRef))
+ERROR(attr_differentiable_expected_colon_after_label,PointsToFirstBadToken,
+      "expected a colon ':' after '%0'", (StringRef))
+ERROR(attr_differentiable_expected_label,none,
+      "expected a function specifier label, e.g. 'wrt:', 'jvp:', or 'vjp:'", ())
+
+// differentiating
+ERROR(attr_differentiating_expected_original_name,PointsToFirstBadToken,
+      "expected an original function name", ())
+
+// [differentiable ...] (sil-decl attr)
+ERROR(sil_attr_differentiable_expected_keyword,PointsToFirstBadToken,
+      "expected '%0' in 'differentiable' attribute", (StringRef))
+ERROR(sil_attr_differentiable_expected_parameter_list,PointsToFirstBadToken,
+      "expected an comma-separated list of parameter indices, e.g. (0, 1)", ())
+ERROR(sil_attr_differentiable_expected_rsquare,PointsToFirstBadToken,
+      "expected ']' to end 'differentiable' attribute", ())
+ERROR(sil_attr_differentiable_expected_parameter_index,PointsToFirstBadToken,
+      "expected the index of a parameter to differentiate w.r.t.", ())
+ERROR(sil_attr_differentiable_expected_source_index,PointsToFirstBadToken,
+      "expected the index of a result to differentiate from", ())
+
+// SIL autodiff
+ERROR(sil_inst_autodiff_attr_expected_rsquare,PointsToFirstBadToken,
+      "expected ']' to complete the %0", (StringRef))
+ERROR(sil_inst_autodiff_expected_order,PointsToFirstBadToken,
+      "expected an unsigned integer indicating the differentiation order", ())
+ERROR(sil_inst_autodiff_expected_nonzero_order,PointsToFirstBadToken,
+      "expected a non-zero differentiation order", ())
+ERROR(sil_inst_autodiff_expected_parameter_index,PointsToFirstBadToken,
+      "expected the index of a parameter to differentiate with respect to", ())
+ERROR(sil_inst_autodiff_operand_list_expected_lbrace,PointsToFirstBadToken,
+      "expected '{' to start an associated function list", ())
+ERROR(sil_inst_autodiff_operand_list_expected_comma,PointsToFirstBadToken,
+      "expected ',' between operands in an associated function list", ())
+ERROR(sil_inst_autodiff_operand_list_expected_rbrace,PointsToFirstBadToken,
+      "expected '}' to start an associated function list", ())
+ERROR(sil_inst_autodiff_num_operand_list_order_mismatch,PointsToFirstBadToken,
+      "the number of operand lists does not match the order", ())
+ERROR(sil_inst_autodiff_expected_associated_function_kind_attr,PointsToFirstBadToken,
+      "expects an assoiacted function kind attribute, e.g. '[jvp]'", ())
+
 //------------------------------------------------------------------------------
 // MARK: Generics parsing diagnostics
 //------------------------------------------------------------------------------
@@ -1622,6 +1678,46 @@ ERROR(availability_query_repeated_platform, none,
 //------------------------------------------------------------------------------
 ERROR(unknown_syntax_entity, PointsToFirstBadToken,
       "unknown %0 syntax exists in the source", (StringRef))
+
+// SWIFT_ENABLE_TENSORFLOW
+//------------------------------------------------------------------------------
+// Graph operation related parsing diagnostics
+//------------------------------------------------------------------------------
+ERROR(sil_graph_op_no_clustering_attr_expected_rsquare,PointsToFirstBadToken,
+      "expected ']' in 'graph_op' 'no_clustering' attribute", ())
+ERROR(sil_graph_op_name_comma,PointsToFirstBadToken,
+      "'graph_op' name cannot contain ','", ())
+ERROR(sil_graph_op_expected_attr_name,PointsToFirstBadToken,
+      "expected 'graph_op' attribute name", ())
+ERROR(sil_graph_op_expected_attr_value,PointsToFirstBadToken,
+      "expected 'graph_op' attribute value", ())
+ERROR(sil_graph_op_unhandled_attr_value,PointsToFirstBadToken,
+      "unhandled 'graph_op' attribute value", ())
+ERROR(sil_graph_op_expected_rparen,PointsToFirstBadToken,
+      "expected ')' in 'graph_op' argument list", ())
+ERROR(sil_graph_op_expected_rsquare,PointsToFirstBadToken,
+      "expected ']' in 'graph_op' list operand", ())
+ERROR(sil_graph_op_expected_rbrace,PointsToFirstBadToken,
+      "expected '}' in 'graph_op' attribute list", ())
+ERROR(sil_graph_op_expected_colon_after_attr_name,PointsToFirstBadToken,
+      "expected ':' after 'graph_op' attribute name", ())
+ERROR(sil_graph_op_expected_colon_before_result_types,PointsToFirstBadToken,
+      "expected ':' before 'graph_op' result types", ())
+
+ERROR(sil_const_expected_int_datatype,PointsToFirstBadToken,
+      "expected integer datatype ('i[0-9]+', e.g. 'i32')", ())
+ERROR(sil_const_expected_int_value,PointsToFirstBadToken,
+      "expected integer value in SIL constant value", ())
+ERROR(sil_const_expected_fp_datatype,PointsToFirstBadToken,
+      "expected floating point datatype ('f32' or 'f64')", ())
+ERROR(sil_const_expected_fp_value,PointsToFirstBadToken,
+      "expected floating point value in SIL constant value", ())
+ERROR(sil_const_array_expected_rsquare,PointsToFirstBadToken,
+      "expected ']' at end of array 'SymbolicValue'", ())
+ERROR(sil_const_aggregate_expected_rparen,PointsToFirstBadToken,
+      "expected ')' at end of aggregate 'SymbolicValue'", ())
+ERROR(sil_const_expected_fn_sub_conv,PointsToFirstBadToken,
+      "expected '(N)' or '(W)' function substitution convention", ())
 
 #ifndef DIAG_NO_UNDEF
 # if defined(DIAG)

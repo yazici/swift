@@ -375,6 +375,9 @@ FORWARD_ANY_OWNERSHIP_INST(MarkUninitialized)
 FORWARD_ANY_OWNERSHIP_INST(UncheckedEnumData)
 FORWARD_ANY_OWNERSHIP_INST(DestructureStruct)
 FORWARD_ANY_OWNERSHIP_INST(DestructureTuple)
+// SWIFT_ENABLE_TENSORFLOW
+FORWARD_ANY_OWNERSHIP_INST(AutoDiffFunction)
+FORWARD_ANY_OWNERSHIP_INST(AutoDiffFunctionExtract)
 #undef FORWARD_ANY_OWNERSHIP_INST
 
 // An instruction that forwards a constant ownership or trivial ownership.
@@ -1152,6 +1155,13 @@ CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, ZExtOrBitCast)
 CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, ZeroInitializer)
 CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, Swift3ImplicitObjCEntrypoint)
 CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, PoundAssert)
+// SWIFT_ENABLE_TENSORFLOW
+CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, TensorFlowSend)
+CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, TensorFlowReceive)
+CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, AutoDiffCreateTape)
+CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, AutoDiffPushToTape)
+CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, AutoDiffPopFromTape)
+CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, AutoDiffDestroyTape)
 #undef CONSTANT_OWNERSHIP_BUILTIN
 
 // Builtins that should be lowered to SIL instructions so we should never see
@@ -1167,6 +1177,15 @@ CONSTANT_OWNERSHIP_BUILTIN(Trivial, MustBeLive, PoundAssert)
 OperandOwnershipKindMap
 OperandOwnershipKindClassifier::visitBuiltinInst(BuiltinInst *bi) {
   return OperandOwnershipKindBuiltinClassifier().check(bi);
+}
+
+// SWIFT_ENABLE_TENSORFLOW
+OperandOwnershipKindMap
+OperandOwnershipKindClassifier::visitGraphOperationInst(
+    GraphOperationInst *gi) {
+  // Graph ops take operands at +0.
+  return {gi->getOperand(getOperandIndex()).getOwnershipKind(),
+          UseLifetimeConstraint::MustBeLive};
 }
 
 //===----------------------------------------------------------------------===//

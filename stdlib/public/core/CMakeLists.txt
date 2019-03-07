@@ -30,6 +30,8 @@ set(SWIFTLIB_ESSENTIAL
   ASCII.swift
   Assert.swift
   AssertCommon.swift
+  # SWIFT_ENABLE_TENSORFLOW
+  AutoDiff.swift
   BidirectionalCollection.swift
   Bitset.swift
   Bool.swift
@@ -86,6 +88,8 @@ set(SWIFTLIB_ESSENTIAL
   IntegerTypes.swift.gyb
   Join.swift
   KeyPath.swift
+  # SWIFT_ENABLE_TENSORFLOW
+  KeyPathIterable.swift
   KeyValuePairs.swift
   LazyCollection.swift
   LazySequence.swift

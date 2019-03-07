@@ -39,6 +39,7 @@
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/StringSet.h"
 #include <algorithm>
 
 using namespace swift;
@@ -807,6 +808,260 @@ Parser::parseImplementsAttribute(SourceLoc AtLoc, SourceLoc Loc) {
                            ProtocolType.get(), MemberName, MemberNameLoc));
 }
 
+/// SWIFT_ENABLE_TENSORFLOW
+ParserResult<DifferentiableAttr>
+Parser::parseDifferentiableAttribute(SourceLoc atLoc, SourceLoc loc) {
+  StringRef AttrName = "differentiable";
+  SourceLoc lParenLoc = loc, rParenLoc = loc;
+
+  SmallVector<ParsedAutoDiffParameter, 8> params;
+  Optional<DeclNameWithLoc> jvpSpec;
+  Optional<DeclNameWithLoc> vjpSpec;
+  TrailingWhereClause *whereClause = nullptr;
+
+  // Parse '('.
+  if (consumeIf(tok::l_paren, lParenLoc)) {
+    // Parse @differentiable attribute arguments.
+    if (parseDifferentiableAttributeArguments(params, jvpSpec, vjpSpec,
+                                              whereClause))
+      return makeParserError();
+    // Parse ')'.
+    if (!consumeIf(tok::r_paren, rParenLoc)) {
+      diagnose(getEndOfPreviousLoc(), diag::attr_expected_rparen, AttrName,
+               /*DeclModifier=*/false);
+      return makeParserError();
+    }
+  }
+
+  return ParserResult<DifferentiableAttr>(
+    DifferentiableAttr::create(Context, /*implicit*/ false, atLoc,
+                               SourceRange(loc, rParenLoc),
+                               params, jvpSpec, vjpSpec, whereClause));
+}
+
+bool Parser::parseDifferentiableAttributeArguments(
+    SmallVectorImpl<ParsedAutoDiffParameter> &params,
+    Optional<DeclNameWithLoc> &jvpSpec, Optional<DeclNameWithLoc> &vjpSpec,
+    TrailingWhereClause *&whereClause) {
+  StringRef AttrName = "differentiable";
+
+  // Set parse error, skip until ')' and parse it.
+  auto errorAndSkipToEnd = [&](int parenDepth = 1) -> bool {
+    for (int i = 0; i < parenDepth; i++) {
+      skipUntil(tok::r_paren);
+      if (!consumeIf(tok::r_paren))
+        diagnose(Tok, diag::attr_expected_rparen, AttrName,
+                 /*DeclModifier=*/false);
+    }
+    return true;
+  };
+
+  // Parse trailing comma, if it exists, and check for errors.
+  auto consumeIfTrailingComma = [&]() -> bool {
+    if (!consumeIf(tok::comma)) return false;
+    // Diagnose trailing comma before 'where' or ')'.
+    if (Tok.is(tok::kw_where) || Tok.is(tok::r_paren)) {
+      diagnose(Tok, diag::unexpected_separator, ",");
+      return true;
+    }
+    // Check that token after comma is a function specifier label.
+    if (!Tok.is(tok::identifier) || !(Tok.getText() == "jvp" ||
+                                      Tok.getText() == "vjp")) {
+      diagnose(Tok, diag::attr_differentiable_expected_label);
+      return true;
+    }
+    return false;
+  };
+
+  // Store starting parser position.
+  auto startingLoc = Tok.getLoc();
+  SyntaxParsingContext ContentContext(
+      SyntaxContext, SyntaxKind::DifferentiableAttributeArguments);
+
+  // Parse optional differentiation parameters, starting with the 'wrt:' label.
+  // If 'withRespectTo' is used, make the user change it to 'wrt'.
+  if (Tok.is(tok::identifier) && Tok.getText() == "withRespectTo") {
+    SourceRange withRespectToRange(Tok.getLoc(), peekToken().getLoc());
+    diagnose(Tok, diag::attr_differentiable_use_wrt_not_withrespectto)
+        .highlight(withRespectToRange)
+        .fixItReplace(withRespectToRange, "wrt:");
+    return errorAndSkipToEnd();
+  }
+  if (Tok.is(tok::identifier) && Tok.getText() == "wrt") {
+    SyntaxParsingContext DiffParamsClauseContext(
+        SyntaxContext, SyntaxKind::DifferentiableAttributeDiffParamsClause);
+    consumeToken(tok::identifier);
+    if (!consumeIf(tok::colon)) {
+      diagnose(Tok, diag::attr_differentiable_expected_colon_after_label,
+               "wrt");
+      return errorAndSkipToEnd();
+    }
+
+    // Function that parses a parameter into `params`. Returns true if error
+    // occurred.
+    auto parseParam = [&](bool parseTrailingComma = true) -> bool {
+      SyntaxParsingContext DiffParamContext(
+          SyntaxContext, SyntaxKind::DifferentiableAttributeDiffParam);
+      SourceLoc paramLoc;
+      switch (Tok.getKind()) {
+      case tok::identifier: {
+        Identifier paramName;
+        if (parseIdentifier(paramName, paramLoc,
+                            diag::attr_differentiable_expected_parameter))
+          return true;
+        params.push_back(ParsedAutoDiffParameter::getNamedParameter(
+            paramLoc, paramName));
+        break;
+      }
+      case tok::kw_self: {
+        paramLoc = consumeToken(tok::kw_self);
+        params.push_back(ParsedAutoDiffParameter::getSelfParameter(paramLoc));
+        break;
+      }
+      default:
+        diagnose(Tok, diag::attr_differentiable_expected_parameter);
+        return true;
+      }
+      if (parseTrailingComma && Tok.isNot(tok::r_paren))
+        return parseToken(tok::comma, diag::attr_expected_comma, AttrName,
+                          /*isDeclModifier=*/false);
+      return false;
+    };
+
+    // Parse opening '(' of the parameter list.
+    if (Tok.is(tok::l_paren)) {
+      SyntaxParsingContext DiffParamsContext(
+          SyntaxContext, SyntaxKind::DifferentiableAttributeDiffParams);
+      consumeToken(tok::l_paren);
+      // Parse first parameter. At least one is required.
+      if (parseParam())
+        return errorAndSkipToEnd(2);
+      // Parse remaining parameters until ')'.
+      while (Tok.isNot(tok::r_paren))
+        if (parseParam())
+          return errorAndSkipToEnd(2);
+      SyntaxContext->collectNodesInPlace(
+          SyntaxKind::DifferentiableAttributeDiffParamList);
+      // Parse closing ')' of the parameter list.
+      consumeToken(tok::r_paren);
+    }
+    // If no opening '(' for parameter list, parse a single parameter.
+    else {
+      if (parseParam(/*parseTrailingComma*/ false))
+        return errorAndSkipToEnd();
+    }
+    // If no trailing comma or 'where' clause, terminate parsing arguments.
+    if (Tok.isNot(tok::comma) && Tok.isNot(tok::kw_where))
+      return false;
+    if (consumeIfTrailingComma())
+      return errorAndSkipToEnd();
+  }
+
+  // Function that parses a label and a function specifier,
+  // e.g. 'vjp: foo(_:)'.
+  // Return true on error.
+  auto parseFuncSpec = [&](StringRef label, DeclNameWithLoc &result,
+                           bool &terminateParsingArgs) -> bool {
+    // Parse label.
+    if (parseSpecificIdentifier(label,
+            diag::attr_differentiable_missing_label, label) ||
+        parseToken(tok::colon,
+            diag::attr_differentiable_expected_colon_after_label, label))
+      return true;
+    // Parse the name of the function.
+    Diagnostic funcDiag(diag::attr_differentiable_expected_function_name.ID,
+                        { label });
+    result.Name =
+        parseUnqualifiedDeclName(/*afterDot=*/false, result.Loc,
+                                 funcDiag, /*allowOperators=*/true,
+                                 /*allowZeroArgCompoundNames=*/true);
+    // If no trailing comma or 'where' clause, terminate parsing arguments.
+    if (Tok.isNot(tok::comma) && Tok.isNot(tok::kw_where))
+      terminateParsingArgs = true;
+    return !result.Name;
+  };
+
+  // Store whether to terminate parsing arguments.
+  bool terminateParsingArgs = false;
+
+  // Parse 'jvp: <func_name>' (optional).
+  if (Tok.is(tok::identifier) && Tok.getText() == "jvp") {
+    SyntaxParsingContext JvpContext(
+        SyntaxContext, SyntaxKind::DifferentiableAttributeFuncSpecifier);
+    jvpSpec = DeclNameWithLoc();
+    if (parseFuncSpec("jvp", *jvpSpec, terminateParsingArgs))
+      return errorAndSkipToEnd();
+    if (terminateParsingArgs)
+      return false;
+    if (consumeIfTrailingComma())
+      return errorAndSkipToEnd();
+  }
+
+  // Parse 'vjp: <func_name>' (optional).
+  if (Tok.is(tok::identifier) && Tok.getText() == "vjp") {
+    SyntaxParsingContext VjpContext(
+        SyntaxContext, SyntaxKind::DifferentiableAttributeFuncSpecifier);
+    vjpSpec = DeclNameWithLoc();
+    if (parseFuncSpec("vjp", *vjpSpec, terminateParsingArgs))
+      return errorAndSkipToEnd();
+    if (terminateParsingArgs)
+      return false;
+    // Note: intentionally parse trailing comma here, even though it's the last
+    // function specifier. `consumeIfTrailingComma` will emit an error.
+    if (consumeIfTrailingComma())
+      return errorAndSkipToEnd();
+  }
+
+  // If parser has not advanced and token is not 'where' or ')', emit error.
+  if (Tok.getLoc() == startingLoc &&
+      Tok.isNot(tok::kw_where) && Tok.isNot(tok::r_paren)) {
+    diagnose(Tok, diag::attr_differentiable_expected_label);
+    return errorAndSkipToEnd();
+  }
+
+  // Parse a trailing 'where' clause if any.
+  if (Tok.is(tok::kw_where)) {
+    SourceLoc whereLoc;
+    SmallVector<RequirementRepr, 4> requirements;
+    bool firstTypeInComplete;
+    parseGenericWhereClause(whereLoc, requirements, firstTypeInComplete,
+                            /*AllowLayoutConstraints=*/false);
+    whereClause = TrailingWhereClause::create(Context, whereLoc, requirements);
+  }
+  return false;
+}
+
+/// SWIFT_ENABLE_TENSORFLOW
+ParserResult<DifferentiatingAttr>
+Parser::parseDifferentiatingAttribute(SourceLoc atLoc, SourceLoc loc) {
+  StringRef AttrName = "differentiating";
+  SourceLoc lParenLoc = loc, rParenLoc = loc;
+  DeclNameWithLoc original;
+
+  // Parse '('.
+  if (!consumeIf(tok::l_paren, lParenLoc)) {
+    diagnose(getEndOfPreviousLoc(), diag::attr_expected_lparen, AttrName,
+             /*DeclModifier*/ false);
+    return makeParserError();
+  }
+  // Parse the name of the function.
+  original.Name =
+    parseUnqualifiedDeclName(/*afterDot*/ false, original.Loc,
+                             diag::attr_differentiating_expected_original_name,
+                             /*allowOperators*/ true,
+                             /*allowZeroArgCompoundNames*/ true);
+  // Parse ')'.
+  if (!consumeIf(tok::r_paren, rParenLoc)) {
+    diagnose(getEndOfPreviousLoc(), diag::attr_expected_rparen, AttrName,
+             /*DeclModifier*/ false);
+    return makeParserError();
+  }
+  return ParserResult<DifferentiatingAttr>(
+      DifferentiatingAttr::create(Context, /*implicit*/ false, atLoc,
+                                  SourceRange(loc, rParenLoc),
+                                  original));
+}
+
 void Parser::parseObjCSelector(SmallVector<Identifier, 4> &Names,
                                SmallVector<SourceLoc, 4> &NameLocs,
                                bool &IsNullarySelector) {
@@ -1572,6 +1827,22 @@ bool Parser::parseNewDeclAttribute(DeclAttributes &Attributes, SourceLoc AtLoc,
     }
     break;
   }
+
+  /// SWIFT_ENABLE_TENSORFLOW
+  case DAK_Differentiable: {
+    auto Attr = parseDifferentiableAttribute(AtLoc, Loc);
+    if (Attr.isNonNull())
+      Attributes.add(Attr.get());
+    break;
+  }
+
+  /// SWIFT_ENABLE_TENSORFLOW
+  case DAK_Differentiating: {
+    auto Attr = parseDifferentiatingAttribute(AtLoc, Loc);
+    if (Attr.isNonNull())
+      Attributes.add(Attr.get());
+    break;
+  }
   }
 
   if (DuplicateAttribute) {
@@ -1954,7 +2225,6 @@ bool Parser::parseTypeAttribute(TypeAttributes &Attributes, bool justChecking) {
                        LPLoc);
   }
 
-
   // In just-checking mode, we only need to consume the tokens, and we don't
   // want to do any other analysis.
   if (justChecking)
@@ -2086,6 +2356,13 @@ bool Parser::parseTypeAttribute(TypeAttributes &Attributes, bool justChecking) {
   case TAK_convention:
     Attributes.convention = conventionName;
     Attributes.conventionWitnessMethodProtocol = witnessMethodProtocol;
+    break;
+  // SWIFT_ENABLE_TENSORFLOW
+  // @autodiff(...) attribute.
+  case TAK_autodiff:
+  // SWIFT_ENABLE_TENSORFLOW
+  // @differentiable(...) attribute.
+  case TAK_differentiable:
     break;
   }
 

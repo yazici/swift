@@ -441,7 +441,9 @@ SILGenModule::getKeyPathProjectionCoroutine(bool isReadAccess,
   auto extInfo =
     SILFunctionType::ExtInfo(SILFunctionTypeRepresentation::Thin,
                              /*pseudogeneric*/false,
-                             /*non-escaping*/false);
+                             // SWIFT_ENABLE_TENSORFLOW
+                             /*non-escaping*/false,
+                             /*differentiable*/ false);
 
   auto functionTy = SILFunctionType::get(sig, extInfo,
                                          SILCoroutineKind::YieldOnce,
@@ -804,6 +806,10 @@ void SILGenModule::emitAbstractFuncDecl(AbstractFunctionDecl *AFD) {
     if (!hasFunction(thunk))
       emitNativeToForeignThunk(thunk);
   }
+
+  // TODO: Handle SILGen for `@differentiating` attribute.
+  // Tentative solution: SILGen derivative function normally but also emit
+  // mangled redirection thunk for retroactive differentiation.
 }
 
 void SILGenModule::emitFunction(FuncDecl *fd) {

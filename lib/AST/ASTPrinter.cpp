@@ -2336,6 +2336,9 @@ static void printParameterFlags(ASTPrinter &printer, PrintOptions options,
     printer << "@autoclosure ";
   if (!options.excludeAttrKind(TAK_escaping) && flags.isEscaping())
     printer << "@escaping ";
+  // SWIFT_ENABLE_TENSORFLOW
+  if (!options.excludeAttrKind(TAK_nondiff) && flags.isNonDifferentiable())
+    printer << "@nondiff";
 
   switch (flags.getValueOwnership()) {
   case ValueOwnership::Default:
@@ -3623,6 +3626,11 @@ public:
     if (Options.SkipAttributes)
       return;
 
+    // SWIFT_ENABLE_TENSORFLOW
+    if (!Options.excludeAttrKind(TAK_differentiable) && info.isDifferentiable()) {
+      // FIXME(rxwei): Print differentiation order.
+      Printer << "@differentiable ";
+    }
 
     if (Options.PrintFunctionRepresentationAttrs &&
         !Options.excludeAttrKind(TAK_convention) &&
@@ -3642,6 +3650,10 @@ public:
         break;
       case SILFunctionType::Representation::CFunctionPointer:
         Printer << "c";
+        break;
+      // SWIFT_ENABLE_TENSORFLOW
+      case SILFunctionType::Representation::TensorFlow:
+        Printer << "tensorflow";
         break;
       case SILFunctionType::Representation::Method:
         Printer << "method";
@@ -3668,6 +3680,12 @@ public:
     if (Options.SkipAttributes)
       return;
 
+    // SWIFT_ENABLE_TENSORFLOW
+    if (!Options.excludeAttrKind(TAK_differentiable) && info.isDifferentiable()) {
+      // FIXME(rxwei): Print differentiation order.
+      Printer << "@differentiable ";
+    }
+
     if (Options.PrintFunctionRepresentationAttrs &&
         !Options.excludeAttrKind(TAK_convention) &&
         info.getRepresentation() != SILFunctionType::Representation::Thick) {
@@ -3685,6 +3703,10 @@ public:
         break;
       case SILFunctionType::Representation::CFunctionPointer:
         Printer << "c";
+        break;
+      // SWIFT_ENABLE_TENSORFLOW
+      case SILFunctionType::Representation::TensorFlow:
+        Printer << "tensorflow";
         break;
       case SILFunctionType::Representation::Method:
         Printer << "method";
@@ -4234,6 +4256,14 @@ void SILParameterInfo::print(raw_ostream &OS, const PrintOptions &Opts) const {
 }
 void SILParameterInfo::print(ASTPrinter &Printer,
                              const PrintOptions &Opts) const {
+  /// SWIFT_ENABLE_TENSORFLOW
+  switch (getDifferentiability()) {
+    case SILParameterDifferentiability::NotDifferentiable:
+    Printer << "@nondiff ";
+    break;
+    default:
+    break;
+  }
   Printer << getStringForParameterConvention(getConvention());
   getType().print(Printer, Opts);
 }
