@@ -36,10 +36,6 @@ as well as the following command line options:
 * `-i/--in-place`: Overwrites the input files when formatting instead of
   printing the results to standard output.
 
-The command line tool also provides some
-[hidden debugging options](Documentation/Debugging.md) for use when developing
-`swift-format`.
-
 ### Configuration
 
 For any source file being checked or formatted, `swift-format` looks for a
@@ -81,3 +77,8 @@ Please see the documentation in the
 [`SwiftFormatter`](Sources/SwiftFormat/SwiftFormatter.swift) and
 [`SwiftLinter`](Sources/SwiftFormat/SwiftLinter.swift) classes for more
 information about their usage.
+
+## Development
+
+If you are interested in developing `swift-format`, there is additional
+documentation about that [here](Documentation/Development.md).
