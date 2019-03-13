@@ -13,6 +13,8 @@
 import Foundation
 import SwiftFormatConfiguration
 import SwiftFormatCore
+import SwiftFormatPrettyPrint
+import SwiftFormatWhitespaceLinter
 import SwiftSyntax
 
 /// Diagnoses and reports problems in Swift source code or syntax trees according to the Swift style
@@ -64,7 +66,15 @@ public final class SwiftLinter {
 
     pipeline.visit(syntax as Syntax)
 
-    // TODO: Extend the pretty printer to make it possible to lint spacing and breaking issues.
+    // Perform whitespace linting by comparing the input source text with the output of the
+    // pretty-printer.
+    let printer = PrettyPrinter(
+      context: context,
+      node: syntax,
+      printTokenStream: debugOptions.contains(.dumpTokenStream))
+    let formatted = printer.prettyPrint()
+    let ws = WhitespaceLinter(user: syntax.description, formatted: formatted, context: context)
+    ws.lint()
   }
 
   // TODO: Add an overload of `lint` that takes the source text directly.
