@@ -5,10 +5,10 @@ style guidelines. It can be used as a [command line tool](#command-line-usage)
 or linked into other applications as a Swift Package Manager dependency and
 invoked via an [API](#api-usage).
 
-> NOTE: No official Swift style guide has yet been proposed. The style that is
-> currently enforced by `swift-format` is just one possibility, and the
-> code is provided so that it can be tested on real-world code and experiments
-> can be made by modifying it.
+> NOTE: No default Swift code style guidelines have yet been proposed. The
+> style that is currently applied by `swift-format` is just one possibility,
+> and the code is provided so that it can be tested on real-world code and
+> experiments can be made by modifying it.
 
 ## Command Line Usage
 
