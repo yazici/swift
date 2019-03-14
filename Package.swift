@@ -44,6 +44,7 @@ let package = Package(
         "SwiftFormatCore",
         "SwiftFormatPrettyPrint",
         "SwiftFormatRules",
+        "SwiftFormatWhitespaceLinter",
         "SwiftSyntax",
       ]
     ),
@@ -56,6 +57,13 @@ let package = Package(
     .target(
       name: "SwiftFormatPrettyPrint",
       dependencies: ["SwiftFormatCore", "SwiftFormatConfiguration"]
+    ),
+    .target(
+      name: "SwiftFormatWhitespaceLinter",
+      dependencies: [
+        "SwiftFormatCore",
+        "SwiftSyntax",
+      ]
     ),
     .target(name: "generate-pipeline", dependencies: ["SwiftSyntax"]),
     .target(
@@ -86,6 +94,15 @@ let package = Package(
         "SwiftFormatCore",
         "SwiftFormatPrettyPrint",
         "SwiftFormatRules",
+        "SwiftSyntax",
+      ]
+    ),
+    .testTarget(
+      name: "SwiftFormatWhitespaceLinterTests",
+      dependencies: [
+        "SwiftFormatConfiguration",
+        "SwiftFormatCore",
+        "SwiftFormatWhitespaceLinter",
         "SwiftSyntax",
       ]
     ),
