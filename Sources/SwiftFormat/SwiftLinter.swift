@@ -46,6 +46,9 @@ public final class SwiftLinter {
   /// - Parameters url: The URL of the file containing the code to format.
   /// - Throws: If an unrecoverable error occurs when formatting the code.
   public func lint(contentsOf url: URL) throws {
+    guard FileManager.default.isReadableFile(atPath: url.path) else {
+      throw SwiftFormatError.fileNotFound
+    }
     let sourceFile = try SyntaxTreeParser.parse(url)
     try lint(syntax: sourceFile, assumingFileURL: url)
   }

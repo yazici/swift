@@ -50,6 +50,9 @@ public final class SwiftFormatter {
   public func format<Output: TextOutputStream>(
     contentsOf url: URL, to outputStream: inout Output
   ) throws {
+    guard FileManager.default.isReadableFile(atPath: url.path) else {
+      throw SwiftFormatError.fileNotFound
+    }
     let sourceFile = try SyntaxTreeParser.parse(url)
     try format(syntax: sourceFile, assumingFileURL: url, to: &outputStream)
   }
