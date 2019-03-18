@@ -51,12 +51,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    MaximumBlankLines.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
     MultiLineTrailingCommas.self,
     for:
       ArrayExprSyntax.self,
@@ -121,25 +115,12 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addFormatter(
-    OneSpaceInsideBraces.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addFormatter(
     OneVariableDeclarationPerLine.self,
     for:
       AccessorBlockSyntax.self,
       ClosureExprSyntax.self,
       CodeBlockSyntax.self,
       SourceFileSyntax.self
-  )
-
-  pipeline.addFormatter(
-    OperatorWhitespace.self,
-    for:
-      CompositionTypeElementListSyntax.self,
-      ExprListSyntax.self
   )
 
   pipeline.addFormatter(
@@ -251,36 +232,6 @@ func populate(_ pipeline: Pipeline) {
   )
 
   pipeline.addLinter(
-    CloseBraceWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addLinter(
-    CollectionLiteralWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addLinter(
-    ColonWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addLinter(
-    CommaWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addLinter(
-    CommentWhitespace.self,
-    for:
-      TokenSyntax.self
-  )
-
-  pipeline.addLinter(
     DontRepeatTypeInStaticProperties.self,
     for:
       ClassDeclSyntax.self,
@@ -333,12 +284,6 @@ func populate(_ pipeline: Pipeline) {
       ProtocolDeclSyntax.self,
       StructDeclSyntax.self,
       TypealiasDeclSyntax.self
-  )
-
-  pipeline.addLinter(
-    OneSpaceAfterKeywords.self,
-    for:
-      TokenSyntax.self
   )
 
   pipeline.addLinter(
